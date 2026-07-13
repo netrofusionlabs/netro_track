@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, Alert } from 'react-native';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 
-export function MpinScreen({ navigation }: any) {
+export function MpinScreen({ navigation: _navigation }: any) {
   const theme = useTheme();
   const [pin, setPin] = useState<string>('');
 

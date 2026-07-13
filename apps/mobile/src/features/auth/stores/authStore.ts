@@ -15,7 +15,8 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
-  setCredentials: (credentials: { user: UserProfile; accessToken: string; refreshToken: string }) => void;
+  lastLoginId: string | null;
+  setCredentials: (credentials: { user: UserProfile; accessToken: string; refreshToken: string; loginId: string }) => void;
   clearCredentials: () => void;
 }
 
@@ -26,8 +27,9 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
-      setCredentials: ({ user, accessToken, refreshToken }) =>
-        set({ user, accessToken, refreshToken, isAuthenticated: true }),
+      lastLoginId: null,
+      setCredentials: ({ user, accessToken, refreshToken, loginId }) =>
+        set({ user, accessToken, refreshToken, isAuthenticated: true, lastLoginId: loginId }),
       clearCredentials: () =>
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false })
     }),

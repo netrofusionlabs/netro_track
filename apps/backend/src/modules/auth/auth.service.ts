@@ -8,7 +8,27 @@ export class AuthService {
   private authRepository = new AuthRepository();
 
   public async login(input: LoginInput & { os?: string; model?: string; appVersion?: string }) {
-    const user = await this.authRepository.findUserByEmployeeId(input.companyId, input.employeeId);
+    let user;
+
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.loginId);
+
+    if (isEmail) {
+      user = await this.authRepository.findUserByEmail(input.loginId);
+    } else {
+      const parts = input.loginId.split('-');
+      if (parts.length < 2) {
+        throw new AppError('AUTHENTICATION_FAILED', 'Invalid Login ID format. Use COMPANY-EMPLOYEE', 400);
+      }
+      const companyCode = parts[0].trim();
+      const employeeId = parts.slice(1).join('-').trim();
+
+      const company = await this.authRepository.findCompanyByCode(companyCode);
+      if (!company) {
+        throw new AppError('AUTHENTICATION_FAILED', 'Invalid credentials', 401);
+      }
+
+      user = await this.authRepository.findUserByEmployeeId(company.id, employeeId);
+    }
 
     if (!user) {
       throw new AppError('AUTHENTICATION_FAILED', 'Invalid credentials', 401);

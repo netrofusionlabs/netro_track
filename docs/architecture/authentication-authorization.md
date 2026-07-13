@@ -11,7 +11,7 @@
 ### 1.1 First-Time Login
 
 ```
-Employee ID + Password
+Login ID (COMPANY-EMPLOYEE) or Email ID + Password
         │
         ▼
     Validate credentials (Argon2 hash comparison)

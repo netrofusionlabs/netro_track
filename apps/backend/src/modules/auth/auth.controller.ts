@@ -6,11 +6,10 @@ export class AuthController {
 
   public login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { companyId, employeeId, password, deviceId, os, model, appVersion } = req.body;
+      const { loginId, password, deviceId, os, model, appVersion } = req.body;
 
       const result = await this.authService.login({
-        companyId,
-        employeeId,
+        loginId,
         password,
         deviceId,
         os,

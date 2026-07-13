@@ -10,10 +10,13 @@ async function main() {
   const companyId = '123e4567-e89b-12d3-a456-426614174000';
   const company = await prisma.company.upsert({
     where: { id: companyId },
-    update: {},
+    update: {
+      code: 'Netro'
+    },
     create: {
       id: companyId,
-      name: 'NetroFusion Labs Test'
+      name: 'NetroFusion Labs Test',
+      code: 'Netro'
     }
   });
   console.log(`Created company: ${company.name} (${company.id})`);
@@ -28,12 +31,14 @@ async function main() {
       }
     },
     update: {
-      passwordHash
+      passwordHash,
+      email: 'employee@netro.com'
     },
     create: {
       companyId: company.id,
       employeeId: 'EMP001',
       name: 'John Doe',
+      email: 'employee@netro.com',
       passwordHash,
       role: Role.FIELD_EMPLOYEE
     }

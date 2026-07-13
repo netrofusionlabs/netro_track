@@ -85,7 +85,34 @@ Always use the pooled connection string for application queries. Use the direct 
 
 ---
 
-## 5. Environments
+## 5. Storage Capacity Limits (0.5 GB Neon Free Tier)
+
+For configurations utilizing a standard database tier capped at **0.5 GB / 500 MB** of storage (such as the Neon Free Tier), database capacities are projected as follows:
+
+### Average Record Sizing & Capacity Projections
+*   **Static Metadata** (Companies, Users, Branches, Departments): **~300 - 400 bytes** per record.
+*   **Operational Records** (Visits, Sales, Inspections): **~500 bytes** per record (image files are offloaded to Cloudflare R2, leaving only URLs).
+*   **GPS Tracking Points** (Time-series logs): **~200 - 250 bytes** per record (including database index overhead).
+
+### Maximum Record Capacities (Standalone)
+*   **Static/Business Data Only:** Can house **~1.25 Million records**.
+*   **GPS Coordinates Only:** Can house **~2.2 Million records**.
+
+### Real-World Operational Lifespan (GPS Data Impact)
+Active background GPS tracking generates the bulk of database writes. An employee working an 8-hour shift generates **~960 GPS points per day** (assuming 30-second adaptive tracking).
+
+| Active Employees | Daily GPS Points Generated | Estimated Days to Fill 0.5 GB |
+|------------------|---------------------------|-------------------------------|
+| **50**           | 48,000                    | **~41 Days**                  |
+| **100**          | 96,000                    | **~20 Days**                  |
+| **500**          | 480,000                   | **~4 Days**                   |
+| **1,000**        | 960,000                   | **~2 Days**                   |
+
+*Note: Retention and aggregation policies (e.g. archiving raw points after 14-30 days) must be active to prevent running out of database space at V1 launch scales unless the database plan is upgraded.*
+
+---
+
+## 6. Environments
 
 | Environment | Database | Branch | Purpose |
 |-------------|----------|--------|---------|
@@ -97,7 +124,7 @@ Neon branching allows creating isolated database copies for testing without affe
 
 ---
 
-## 6. Backup Strategy
+## 7. Backup Strategy
 
 | Concern | Strategy | Provider |
 |---------|---------|---------|
@@ -105,6 +132,8 @@ Neon branching allows creating isolated database copies for testing without affe
 | Daily backups | Automatic | Neon |
 | Branch-based backups | Create branch before migrations | Manual |
 | Data export | pg_dump for offline backup (monthly) | Manual/Automated |
+
+---
 
 ---
 

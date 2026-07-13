@@ -19,7 +19,28 @@
 
 ---
 
-## 2. Scaling Strategy by Layer
+## 2. Real-Time Hitting & Concurrency Capacity
+
+To understand how many users can hit the backend concurrently in real-time, the system defines "Hitting Capability" by operational tier:
+
+### A. Concurrent Active Sessions
+*   **V1 Launch (Single `t3.medium` EC2):** Supports **2,000 concurrent active users** (active mobile app instances connected via WebSocket/Socket.IO and API).
+*   **V1+ Scale (Single `t3.xlarge` EC2):** Supports **5,000 concurrent active users**.
+*   **V2 Scale (2 EC2 instances behind ALB):** Supports **15,000 concurrent active users**.
+*   **V3 Scale (Auto-Scaling Group, 2-6 instances):** Scales up to **50,000 concurrent active users**.
+
+### B. API Throughput
+*   **V1 Launch:** Designed to handle **~100 requests per second (RPS)**.
+*   **V3 Scale:** Designed to handle up to **5,000 requests per second (RPS)**.
+
+### C. Traffic Management & Optimization
+1.  **Client-Side Batching:** The mobile app does not send a separate API request for every location update. Instead, location data is saved locally inside MMKV storage and sent in **batches of 5–10 points every 2.5 to 5 minutes** in a single optimized payload. This reduces server hit frequency by up to **90%**.
+2.  **Redis Cache Shielding:** Read-heavy operations (e.g. session tokens check, dashboard counters, product catalogues, and the latest coordinates) are cached in Redis. Hits to these endpoints bypass PostgreSQL entirely, preserving database resources.
+3.  **Database Connection Pooling:** Prisma client instances use connection pools of 20 connections per server node. Neon's PgBouncer handles **100 to 500 concurrent connections** directly, allowing serverless or multi-threaded app instances to process queries concurrently.
+
+---
+
+## 3. Scaling Strategy by Layer
 
 ### Application Layer
 
@@ -48,7 +69,7 @@
 
 ---
 
-## 3. Caching Strategy
+## 4. Caching Strategy
 
 ### What to Cache
 
@@ -80,7 +101,7 @@ Request arrives
 
 ---
 
-## 4. Database Optimization
+## 5. Database Optimization
 
 ### Connection Pooling
 
@@ -132,7 +153,7 @@ CREATE TABLE gps_tracks_2025_02 PARTITION OF gps_tracks
 
 ---
 
-## 5. API Performance
+## 6. API Performance
 
 ### Request Processing Pipeline
 
@@ -174,7 +195,7 @@ Response (< 500ms target)
 
 ---
 
-## 6. Load Balancing (V2+)
+## 7. Load Balancing (V2+)
 
 ```
 Internet
@@ -205,7 +226,7 @@ Combined with Redis adapter, Socket.IO events propagate across all instances.
 
 ---
 
-## 7. Background Job Scaling
+## 8. Background Job Scaling
 
 ### BullMQ Queue Architecture
 
@@ -237,7 +258,7 @@ Combined with Redis adapter, Socket.IO events propagate across all instances.
 
 ---
 
-## 8. Monitoring and Alerting
+## 9. Monitoring and Alerting
 
 | Metric | Threshold | Action |
 |--------|-----------|--------|

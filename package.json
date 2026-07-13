@@ -1,0 +1,24 @@
+{
+  "name": "netrotrack",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Enterprise-grade Multi-Tenant Field Workforce Management SaaS Platform",
+  "workspaces": [
+    "apps/backend",
+    "apps/mobile",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=apps/backend",
+    "dev:mobile:android": "npm run android --workspace=apps/mobile",
+    "dev:mobile:ios": "npm run ios --workspace=apps/mobile",
+    "lint": "npm run lint --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run test --workspaces"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.3.3"
+  }
+}

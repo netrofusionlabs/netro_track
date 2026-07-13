@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+jspm_packages/
+web_modules/
+
+# Builds and production outputs
+dist/
+build/
+out/
+lib-cov/
+coverage/
+.nyc_output/
+.serverless/
+.dynamodb/
+
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDEs and editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Log files
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS metadata
+Thumbs.db
+ehthumbs.db
+
+# React Native temporary and build files
+apps/mobile/ios/Pods/
+apps/mobile/ios/build/
+apps/mobile/android/app/build/
+apps/mobile/android/build/
+apps/mobile/.expo/
+apps/mobile/.metro/

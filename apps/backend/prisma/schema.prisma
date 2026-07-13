@@ -1,0 +1,73 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  COMPANY_ADMIN
+  MANAGER
+  FIELD_EMPLOYEE
+}
+
+model Company {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  users     User[]
+
+  @@map("companies")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  employeeId   String    @map("employee_id")
+  name         String
+  passwordHash String    @map("password_hash")
+  mpinHash     String?   @map("mpin_hash")
+  role         Role
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  company Company   @relation(fields: [companyId], references: [id])
+  devices Device[]
+  sessions Session[]
+
+  @@unique([companyId, employeeId])
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("userId") @db.Uuid
+  refreshToken String   @unique @map("refresh_token")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("sessions")
+}
+
+model Device {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  deviceId     String   @map("device_id")
+  os           String
+  model        String
+  appVersion   String   @map("app_version")
+  registeredAt DateTime @default(now()) @map("registered_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, deviceId])
+  @@map("devices")
+}

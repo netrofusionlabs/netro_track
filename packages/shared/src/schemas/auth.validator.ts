@@ -15,3 +15,27 @@ export const loginSchema = z.object({
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+
+// MPIN setup — requires authentication (called right after first login)
+export const setupMpinSchema = z.object({
+  mpin: z
+    .string()
+    .min(4, { message: 'MPIN must be 4–6 digits' })
+    .max(6, { message: 'MPIN must be 4–6 digits' })
+    .regex(/^\d+$/, { message: 'MPIN must contain digits only' })
+});
+
+export type SetupMpinInput = z.infer<typeof setupMpinSchema>;
+
+// MPIN login — public, resolves the user by loginId then checks MPIN
+export const mpinLoginSchema = z.object({
+  loginId: z.string().min(3, { message: 'Login ID is required' }),
+  mpin: z
+    .string()
+    .min(4, { message: 'MPIN must be 4–6 digits' })
+    .max(6, { message: 'MPIN must be 4–6 digits' })
+    .regex(/^\d+$/, { message: 'MPIN must contain digits only' }),
+  deviceId: z.string().min(1, { message: 'Device ID is required' })
+});
+
+export type MpinLoginInput = z.infer<typeof mpinLoginSchema>;

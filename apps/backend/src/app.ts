@@ -23,6 +23,16 @@ import { companyRouter } from './modules/company/company.routes';
 import { employeeRouter } from './modules/employee/employee.routes';
 import { customerRouter } from './modules/customer/customer.routes';
 import { productRouter } from './modules/product/product.routes';
+import { attendanceRouter } from './modules/attendance/attendance.routes';
+import { visitRouter } from './modules/visit/visit.routes';
+import { saleRouter } from './modules/sale/sale.routes';
+import { inspectionRouter } from './modules/inspection/inspection.routes';
+import { uploadRouter } from './modules/upload/upload.routes';
+import { trackingRouter } from './modules/tracking/tracking.routes';
+import path from 'path';
+
+// Static assets serving
+app.use('/static/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Register routes
 app.use('/api/v1/auth', authRouter);
@@ -30,6 +40,12 @@ app.use('/api/v1/companies', companyRouter);
 app.use('/api/v1/employees', employeeRouter);
 app.use('/api/v1/customers', customerRouter);
 app.use('/api/v1/products', productRouter);
+app.use('/api/v1/attendance', attendanceRouter);
+app.use('/api/v1/customer-visits', visitRouter);
+app.use('/api/v1/product-sales', saleRouter);
+app.use('/api/v1/inspections', inspectionRouter);
+app.use('/api/v1/uploads', uploadRouter);
+app.use('/api/v1/tracking', trackingRouter);
 
 // Global Error Handler Middleware
 app.use(errorMiddleware);

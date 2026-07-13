@@ -1,403 +1,465 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import {
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform
+} from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { useAuthStore } from '../features/auth/stores/authStore';
 
+// ── Feature screens ──────────────────────────────────────────────────────────
+import { AttendanceScreen } from '../features/attendance/AttendanceScreen';
+import { AttendanceHistoryScreen } from '../features/attendance/AttendanceHistoryScreen';
+import { VisitsScreen } from '../features/visits/VisitsScreen';
+import { SalesScreen } from '../features/sales/SalesScreen';
+import { InspectionsScreen } from '../features/inspections/InspectionsScreen';
+import { CustomerListScreen } from '../features/customers/CustomerListScreen';
+import { EmployeeListScreen } from '../features/employees/EmployeeListScreen';
+import { TeamMapScreen } from '../features/tracking/TeamMapScreen';
+import { RoutePlaybackScreen } from '../features/tracking/RoutePlaybackScreen';
+
+// ── Dashboard data ────────────────────────────────────────────────────────────
+import { useAttendanceToday } from '../features/attendance/hooks/useAttendance';
+import { useTodayVisits } from '../features/visits/hooks/useVisits';
+import { useTodaySales } from '../features/sales/hooks/useSales';
+import { useTodayInspections } from '../features/inspections/hooks/useInspections';
+
 const Tab = createBottomTabNavigator();
+const AttendanceStack = createStackNavigator();
 
-// --- CRISP CSS VECTOR-LIKE ICONS (No native dependencies) ---
-
-function HomeIcon({ color }: { color: string }) {
-  return (
-    <View style={styles.iconWrapper}>
-      {/* Roof */}
-      <View style={[styles.houseRoof, { borderBottomColor: color }]} />
-      {/* Body */}
-      <View style={[styles.houseBody, { borderColor: color }]} />
-    </View>
-  );
+// ── SVG-free tab icons ────────────────────────────────────────────────────────
+function TabIcon({ symbol, color }: { symbol: string; color: string }) {
+  return <Text style={{ fontSize: 20, color }}>{symbol}</Text>;
 }
 
-function ClientsIcon({ color }: { color: string }) {
-  return (
-    <View style={styles.iconWrapper}>
-      {/* Head */}
-      <View style={[styles.personHead, { backgroundColor: color }]} />
-      {/* Body */}
-      <View style={[styles.personBody, { backgroundColor: color }]} />
-    </View>
-  );
-}
-
-function ProfileIcon({ color }: { color: string }) {
-  return (
-    <View style={styles.iconWrapper}>
-      {/* Head */}
-      <View style={[styles.profileHead, { backgroundColor: color }]} />
-      {/* Body */}
-      <View style={[styles.profileBody, { backgroundColor: color }]} />
-    </View>
-  );
-}
-
-function DashboardIcon({ color }: { color: string }) {
-  return (
-    <View style={[styles.iconWrapper, styles.gridIcon]}>
-      <View style={[styles.gridDot, { backgroundColor: color }]} />
-      <View style={[styles.gridDot, { backgroundColor: color }]} />
-      <View style={[styles.gridDot, { backgroundColor: color }]} />
-      <View style={[styles.gridDot, { backgroundColor: color }]} />
-    </View>
-  );
-}
-
-function WorkforceIcon({ color }: { color: string }) {
-  return (
-    <View style={styles.iconWrapper}>
-      {/* Person 1 */}
-      <View style={[styles.workforceHead1, { backgroundColor: color }]} />
-      <View style={[styles.workforceBody1, { backgroundColor: color }]} />
-      {/* Person 2 */}
-      <View style={[styles.workforceHead2, { backgroundColor: color, opacity: 0.7 }]} />
-      <View style={[styles.workforceBody2, { backgroundColor: color, opacity: 0.7 }]} />
-    </View>
-  );
-}
-
-function TeamIcon({ color }: { color: string }) {
-  return (
-    <View style={styles.iconWrapper}>
-      <View style={[styles.teamBadge, { borderColor: color }]}>
-        <View style={[styles.teamInnerLine, { backgroundColor: color }]} />
-        <View style={[styles.teamInnerLine2, { backgroundColor: color }]} />
-      </View>
-    </View>
-  );
-}
-
-// --- PREMIUM SKELETON SCREENS ---
-
-function Card({ children }: { children: React.ReactNode }) {
+// ── Attendance Stack (Home → History) ────────────────────────────────────────
+function AttendanceStackScreen() {
   const theme = useTheme();
   return (
-    <View style={[
-      styles.card,
-      {
-        backgroundColor: theme.colors.surface.card,
-        borderColor: theme.colors.surface.input
-      }
-    ]}>
-      {children}
-    </View>
+    <AttendanceStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: theme.colors.surface.card },
+        headerTintColor: theme.colors.text.primary,
+        headerTitleStyle: { fontWeight: '700' }
+      }}
+    >
+      <AttendanceStack.Screen
+        name="AttendanceToday"
+        component={AttendanceScreen}
+        options={{ title: 'Attendance' }}
+      />
+      <AttendanceStack.Screen
+        name="AttendanceHistory"
+        component={AttendanceHistoryScreen}
+        options={{ title: 'History' }}
+      />
+    </AttendanceStack.Navigator>
   );
 }
 
-function Header({ title, subtitle }: { title: string; subtitle: string }) {
-  const theme = useTheme();
-  return (
-    <View style={styles.header}>
-      <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>{title}</Text>
-      <Text style={[styles.headerSubtitle, { color: theme.colors.text.secondary }]}>{subtitle}</Text>
-    </View>
-  );
-}
-
-// 1. Employee Dashboard
-function EmployeeDashboard() {
-  const theme = useTheme();
-  const user = useAuthStore((state) => state.user);
-
-  return (
-    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: theme.colors.surface.background }]}>
-      <ScrollView style={styles.screenContainer}>
-        <Header title={`Welcome, ${user?.name || 'Employee'}`} subtitle="Field Agent Dashboard" />
-
-        <Card>
-          <Text style={[styles.cardTitle, { color: theme.colors.text.primary }]}>Attendance Status</Text>
-          <Text style={[styles.statusText, { color: theme.colors.semantic.warning }]}>● Not Punched In</Text>
-          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: theme.colors.brand.primary }]}>
-            <Text style={styles.buttonText}>Punch In Now</Text>
-          </TouchableOpacity>
-        </Card>
-
-        <Card>
-          <Text style={[styles.cardTitle, { color: theme.colors.text.primary }]}>Today's Targets</Text>
-          <View style={styles.targetRow}>
-            <Text style={{ color: theme.colors.text.secondary }}>Customer Visits</Text>
-            <Text style={[styles.targetVal, { color: theme.colors.text.primary }]}>0 / 5 Completed</Text>
-          </View>
-          <View style={styles.targetRow}>
-            <Text style={{ color: theme.colors.text.secondary }}>Sales Target</Text>
-            <Text style={[styles.targetVal, { color: theme.colors.text.primary }]}>$0 / $1,000</Text>
-          </View>
-        </Card>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-// 2. Manager Dashboard
-function ManagerDashboard() {
-  const theme = useTheme();
-  const user = useAuthStore((state) => state.user);
-
-  return (
-    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: theme.colors.surface.background }]}>
-      <ScrollView style={styles.screenContainer}>
-        <Header title={`Hello, ${user?.name || 'Manager'}`} subtitle="Team Supervisor Dashboard" />
-
-        <Card>
-          <Text style={[styles.cardTitle, { color: theme.colors.text.primary }]}>Live Team Status</Text>
-          <Text style={[styles.statusText, { color: theme.colors.brand.primary }]}>● 3 Agents Active Field</Text>
-          <Text style={{ color: theme.colors.text.secondary, marginTop: 4 }}>Last sync: 2 mins ago</Text>
-        </Card>
-
-        <Card>
-          <Text style={[styles.cardTitle, { color: theme.colors.text.primary }]}>Operational Metrics</Text>
-          <View style={styles.targetRow}>
-            <Text style={{ color: theme.colors.text.secondary }}>Total Visits Today</Text>
-            <Text style={[styles.targetVal, { color: theme.colors.text.primary }]}>18 Visits</Text>
-          </View>
-          <View style={styles.targetRow}>
-            <Text style={{ color: theme.colors.text.secondary }}>Total Sales Completed</Text>
-            <Text style={[styles.targetVal, { color: theme.colors.text.primary }]}>$4,820</Text>
-          </View>
-        </Card>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-// 3. Admin Dashboard
-function AdminDashboard() {
-  const theme = useTheme();
-
-  return (
-    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: theme.colors.surface.background }]}>
-      <ScrollView style={styles.screenContainer}>
-        <Header title={`System Admin`} subtitle="Company Operations Portal" />
-
-        <Card>
-          <Text style={[styles.cardTitle, { color: theme.colors.text.primary }]}>Company Directory Summary</Text>
-          <View style={styles.targetRow}>
-            <Text style={{ color: theme.colors.text.secondary }}>Active Employees</Text>
-            <Text style={[styles.targetVal, { color: theme.colors.text.primary }]}>12 Users</Text>
-          </View>
-          <View style={styles.targetRow}>
-            <Text style={{ color: theme.colors.text.secondary }}>Products in Catalog</Text>
-            <Text style={[styles.targetVal, { color: theme.colors.text.primary }]}>48 Catalog SKUs</Text>
-          </View>
-        </Card>
-
-        <Card>
-          <Text style={[styles.cardTitle, { color: theme.colors.text.primary }]}>System Health</Text>
-          <Text style={[styles.statusText, { color: theme.colors.semantic.success }]}>● Connected to PostgreSQL (Neon)</Text>
-        </Card>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-// 4. Employee List
-function EmployeeListScreen() {
-  const theme = useTheme();
-  return (
-    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: theme.colors.surface.background }]}>
-      <ScrollView style={styles.screenContainer}>
-        <Header title="Employees" subtitle="Manage corporate workforce" />
-        {[
-          { id: '1', name: 'John Doe', role: 'FIELD_EMPLOYEE', empId: 'EMP001' },
-          { id: '2', name: 'Jane Smith', role: 'FIELD_EMPLOYEE', empId: 'EMP002' },
-          { id: '3', name: 'Alex Johnson', role: 'MANAGER', empId: 'MGR001' }
-        ].map((emp) => (
-          <Card key={emp.id}>
-            <View style={styles.listRow}>
-              <View>
-                <Text style={[styles.listName, { color: theme.colors.text.primary }]}>{emp.name}</Text>
-                <Text style={{ color: theme.colors.text.secondary }}>{emp.empId} • {emp.role}</Text>
-              </View>
-              <View style={[styles.badge, { backgroundColor: theme.colors.brand.primaryLight }]}>
-                <Text style={{ color: theme.colors.brand.primary, fontSize: 12, fontWeight: '700' }}>Active</Text>
-              </View>
-            </View>
-          </Card>
-        ))}
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-// 5. Customer List
-function CustomerListScreen() {
-  const theme = useTheme();
-  return (
-    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: theme.colors.surface.background }]}>
-      <ScrollView style={styles.screenContainer}>
-        <Header title="Customers" subtitle="Verify and track field accounts" />
-        {[
-          { id: '1', name: 'Metro Agro Agencies', type: 'Dealer', location: 'Central Village' },
-          { id: '2', name: 'Apex Farms Ltd', type: 'Corporate Farmer', location: 'West Valley' }
-        ].map((cust) => (
-          <Card key={cust.id}>
-            <View style={styles.listRow}>
-              <View>
-                <Text style={[styles.listName, { color: theme.colors.text.primary }]}>{cust.name}</Text>
-                <Text style={{ color: theme.colors.text.secondary }}>{cust.type} • {cust.location}</Text>
-              </View>
-            </View>
-          </Card>
-        ))}
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-// 6. Generic/Profile Screen
+// ── Profile Screen ────────────────────────────────────────────────────────────
 function ProfileScreen() {
   const theme = useTheme();
-  const user = useAuthStore((state) => state.user);
-  const clearCredentials = useAuthStore((state) => state.clearCredentials);
+  const user = useAuthStore((s) => s.user);
+  const clearCredentials = useAuthStore((s) => s.clearCredentials);
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: theme.colors.surface.background }]}>
-      <ScrollView style={styles.screenContainer}>
-        <Header title="Profile" subtitle="Manage your account session" />
+    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: theme.colors.surface.background }]}>
+      <ScrollView contentContainerStyle={s.scroll}>
+        <Text style={[s.heading, { color: theme.colors.text.primary }]}>Profile</Text>
 
-        <Card>
-          <View style={styles.profileDetails}>
-            <Text style={[styles.profileName, { color: theme.colors.text.primary }]}>{user?.name}</Text>
-            <Text style={{ color: theme.colors.text.secondary, marginBottom: 12 }}>Role: {user?.role}</Text>
-            <Text style={{ color: theme.colors.text.tertiary }}>ID: {user?.id}</Text>
+        <View style={[s.profileCard, { backgroundColor: theme.colors.surface.card }]}>
+          <View style={[s.avatar, { backgroundColor: theme.colors.brand.primaryLight }]}>
+            <Text style={[s.avatarText, { color: theme.colors.brand.primary }]}>
+              {user?.name?.charAt(0).toUpperCase() ?? '?'}
+            </Text>
           </View>
-        </Card>
+          <Text style={[s.profileName, { color: theme.colors.text.primary }]}>{user?.name}</Text>
+          <View style={[s.roleBadge, { backgroundColor: theme.colors.brand.primaryLight }]}>
+            <Text style={[s.roleBadgeText, { color: theme.colors.brand.primary }]}>
+              {user?.role?.replace(/_/g, ' ')}
+            </Text>
+          </View>
+        </View>
+
+        <View style={[s.infoCard, { backgroundColor: theme.colors.surface.card }]}>
+          <InfoRow label="Employee ID" value={user?.employeeId ?? '—'} theme={theme} />
+          <InfoRow label="User ID" value={user?.id ?? '—'} theme={theme} last />
+        </View>
 
         <TouchableOpacity
           onPress={clearCredentials}
-          style={[styles.logoutButton, { borderColor: theme.colors.semantic.error }]}
+          style={[s.logoutBtn, { borderColor: theme.colors.semantic.error }]}
         >
-          <Text style={[styles.logoutText, { color: theme.colors.semantic.error }]}>Log Out</Text>
+          <Text style={[s.logoutText, { color: theme.colors.semantic.error }]}>Log Out</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// --- ROLE TAB STACKS ROUTING ---
+function InfoRow({
+  label, value, theme, last
+}: { label: string; value: string; theme: ReturnType<typeof useTheme>; last?: boolean }) {
+  return (
+    <View style={[s.infoRow, !last && { borderBottomWidth: 1, borderBottomColor: theme.colors.surface.input }]}>
+      <Text style={[s.infoLabel, { color: theme.colors.text.secondary }]}>{label}</Text>
+      <Text style={[s.infoValue, { color: theme.colors.text.primary }]} numberOfLines={1}>{value}</Text>
+    </View>
+  );
+}
 
-export function RoleNavigator() {
+// ── Employee Dashboard ────────────────────────────────────────────────────────
+function EmployeeDashboard({ navigation }: { navigation: any }) {
   const theme = useTheme();
-  const user = useAuthStore((state) => state.user);
-  const role = user?.role;
+  const user = useAuthStore((s) => s.user);
+  const { data: todayRecord } = useAttendanceToday();
+  const { data: todayVisits = [] } = useTodayVisits();
+  const { data: todaySales = [] } = useTodaySales();
+
+  const isPunchedIn = !!todayRecord && !todayRecord.punchOutTime;
+  const isPunchedOut = !!todayRecord && !!todayRecord.punchOutTime;
+
+  const totalSalesAmount = todaySales.reduce(
+    (sum, sale) => sum + Number(sale.totalAmount), 0
+  );
 
   return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: theme.colors.surface.card,
-          borderTopColor: theme.colors.surface.input,
-          height: Platform.OS === 'ios' ? 88 : 68,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-          paddingTop: 10
-        },
-        tabBarActiveTintColor: theme.colors.brand.primary,
-        tabBarInactiveTintColor: theme.colors.text.tertiary,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '700',
-          marginTop: -2,
-          paddingBottom: 2
-        }
-      }}
-    >
-      {/* 1. FIELD_EMPLOYEE TAB Menu */}
+    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: theme.colors.surface.background }]}>
+      <ScrollView contentContainerStyle={s.scroll}>
+        <Text style={[s.heading, { color: theme.colors.text.primary }]}>
+          Hello, {user?.name?.split(' ')[0] ?? 'Agent'} 👋
+        </Text>
+        <Text style={[s.sub, { color: theme.colors.text.secondary }]}>Field Agent · Today's Overview</Text>
+
+        {/* Attendance status card */}
+        <View style={[s.dashCard, { backgroundColor: theme.colors.surface.card }]}>
+          <Text style={[s.cardTitle, { color: theme.colors.text.primary }]}>Attendance</Text>
+          <Text style={{
+            color: isPunchedIn
+              ? theme.colors.semantic.success
+              : isPunchedOut
+              ? theme.colors.semantic.info
+              : theme.colors.semantic.warning,
+            fontWeight: '700', fontSize: 15, marginBottom: 12
+          }}>
+            {isPunchedIn ? '● Punched In' : isPunchedOut ? '✓ Day Complete' : '○ Not Punched In'}
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Attendance')}
+            style={[s.cardAction, { backgroundColor: theme.colors.brand.primary }]}
+          >
+            <Text style={s.cardActionText}>
+              {isPunchedIn ? 'Punch Out' : isPunchedOut ? 'View Record' : 'Punch In Now'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Stats row */}
+        <View style={s.statsRow}>
+          <View style={[s.statBox, { backgroundColor: theme.colors.surface.card }]}>
+            <Text style={[s.statVal, { color: theme.colors.brand.primary }]}>{todayVisits.length}</Text>
+            <Text style={[s.statLabel, { color: theme.colors.text.secondary }]}>Visits Today</Text>
+          </View>
+          <View style={[s.statBox, { backgroundColor: theme.colors.surface.card }]}>
+            <Text style={[s.statVal, { color: theme.colors.semantic.success }]}>{todaySales.length}</Text>
+            <Text style={[s.statLabel, { color: theme.colors.text.secondary }]}>Sales Today</Text>
+          </View>
+          <View style={[s.statBox, { backgroundColor: theme.colors.surface.card }]}>
+            <Text style={[s.statVal, { color: theme.colors.brand.secondary }]}>
+              ₹{Number(totalSalesAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+            </Text>
+            <Text style={[s.statLabel, { color: theme.colors.text.secondary }]}>Revenue</Text>
+          </View>
+        </View>
+
+        {/* Quick actions */}
+        <Text style={[s.sectionTitle, { color: theme.colors.text.secondary }]}>QUICK ACTIONS</Text>
+        <View style={s.actionsGrid}>
+          {[
+            { label: 'Log Visit', icon: '📍', screen: 'Visits' },
+            { label: 'Record Sale', icon: '💼', screen: 'Sales' },
+            { label: 'Inspection', icon: '🔍', screen: 'Inspections' },
+            { label: 'History', icon: '📋', screen: 'AttendanceHistory' }
+          ].map((action) => (
+            <TouchableOpacity
+              key={action.label}
+              onPress={() => navigation.navigate(action.screen)}
+              style={[s.actionCard, { backgroundColor: theme.colors.surface.card }]}
+            >
+              <Text style={{ fontSize: 24, marginBottom: 6 }}>{action.icon}</Text>
+              <Text style={[s.actionLabel, { color: theme.colors.text.primary }]}>{action.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// ── Manager Dashboard ─────────────────────────────────────────────────────────
+function ManagerDashboard({ navigation }: { navigation: any }) {
+  const theme = useTheme();
+  const user = useAuthStore((s) => s.user);
+  const { data: todayVisits = [] } = useTodayVisits();
+  const { data: todaySales = [] } = useTodaySales();
+  const { data: todayInspections = [] } = useTodayInspections();
+
+  const totalSalesAmount = todaySales.reduce(
+    (sum, sale) => sum + Number(sale.totalAmount), 0
+  );
+
+  return (
+    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: theme.colors.surface.background }]}>
+      <ScrollView contentContainerStyle={s.scroll}>
+        <Text style={[s.heading, { color: theme.colors.text.primary }]}>
+          Hello, {user?.name?.split(' ')[0] ?? 'Manager'} 👋
+        </Text>
+        <Text style={[s.sub, { color: theme.colors.text.secondary }]}>Team Supervisor · Today's Overview</Text>
+
+        {/* Team metrics */}
+        <View style={s.statsRow}>
+          <View style={[s.statBox, { backgroundColor: theme.colors.surface.card }]}>
+            <Text style={[s.statVal, { color: theme.colors.brand.primary }]}>{todayVisits.length}</Text>
+            <Text style={[s.statLabel, { color: theme.colors.text.secondary }]}>Team Visits</Text>
+          </View>
+          <View style={[s.statBox, { backgroundColor: theme.colors.surface.card }]}>
+            <Text style={[s.statVal, { color: theme.colors.semantic.success }]}>{todaySales.length}</Text>
+            <Text style={[s.statLabel, { color: theme.colors.text.secondary }]}>Team Sales</Text>
+          </View>
+          <View style={[s.statBox, { backgroundColor: theme.colors.surface.card }]}>
+            <Text style={[s.statVal, { color: theme.colors.brand.secondary }]}>{todayInspections.length}</Text>
+            <Text style={[s.statLabel, { color: theme.colors.text.secondary }]}>Inspections</Text>
+          </View>
+        </View>
+
+        <View style={[s.dashCard, { backgroundColor: theme.colors.surface.card }]}>
+          <Text style={[s.cardTitle, { color: theme.colors.text.primary }]}>Revenue Today</Text>
+          <Text style={[s.bigVal, { color: theme.colors.semantic.success }]}>
+            ₹{Number(totalSalesAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+          </Text>
+        </View>
+
+        <Text style={[s.sectionTitle, { color: theme.colors.text.secondary }]}>QUICK LINKS</Text>
+        <View style={s.actionsGrid}>
+          {[
+            { label: 'Visits', icon: '📍', screen: 'Visits' },
+            { label: 'Sales', icon: '💼', screen: 'Sales' },
+            { label: 'Agents', icon: '👥', screen: 'Employees' },
+            { label: 'Inspections', icon: '🔍', screen: 'Inspections' }
+          ].map((a) => (
+            <TouchableOpacity
+              key={a.label}
+              onPress={() => navigation.navigate(a.screen)}
+              style={[s.actionCard, { backgroundColor: theme.colors.surface.card }]}
+            >
+              <Text style={{ fontSize: 24, marginBottom: 6 }}>{a.icon}</Text>
+              <Text style={[s.actionLabel, { color: theme.colors.text.primary }]}>{a.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// ── Admin Dashboard ───────────────────────────────────────────────────────────
+function AdminDashboard({ navigation }: { navigation: any }) {
+  const theme = useTheme();
+
+  return (
+    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: theme.colors.surface.background }]}>
+      <ScrollView contentContainerStyle={s.scroll}>
+        <Text style={[s.heading, { color: theme.colors.text.primary }]}>Admin Portal</Text>
+        <Text style={[s.sub, { color: theme.colors.text.secondary }]}>Company Operations Dashboard</Text>
+
+        <View style={[s.dashCard, { backgroundColor: theme.colors.surface.card }]}>
+          <Text style={[s.cardTitle, { color: theme.colors.text.primary }]}>System Health</Text>
+          <Text style={[{ color: theme.colors.semantic.success, fontWeight: '700' }]}>
+            ● Connected — All Services Online
+          </Text>
+        </View>
+
+        <Text style={[s.sectionTitle, { color: theme.colors.text.secondary }]}>MANAGE</Text>
+        <View style={s.actionsGrid}>
+          {[
+            { label: 'Workforce', icon: '👥', screen: 'Employees' },
+            { label: 'Customers', icon: '🏢', screen: 'Customers' },
+            { label: 'Visits', icon: '📍', screen: 'Visits' },
+            { label: 'Sales', icon: '💼', screen: 'Sales' }
+          ].map((a) => (
+            <TouchableOpacity
+              key={a.label}
+              onPress={() => navigation.navigate(a.screen)}
+              style={[s.actionCard, { backgroundColor: theme.colors.surface.card }]}
+            >
+              <Text style={{ fontSize: 24, marginBottom: 6 }}>{a.icon}</Text>
+              <Text style={[s.actionLabel, { color: theme.colors.text.primary }]}>{a.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// ── Role Tab Navigator ────────────────────────────────────────────────────────
+export function RoleNavigator() {
+  const theme = useTheme();
+  const user = useAuthStore((s) => s.user);
+  const role = user?.role;
+
+  const tabBarStyle = {
+    backgroundColor: theme.colors.surface.card,
+    borderTopColor: theme.colors.surface.input,
+    height: Platform.OS === 'ios' ? 88 : 68,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+    paddingTop: 10
+  };
+
+  const screenOptions = {
+    headerShown: false,
+    tabBarStyle,
+    tabBarActiveTintColor: theme.colors.brand.primary,
+    tabBarInactiveTintColor: theme.colors.text.tertiary,
+    tabBarLabelStyle: { fontSize: 11, fontWeight: '700' as const, marginTop: -2, paddingBottom: 2 }
+  };
+
+  return (
+    <Tab.Navigator screenOptions={screenOptions}>
+      {/* ── FIELD_EMPLOYEE ─────────────────────────────────────────────────── */}
       {role === 'FIELD_EMPLOYEE' && (
         <>
           <Tab.Screen
             name="Home"
             component={EmployeeDashboard}
-            options={{
-              tabBarLabel: 'Home',
-              tabBarIcon: ({ color }) => <HomeIcon color={color} />
-            }}
+            options={{ tabBarLabel: 'Home', tabBarIcon: ({ color }) => <TabIcon symbol="🏠" color={color} /> }}
+          />
+          <Tab.Screen
+            name="Attendance"
+            component={AttendanceStackScreen}
+            options={{ tabBarLabel: 'Attendance', tabBarIcon: ({ color }) => <TabIcon symbol="⏱" color={color} /> }}
+          />
+          <Tab.Screen
+            name="Visits"
+            component={VisitsScreen}
+            options={{ tabBarLabel: 'Visits', tabBarIcon: ({ color }) => <TabIcon symbol="📍" color={color} /> }}
+          />
+          <Tab.Screen
+            name="Sales"
+            component={SalesScreen}
+            options={{ tabBarLabel: 'Sales', tabBarIcon: ({ color }) => <TabIcon symbol="💼" color={color} /> }}
+          />
+          <Tab.Screen
+            name="Inspections"
+            component={InspectionsScreen}
+            options={{ tabBarLabel: 'Inspect', tabBarIcon: ({ color }) => <TabIcon symbol="🔍" color={color} /> }}
+          />
+          {/* Hidden screens navigable from dashboard quick-actions */}
+          <Tab.Screen
+            name="Customers"
+            component={CustomerListScreen}
+            options={{ tabBarButton: () => null, tabBarLabel: 'Customers' }}
+          />
+          <Tab.Screen
+            name="AttendanceHistory"
+            component={AttendanceHistoryScreen}
+            options={{ tabBarButton: () => null, tabBarLabel: 'History' }}
+          />
+          <Tab.Screen
+            name="Profile"
+            component={ProfileScreen}
+            options={{ tabBarLabel: 'Profile', tabBarIcon: ({ color }) => <TabIcon symbol="👤" color={color} /> }}
+          />
+        </>
+      )}
+
+      {/* ── MANAGER ────────────────────────────────────────────────────────── */}
+      {role === 'MANAGER' && (
+        <>
+          <Tab.Screen
+            name="Home"
+            component={ManagerDashboard}
+            options={{ tabBarLabel: 'Dashboard', tabBarIcon: ({ color }) => <TabIcon symbol="📊" color={color} /> }}
+          />
+          <Tab.Screen
+            name="TeamMap"
+            component={TeamMapScreen}
+            options={{ tabBarLabel: 'Live Map', tabBarIcon: ({ color }) => <TabIcon symbol="🗺" color={color} /> }}
+          />
+          <Tab.Screen
+            name="Employees"
+            component={EmployeeListScreen}
+            options={{ tabBarLabel: 'Agents', tabBarIcon: ({ color }) => <TabIcon symbol="👥" color={color} /> }}
+          />
+          <Tab.Screen
+            name="Visits"
+            component={VisitsScreen}
+            options={{ tabBarLabel: 'Visits', tabBarIcon: ({ color }) => <TabIcon symbol="📍" color={color} /> }}
+          />
+          <Tab.Screen
+            name="Sales"
+            component={SalesScreen}
+            options={{ tabBarLabel: 'Sales', tabBarIcon: ({ color }) => <TabIcon symbol="💼" color={color} /> }}
+          />
+          {/* Hidden: Route playback accessible from agent detail or dashboard */}
+          <Tab.Screen
+            name="RoutePlayback"
+            component={RoutePlaybackScreen}
+            options={{ tabBarButton: () => null, tabBarLabel: 'Route' }}
+          />
+          <Tab.Screen
+            name="Profile"
+            component={ProfileScreen}
+            options={{ tabBarLabel: 'Profile', tabBarIcon: ({ color }) => <TabIcon symbol="👤" color={color} /> }}
+          />
+        </>
+      )}
+
+      {/* ── COMPANY_ADMIN ───────────────────────────────────────────────────── */}
+      {(role === 'COMPANY_ADMIN' || role === 'SUPER_ADMIN') && (
+        <>
+          <Tab.Screen
+            name="Home"
+            component={AdminDashboard}
+            options={{ tabBarLabel: 'Dashboard', tabBarIcon: ({ color }) => <TabIcon symbol="🏢" color={color} /> }}
+          />
+          <Tab.Screen
+            name="TeamMap"
+            component={TeamMapScreen}
+            options={{ tabBarLabel: 'Live Map', tabBarIcon: ({ color }) => <TabIcon symbol="🗺" color={color} /> }}
+          />
+          <Tab.Screen
+            name="Employees"
+            component={EmployeeListScreen}
+            options={{ tabBarLabel: 'Workforce', tabBarIcon: ({ color }) => <TabIcon symbol="👥" color={color} /> }}
           />
           <Tab.Screen
             name="Customers"
             component={CustomerListScreen}
-            options={{
-              tabBarLabel: 'Clients',
-              tabBarIcon: ({ color }) => <ClientsIcon color={color} />
-            }}
+            options={{ tabBarLabel: 'Clients', tabBarIcon: ({ color }) => <TabIcon symbol="🤝" color={color} /> }}
+          />
+          <Tab.Screen
+            name="Visits"
+            component={VisitsScreen}
+            options={{ tabBarLabel: 'Visits', tabBarIcon: ({ color }) => <TabIcon symbol="📍" color={color} /> }}
+          />
+          <Tab.Screen
+            name="Sales"
+            component={SalesScreen}
+            options={{ tabBarLabel: 'Sales', tabBarIcon: ({ color }) => <TabIcon symbol="💼" color={color} /> }}
+          />
+          {/* Hidden: Route playback accessible from employee detail view */}
+          <Tab.Screen
+            name="RoutePlayback"
+            component={RoutePlaybackScreen}
+            options={{ tabBarButton: () => null, tabBarLabel: 'Route' }}
           />
           <Tab.Screen
             name="Profile"
             component={ProfileScreen}
-            options={{
-              tabBarLabel: 'Profile',
-              tabBarIcon: ({ color }) => <ProfileIcon color={color} />
-            }}
-          />
-        </>
-      )}
-
-      {/* 2. MANAGER TAB Menu */}
-      {role === 'MANAGER' && (
-        <>
-          <Tab.Screen
-            name="Team"
-            component={ManagerDashboard}
-            options={{
-              tabBarLabel: 'Team',
-              tabBarIcon: ({ color }) => <TeamIcon color={color} />
-            }}
-          />
-          <Tab.Screen
-            name="Employees"
-            component={EmployeeListScreen}
-            options={{
-              tabBarLabel: 'Agents',
-              tabBarIcon: ({ color }) => <WorkforceIcon color={color} />
-            }}
-          />
-          <Tab.Screen
-            name="Profile"
-            component={ProfileScreen}
-            options={{
-              tabBarLabel: 'Profile',
-              tabBarIcon: ({ color }) => <ProfileIcon color={color} />
-            }}
-          />
-        </>
-      )}
-
-      {/* 3. COMPANY_ADMIN TAB Menu */}
-      {role === 'COMPANY_ADMIN' && (
-        <>
-          <Tab.Screen
-            name="Dashboard"
-            component={AdminDashboard}
-            options={{
-              tabBarLabel: 'Dashboard',
-              tabBarIcon: ({ color }) => <DashboardIcon color={color} />
-            }}
-          />
-          <Tab.Screen
-            name="Employees"
-            component={EmployeeListScreen}
-            options={{
-              tabBarLabel: 'Workforce',
-              tabBarIcon: ({ color }) => <WorkforceIcon color={color} />
-            }}
-          />
-          <Tab.Screen
-            name="Profile"
-            component={ProfileScreen}
-            options={{
-              tabBarLabel: 'Profile',
-              tabBarIcon: ({ color }) => <ProfileIcon color={color} />
-            }}
+            options={{ tabBarLabel: 'Profile', tabBarIcon: ({ color }) => <TabIcon symbol="👤" color={color} /> }}
           />
         </>
       )}
@@ -405,229 +467,66 @@ export function RoleNavigator() {
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1
-  },
-  screenContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 16
-  },
-  header: {
-    marginBottom: 24
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: -0.5
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    marginTop: 2
-  },
-  card: {
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 16,
+// ── Styles ────────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  safe: { flex: 1 },
+  scroll: { padding: 20, paddingBottom: 40 },
+  heading: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+  sub: { fontSize: 13, marginTop: 2, marginBottom: 20 },
+  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.06, marginBottom: 10, marginTop: 8 },
+  dashCard: {
+    borderRadius: 14, padding: 20, marginBottom: 16,
     ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10
-      },
-      android: {
-        elevation: 2
-      }
+      ios: { shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+      android: { elevation: 2 }
     })
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 12
+  cardTitle: { fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  cardAction: { borderRadius: 10, padding: 12, alignItems: 'center' },
+  cardActionText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  bigVal: { fontSize: 28, fontWeight: '800' },
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  statBox: {
+    flex: 1, borderRadius: 12, padding: 14, alignItems: 'center',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+      android: { elevation: 1 }
+    })
   },
-  statusText: {
-    fontSize: 15,
-    fontWeight: '600'
+  statVal: { fontSize: 22, fontWeight: '800' },
+  statLabel: { fontSize: 11, fontWeight: '600', marginTop: 4, textAlign: 'center' },
+  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
+  actionCard: {
+    width: '47%', borderRadius: 14, padding: 16, alignItems: 'center',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+      android: { elevation: 1 }
+    })
   },
-  primaryButton: {
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 16
+  actionLabel: { fontSize: 13, fontWeight: '700' },
+  // Profile
+  profileCard: {
+    borderRadius: 14, padding: 24, marginBottom: 16, alignItems: 'center',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+      android: { elevation: 2 }
+    })
   },
-  buttonText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '700'
+  avatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  avatarText: { fontSize: 30, fontWeight: '800' },
+  profileName: { fontSize: 20, fontWeight: '800', marginBottom: 8 },
+  roleBadge: { borderRadius: 20, paddingHorizontal: 14, paddingVertical: 5 },
+  roleBadgeText: { fontSize: 12, fontWeight: '700' },
+  infoCard: {
+    borderRadius: 14, marginBottom: 20,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+      android: { elevation: 1 }
+    })
   },
-  targetRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8
-  },
-  targetVal: {
-    fontSize: 14,
-    fontWeight: '600'
-  },
-  listRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  listName: {
-    fontSize: 16,
-    fontWeight: '700'
-  },
-  badge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8
-  },
-  profileDetails: {
-    alignItems: 'center',
-    paddingVertical: 12
-  },
-  profileName: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginBottom: 4
-  },
-  logoutButton: {
-    height: 52,
-    borderRadius: 16,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 48
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '700'
-  },
-  iconWrapper: {
-    width: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative'
-  },
-  houseRoof: {
-    width: 0,
-    height: 0,
-    borderStyle: 'solid',
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderBottomWidth: 7,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    marginBottom: 1
-  },
-  houseBody: {
-    width: 12,
-    height: 9,
-    borderWidth: 2,
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2
-  },
-  personHead: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    marginBottom: 2
-  },
-  personBody: {
-    width: 14,
-    height: 7,
-    borderTopLeftRadius: 5,
-    borderTopRightRadius: 5
-  },
-  profileHead: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginBottom: 2
-  },
-  profileBody: {
-    width: 16,
-    height: 8,
-    borderTopLeftRadius: 6,
-    borderTopRightRadius: 6
-  },
-  gridIcon: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: 16,
-    height: 16,
-    justifyContent: 'space-between',
-    alignContent: 'space-between'
-  },
-  gridDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 2
-  },
-  workforceHead1: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    position: 'absolute',
-    top: 2,
-    left: 4,
-    zIndex: 2
-  },
-  workforceBody1: {
-    width: 12,
-    height: 7,
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
-    position: 'absolute',
-    bottom: 3,
-    left: 1,
-    zIndex: 2
-  },
-  workforceHead2: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    position: 'absolute',
-    top: 4,
-    right: 3,
-    zIndex: 1
-  },
-  workforceBody2: {
-    width: 12,
-    height: 7,
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
-    position: 'absolute',
-    bottom: 1,
-    right: 0,
-    zIndex: 1
-  },
-  teamBadge: {
-    width: 15,
-    height: 15,
-    borderRadius: 3,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 2
-  },
-  teamInnerLine: {
-    width: 7,
-    height: 2,
-    borderRadius: 1,
-    marginBottom: 2
-  },
-  teamInnerLine2: {
-    width: 7,
-    height: 2
-  }
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, alignItems: 'center' },
+  infoLabel: { fontSize: 13, fontWeight: '600' },
+  infoValue: { fontSize: 13, flex: 1, textAlign: 'right', marginLeft: 8 },
+  logoutBtn: { borderRadius: 12, borderWidth: 1, padding: 16, alignItems: 'center' },
+  logoutText: { fontSize: 15, fontWeight: '700' }
 });

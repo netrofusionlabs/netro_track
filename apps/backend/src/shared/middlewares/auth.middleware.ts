@@ -2,15 +2,9 @@ import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AppError } from '../errors/AppError';
 import { TenantRequest } from './tenant.middleware';
+import { AuthenticatedRequest as SharedAuthenticatedRequest } from '../types/request';
 
-export interface AuthenticatedRequest extends TenantRequest {
-  user?: {
-    id: string;
-    companyId: string;
-    employeeId: string;
-    role: string;
-  };
-}
+export interface AuthenticatedRequest extends TenantRequest, SharedAuthenticatedRequest {}
 
 export function authMiddleware(
   req: AuthenticatedRequest,
@@ -41,3 +35,6 @@ export function authMiddleware(
     next(new AppError('INVALID_TOKEN', 'Access token is invalid or expired', 401));
   }
 }
+
+// Alias for named consistency across modules
+export const authenticateToken = authMiddleware;

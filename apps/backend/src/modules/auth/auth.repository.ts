@@ -1,6 +1,8 @@
 import { prisma } from '../../shared/config/prisma';
 import { User, Device, Session, Company } from '@prisma/client';
 
+export type UserWithMpin = Pick<User, 'id' | 'companyId' | 'employeeId' | 'name' | 'role' | 'mpinHash'>;
+
 export class AuthRepository {
   public async findCompanyByCode(code: string): Promise<Company | null> {
     return prisma.company.findFirst({
@@ -80,6 +82,27 @@ export class AuthRepository {
         refreshToken,
         expiresAt
       }
+    });
+  }
+
+  public async findUserById(userId: string): Promise<UserWithMpin | null> {
+    return prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: {
+        id: true,
+        companyId: true,
+        employeeId: true,
+        name: true,
+        role: true,
+        mpinHash: true
+      }
+    });
+  }
+
+  public async updateMpinHash(userId: string, mpinHash: string): Promise<void> {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { mpinHash }
     });
   }
 }

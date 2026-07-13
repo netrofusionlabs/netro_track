@@ -130,5 +130,42 @@ Execute the complete end-to-end development of NetroTrack V1, a commercial enter
 - Mobile components will be tested via React Native Testing Library.
 
 ### Manual Verification
-- Each phase concludes with a manual QA cycle.
-- Staging environment will be used for end-to-end user acceptance testing.
+
+To compile, build, and run packages, you can execute commands from the monorepo root using workspaces, or navigate directly into the separate folder directories:
+
+#### Root Monorepo Commands
+```bash
+# Install all dependencies across all workspaces
+npm install
+
+# Run type-checking globally
+npm run typecheck
+
+# Run linting globally
+npm run lint
+```
+
+#### Shared Package Directory (`packages/shared/`)
+```bash
+# Build the shared package directly
+cd packages/shared && npm run build
+```
+
+#### Backend Directory (`apps/backend/`)
+```bash
+# Run backend development server directly from the folder
+cd apps/backend && npm run dev
+
+# Run Prisma database migrations
+cd apps/backend && npx prisma migrate dev
+```
+
+#### Mobile App Directory (`apps/mobile/`)
+```bash
+# Run android build from the mobile folder
+cd apps/mobile && npm run android
+
+# Install iOS CocoaPods and run iOS build
+cd apps/mobile/ios && pod install
+cd apps/mobile && npm run ios
+```

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, View, Text, SafeAreaView, TouchableOpacity } from 'react-native';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
+import { useAuthStore } from '../stores/authStore';
 
 export function MpinScreen({ navigation: _navigation }: any) {
   const theme = useTheme();
   const [pin, setPin] = useState<string>('');
+  const setMpinVerified = useAuthStore((state) => state.setMpinVerified);
 
   const handleKeyPress = (num: string) => {
     if (pin.length < 4) {
@@ -12,9 +14,7 @@ export function MpinScreen({ navigation: _navigation }: any) {
       setPin(newPin);
       if (newPin.length === 4) {
         // Complete
-        Alert.alert('MPIN Success', 'Daily quick login complete!', [
-          { text: 'OK', onPress: () => Alert.alert('App Entry', 'Welcome to the Dashboard!') }
-        ]);
+        setMpinVerified(true);
       }
     }
   };

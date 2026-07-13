@@ -19,9 +19,17 @@ app.use('/health', (_req, res) => {
 
 // Import modules
 import { authRouter } from './modules/auth/auth.routes';
+import { companyRouter } from './modules/company/company.routes';
+import { employeeRouter } from './modules/employee/employee.routes';
+import { customerRouter } from './modules/customer/customer.routes';
+import { productRouter } from './modules/product/product.routes';
 
 // Register routes
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/companies', companyRouter);
+app.use('/api/v1/employees', employeeRouter);
+app.use('/api/v1/customers', customerRouter);
+app.use('/api/v1/products', productRouter);
 
 // Global Error Handler Middleware
 app.use(errorMiddleware);

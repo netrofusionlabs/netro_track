@@ -7,7 +7,7 @@ import { useAuthStore } from '../features/auth/stores/authStore';
 
 const Stack = createStackNavigator();
 
-export function RootNavigator() {
+export default function RootNavigator() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   return (

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
 import { AppIcon } from './AppIcon';
+import { BrandLogo } from './BrandLogo';
 import { Avatar } from './Avatar';
 import { useAuthStore } from '../../features/auth/stores/authStore';
 import { api } from '../services/api';
@@ -89,15 +90,11 @@ export function GlobalHeader({
       <View style={styles.headerInner}>
         {/* LEFT SIDE: NetroTrack Brand + Optional Splitter & Co-branding */}
         <View style={styles.leftSection}>
-          {/* NetroTrack Logo Badge */}
-          <View style={[styles.brandMark, { backgroundColor: theme.colors.brand.primary }]}>
-            <Text style={styles.brandMarkLetter}>N</Text>
-          </View>
-
-          {/* NetroTrack Brand Text */}
-          <Text style={[styles.brandTitle, { color: theme.colors.text.primary }]}>
-            NetroTrack
-          </Text>
+          <BrandLogo
+            variant="banner"
+            size={companyDisplayName ? 108 : 128}
+            style={styles.brandLogo}
+          />
 
           {/* Show Splitter & Powered-by ONLY when companyDisplayName is available */}
           {!!companyDisplayName && (
@@ -176,32 +173,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 40,
+    minHeight: 40,
   },
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
     flexShrink: 1,
-  },
-  brandMark: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginRight: 8,
   },
-  brandMarkLetter: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    marginTop: -1,
-  },
-  brandTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.4,
+  brandLogo: {
+    flexShrink: 1,
   },
   verticalSplitter: {
     width: 1.5,

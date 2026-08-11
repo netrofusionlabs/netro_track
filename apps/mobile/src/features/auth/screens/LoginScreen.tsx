@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
-import { Input, Button, Card, AppIcon } from '../../../shared/components';
+import { Input, Button, Card, BrandLogo } from '../../../shared/components';
 import { useAuthStore } from '../stores/authStore';
 import { BASE_URL } from '../../../shared/services/api';
 
@@ -85,15 +85,7 @@ export function LoginScreen({ navigation }: { navigation: any }) {
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           {/* Hero Branding */}
           <View style={styles.brandHero}>
-            <View style={[styles.logoBadge, { backgroundColor: theme.colors.brand.primary }]}>
-              <AppIcon name="visits" color="#FFFFFF" size={32} />
-            </View>
-            <Text style={[typography.displayLg, { color: theme.colors.text.primary, marginTop: 12 }]}>
-              NetroTrack
-            </Text>
-            <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-              Track. Manage. Perform.
-            </Text>
+            <BrandLogo variant="banner" size={300} />
           </View>
 
           {/* Login Card */}
@@ -162,13 +154,6 @@ const styles = StyleSheet.create({
   brandHero: {
     alignItems: 'center',
     marginBottom: 28,
-  },
-  logoBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   loginCard: {
     padding: 20,

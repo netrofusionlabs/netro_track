@@ -5,7 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
-import { AppIcon } from '../../../shared/components';
+import { AppIcon, BrandLogo } from '../../../shared/components';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../../../shared/services/api';
 
@@ -82,6 +82,7 @@ export function MpinScreen({ navigation: _navigation }: any) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surface.background }]}>
       <View style={styles.content}>
+        <BrandLogo variant="mark" size={64} style={styles.brandLogo} />
         <Text style={[typography.displaySm, { color: theme.colors.text.primary, textAlign: 'center' }]}>
           Enter MPIN
         </Text>
@@ -172,6 +173,7 @@ export function MpinScreen({ navigation: _navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  brandLogo: { marginBottom: 20 },
   dotContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 24, marginBottom: 32 },
   dot: { width: 16, height: 16, borderRadius: 8, marginHorizontal: 10 },
   keypad: { width: '100%', maxWidth: 280 },

@@ -230,7 +230,7 @@ class LocationForegroundService : Service() {
             Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle("Active Shift")
                 .setContentText("NetroTrack is tracking your location")
-                .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+                .setSmallIcon(R.drawable.ic_stat_netrotrack)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)       // Cannot be swiped away by user
                 .setCategory(Notification.CATEGORY_SERVICE)
@@ -240,7 +240,7 @@ class LocationForegroundService : Service() {
             Notification.Builder(this)
                 .setContentTitle("Active Shift")
                 .setContentText("NetroTrack is tracking your location")
-                .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+                .setSmallIcon(R.drawable.ic_stat_netrotrack)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
                 .build()

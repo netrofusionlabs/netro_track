@@ -13,6 +13,7 @@ import {
   ListItem,
   Button,
   StatusBadge,
+  BrandLogo,
 } from '../../../shared/components';
 import { TermsModal } from '../../auth/components/TermsModal';
 import { PrivacyModal } from '../../auth/components/PrivacyModal';
@@ -107,6 +108,13 @@ export function ProfileScreen() {
           fullWidth
           style={{ marginTop: 24 }}
         />
+
+        <View style={styles.aboutBrand}>
+          <BrandLogo variant="banner" size={200} />
+          <Text style={[typography.caption, { color: theme.colors.text.tertiary, marginTop: 8, textAlign: 'center' }]}>
+            Track. Manage. Perform. · Powered by NetroFusion Labs
+          </Text>
+        </View>
       </ScrollView>
 
       <TermsModal visible={termsVisible} onClose={() => setTermsVisible(false)} />
@@ -135,5 +143,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
+  },
+  aboutBrand: {
+    alignItems: 'center',
+    marginTop: 32,
+    paddingBottom: 8,
   },
 });

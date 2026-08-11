@@ -1,4 +1,5 @@
 export * from './AppIcon';
+export * from './BrandLogo';
 export * from './Button';
 export * from './Card';
 export * from './Badge';
@@ -18,6 +19,7 @@ export * from './IconButton';
 export * from './EmptyState';
 export * from './ErrorState';
 export * from './LoadingState';
+export * from './SplashScreen';
 export * from './SkeletonLoader';
 export * from './OfflineBanner';
 export * from './SyncIndicator';

@@ -16,6 +16,7 @@ import {
   Divider,
   Badge,
   AppIcon,
+  BrandLogo,
 } from '../../../shared/components';
 import { TermsModal } from '../components/TermsModal';
 import { PrivacyModal } from '../components/PrivacyModal';
@@ -109,6 +110,7 @@ export function ConsentScreen({ onConsentAccepted }: ConsentScreenProps) {
       >
         {/* Header */}
         <View style={styles.headerContainer}>
+          <BrandLogo variant="banner" size={240} style={styles.brandLogo} />
           <Badge
             label={`Version ${CURRENT_CONSENT_VERSION}`}
             variant="info"
@@ -403,6 +405,10 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     marginBottom: 16,
+  },
+  brandLogo: {
+    marginBottom: 16,
+    alignSelf: 'center',
   },
   card: {
     marginBottom: 14,

@@ -2,13 +2,15 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { typography } from '../theme/typography';
+import { AppIcon, AppIconName } from './AppIcon';
 
 interface ScreenHeaderProps {
   title: string;
   subtitle?: string;
   actionLabel?: string;
-  actionIcon?: string;
+  actionIcon?: AppIconName | string;
   onAction?: () => void;
+  variant?: 'page' | 'section';
   style?: ViewStyle;
 }
 
@@ -18,18 +20,31 @@ export function ScreenHeader({
   actionLabel,
   actionIcon,
   onAction,
+  variant = 'page',
   style,
 }: ScreenHeaderProps) {
   const theme = useTheme();
 
+  const isSection = variant === 'section';
+
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, isSection ? styles.sectionContainer : styles.pageContainer, style]}>
       <View style={styles.textBlock}>
-        <Text style={[typography.displaySm, { color: theme.colors.text.primary }]}>
+        <Text
+          style={[
+            isSection ? typography.overline : typography.displaySm,
+            {
+              color: isSection ? theme.colors.text.secondary : theme.colors.text.primary,
+              fontSize: isSection ? 12 : 22,
+              fontWeight: isSection ? '700' : '700',
+              letterSpacing: isSection ? 0.6 : -0.3,
+            },
+          ]}
+        >
           {title}
         </Text>
-        {subtitle && (
-          <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+        {subtitle && !isSection && (
+          <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 2, fontSize: 13 }]}>
             {subtitle}
           </Text>
         )}
@@ -37,11 +52,28 @@ export function ScreenHeader({
       {actionLabel && onAction && (
         <TouchableOpacity
           onPress={onAction}
-          style={[styles.actionBtn, { backgroundColor: theme.colors.brand.primary }]}
-          activeOpacity={0.8}
+          style={isSection ? styles.textActionBtn : [styles.actionBtn, { backgroundColor: theme.colors.brand.primary }]}
+          activeOpacity={0.7}
         >
-          {actionIcon && <Text style={styles.actionIcon}>{actionIcon}</Text>}
-          <Text style={[typography.buttonSm, { color: '#FFFFFF' }]}>{actionLabel}</Text>
+          {actionIcon && (
+            <AppIcon
+              name={actionIcon}
+              color={isSection ? theme.colors.brand.primary : '#FFFFFF'}
+              size={isSection ? 12 : 14}
+            />
+          )}
+          <Text
+            style={[
+              typography.buttonSm,
+              {
+                color: isSection ? theme.colors.brand.primary : '#FFFFFF',
+                fontSize: isSection ? 12 : 13,
+                fontWeight: isSection ? '600' : '700',
+              },
+            ]}
+          >
+            {actionLabel}
+          </Text>
         </TouchableOpacity>
       )}
     </View>
@@ -52,8 +84,14 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
+    alignItems: 'center',
+  },
+  pageContainer: {
+    marginBottom: 16,
+  },
+  sectionContainer: {
+    marginTop: 12,
+    marginBottom: 8,
   },
   textBlock: {
     flex: 1,
@@ -62,12 +100,16 @@ const styles = StyleSheet.create({
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     gap: 6,
   },
-  actionIcon: {
-    fontSize: 14,
+  textActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    gap: 4,
   },
 });

@@ -5,6 +5,7 @@ import { zustandStorage } from '../../../shared/utils/storage';
 export interface UserProfile {
   id: string;
   companyId: string;
+  companyName?: string;
   employeeId: string;
   name: string;
   role: string;

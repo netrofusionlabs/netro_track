@@ -1,48 +1,62 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Alert, ActivityIndicator
+  View, Text, ScrollView, StyleSheet, Alert, TouchableOpacity
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../shared/theme/ThemeProvider';
 import { typography } from '../../shared/theme/typography';
-import { Card } from '../../shared/components/Card';
-import { Badge } from '../../shared/components/Badge';
-import { EmptyState } from '../../shared/components/EmptyState';
-import { ScreenHeader } from '../../shared/components/ScreenHeader';
-import { Input } from '../../shared/components/Input';
-import { Button } from '../../shared/components/Button';
+import {
+  Card,
+  Badge,
+  EmptyState,
+  ScreenHeader,
+  Input,
+  Button,
+  AppIcon,
+  LoadingState,
+} from '../../shared/components';
 import { CameraCapture } from '../../shared/components/CameraCapture';
 import { useInspections, useCreateInspection } from './hooks/useInspections';
 import type { InspectionRecord } from './types';
 
-function InspectionCard({ item, theme }: { item: InspectionRecord; theme: ReturnType<typeof useTheme> }) {
+function InspectionCard({ item }: { item: InspectionRecord }) {
+  const theme = useTheme();
   return (
-    <Card style={{ paddingVertical: 16, paddingHorizontal: 18 }}>
-      <View style={s.rowBetween}>
-        <View style={{ flex: 1 }}>
-          <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
-            {item.siteName}
-          </Text>
-          <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 4 }]}>
+    <Card style={{ paddingVertical: 14, paddingHorizontal: 16 }}>
+      <View style={styles.rowBetween}>
+        <View style={{ flex: 1, paddingRight: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <AppIcon name="inspect" color={theme.colors.brand.primary} size={18} />
+            <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+              {item.siteName}
+            </Text>
+          </View>
+          <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 4 }]}>
             {new Date(item.createdAt).toLocaleDateString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </Text>
         </View>
         {item.category && (
-          <Badge label={item.category} size="sm" />
+          <Badge label={item.category} variant="info" size="sm" />
         )}
       </View>
-      <Text style={[typography.bodyMd, { color: theme.colors.text.primary, marginTop: 12 }]} numberOfLines={3}>
+      <Text style={[typography.bodyMd, { color: theme.colors.text.primary, marginTop: 10 }]} numberOfLines={3}>
         {item.observation}
       </Text>
       {item.recommendation && (
-        <Text style={[typography.bodySm, { color: theme.colors.text.tertiary, marginTop: 8 }]} numberOfLines={2}>
-          💡 {item.recommendation}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 }}>
+          <AppIcon name="document" color={theme.colors.text.tertiary} size={14} />
+          <Text style={[typography.bodySm, { color: theme.colors.text.tertiary }]} numberOfLines={2}>
+            {item.recommendation}
+          </Text>
+        </View>
       )}
       {item.imageUrls?.length > 0 && (
-        <Text style={[typography.caption, { color: theme.colors.brand.primary, marginTop: 8 }]}>
-          📷 {item.imageUrls.length} photo{item.imageUrls.length !== 1 ? 's' : ''} attached
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 }}>
+          <AppIcon name="camera" color={theme.colors.brand.primary} size={14} />
+          <Text style={[typography.caption, { color: theme.colors.brand.primary, fontWeight: '600' }]}>
+            {item.imageUrls.length} photo{item.imageUrls.length !== 1 ? 's' : ''} attached
+          </Text>
+        </View>
       )}
     </Card>
   );
@@ -88,23 +102,23 @@ export function InspectionsScreen() {
         onError: (e) => Alert.alert('Error', e.message),
       }
     );
-  }, [siteName, category, observation, recommendation, createInspection]);
+  }, [siteName, category, observation, recommendation, imageUrls, createInspection]);
 
   if (showCamera) {
     return (
-      <CameraCapture 
-        onCancel={() => setShowCamera(false)} 
+      <CameraCapture
+        onCancel={() => setShowCamera(false)}
         onPhotoCaptured={(uri) => {
           setImageUrls(prev => [...prev, uri]);
           setShowCamera(false);
-        }} 
+        }}
       />
     );
   }
 
   return (
-    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: theme.colors.surface.background }]}>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+    <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader
           title="Inspections"
           subtitle={`${inspections.length} total records`}
@@ -113,64 +127,97 @@ export function InspectionsScreen() {
         />
 
         {showForm && (
-          <Card variant="elevated" style={{ marginBottom: 24 }}>
-            <Text style={[typography.headingMd, { color: theme.colors.text.primary, marginBottom: 16 }]}>
+          <Card style={{ marginBottom: 16 }}>
+            <Text style={[typography.headingMd, { color: theme.colors.text.primary, marginBottom: 14 }]}>
               New Inspection
             </Text>
             <Input label="Site Name" value={siteName} onChangeText={setSiteName} placeholder="e.g. Warehouse B" />
             <Input label="Category" value={category} onChangeText={setCategory} placeholder="e.g. Safety, Quality" />
-            <Input label="Observation" value={observation} onChangeText={setObservation} placeholder="Describe what you found..." multiline numberOfLines={4} />
-            <Input label="Recommendation" value={recommendation} onChangeText={setRecommendation} placeholder="Suggested actions..." multiline numberOfLines={3} />
-            
-            <View style={{ marginBottom: 20 }}>
+            <Input label="Observation" value={observation} onChangeText={setObservation} placeholder="Describe what you found..." multiline numberOfLines={3} />
+            <Input label="Recommendation" value={recommendation} onChangeText={setRecommendation} placeholder="Suggested actions..." multiline numberOfLines={2} />
+
+            <View style={{ marginBottom: 16 }}>
               {imageUrls.length > 0 && (
-                <View style={s.photoPreview}>
-                  <Text style={[typography.bodySm, { color: theme.colors.text.primary }]}>📸 {imageUrls.length} Photo(s) Attached</Text>
+                <View style={[styles.photoPreview, { borderColor: theme.colors.surface.border, backgroundColor: theme.colors.surface.subtle }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <AppIcon name="camera" color={theme.colors.brand.primary} size={18} />
+                    <Text style={[typography.bodySm, { color: theme.colors.text.primary }]}>
+                      {imageUrls.length} Photo(s) Attached
+                    </Text>
+                  </View>
                   <TouchableOpacity onPress={() => setImageUrls([])}>
-                    <Text style={{ color: theme.colors.semantic.error, fontWeight: 'bold' }}>Clear</Text>
+                    <Text style={[typography.buttonSm, { color: theme.colors.semantic.error }]}>Clear</Text>
                   </TouchableOpacity>
                 </View>
               )}
-              <TouchableOpacity onPress={() => setShowCamera(true)} style={[s.cameraButton, { backgroundColor: theme.colors.surface.input, marginTop: imageUrls.length > 0 ? 10 : 0 }]}>
-                <Text style={[typography.bodyMd, { color: theme.colors.brand.primary, fontWeight: '600' }]}>📷 Add Photo</Text>
+              <TouchableOpacity
+                onPress={() => setShowCamera(true)}
+                style={[
+                  styles.cameraButton,
+                  {
+                    backgroundColor: theme.colors.surface.subtle,
+                    borderColor: theme.colors.surface.border,
+                    marginTop: imageUrls.length > 0 ? 8 : 0,
+                  },
+                ]}
+              >
+                <AppIcon name="camera" color={theme.colors.brand.primary} size={18} />
+                <Text style={[typography.buttonSm, { color: theme.colors.brand.primary }]}>
+                  Add Photo
+                </Text>
               </TouchableOpacity>
             </View>
 
-            <Button label="Submit Inspection" onPress={handleSubmit} loading={createInspection.isPending} size="lg" />
+            <Button
+              label="Submit Inspection"
+              onPress={handleSubmit}
+              loading={createInspection.isPending}
+              fullWidth
+              size="md"
+            />
           </Card>
         )}
 
-        {isLoading && <ActivityIndicator style={{ marginTop: 40 }} color={theme.colors.brand.primary} size="large" />}
+        {isLoading && <LoadingState message="Loading inspection records..." />}
+
         {!isLoading && inspections.length === 0 && (
-          <EmptyState icon="🔍" title="No Inspections Yet" subtitle="Tap '+ New' to record your first inspection." />
+          <EmptyState
+            icon="inspect"
+            title="No Inspections Yet"
+            subtitle="Tap '+ New' to record your first site inspection."
+            actionLabel="Record Inspection"
+            onAction={() => setShowForm(true)}
+          />
         )}
+
         {inspections.map((item) => (
-          <InspectionCard key={item.id} item={item} theme={theme} />
+          <InspectionCard key={item.id} item={item} />
         ))}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   safe: { flex: 1 },
-  scroll: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 40 },
+  scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   cameraButton: {
-    padding: 16,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderStyle: 'dashed'
+    borderStyle: 'dashed',
   },
   photoPreview: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-  }
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 8,
+  },
 });

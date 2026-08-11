@@ -1,46 +1,44 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../../../shared/theme/ThemeProvider';
-import { Input } from '../../../shared/components/Input';
-import { Button } from '../../../shared/components/Button';
-import { useAuthStore } from '../stores/authStore';
 import axios from 'axios';
-import { loginSchema } from '@netrotrack/shared';
+import { useTheme } from '../../../shared/theme/ThemeProvider';
+import { typography } from '../../../shared/theme/typography';
+import { Input, Button, Card, AppIcon } from '../../../shared/components';
+import { useAuthStore } from '../stores/authStore';
+import { BASE_URL } from '../../../shared/services/api';
 
-// Fallback IP for Android emulator (localhost is 10.0.2.2)
-const API_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+const API_URL = BASE_URL;
 
-export function LoginScreen({ navigation }: any) {
+export function LoginScreen({ navigation }: { navigation: any }) {
   const theme = useTheme();
   const setCredentials = useAuthStore((state) => state.setCredentials);
-  const lastLoginId = useAuthStore((state) => state.lastLoginId);
 
-  const [loginId, setLoginId] = useState(lastLoginId || '');
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const handleLogin = async () => {
-    // 1. Frontend validation using shared Zod schema
-    const validationResult = loginSchema.safeParse({
-      loginId: loginId.trim(),
-      password,
-      deviceId: 'device-id-uuid-placeholder'
-    });
+    setErrors({});
 
-    if (!validationResult.success) {
-      const newErrors: { [key: string]: string } = {};
-      validationResult.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          newErrors[err.path[0].toString()] = err.message;
-        }
-      });
-      setErrors(newErrors);
+    if (!loginId.trim()) {
+      setErrors((prev) => ({ ...prev, loginId: 'Login ID or Email is required' }));
+      return;
+    }
+    if (!password) {
+      setErrors((prev) => ({ ...prev, password: 'Password is required' }));
       return;
     }
 
-    setErrors({});
     setLoading(true);
 
     try {
@@ -52,7 +50,7 @@ export function LoginScreen({ navigation }: any) {
           deviceId: 'device-id-uuid-placeholder',
           os: Platform.OS,
           model: Platform.Version.toString(),
-          appVersion: '1.0.0'
+          appVersion: '1.0.0',
         }
       );
 
@@ -60,20 +58,18 @@ export function LoginScreen({ navigation }: any) {
       setCredentials({ user, accessToken, refreshToken, loginId: loginId.trim() });
 
       Alert.alert('Success', 'Login successful!', [
-        { text: 'OK', onPress: () => navigation.navigate('MpinSetup') }
+        { text: 'OK', onPress: () => navigation.navigate('MpinSetup') },
       ]);
     } catch (error: any) {
       if (error.response?.data?.error?.code === 'VALIDATION_ERROR' && error.response?.data?.error?.details) {
-        // Backend validation errors
         const backendErrors: { [key: string]: string } = {};
         error.response.data.error.details.forEach((err: any) => {
           backendErrors[err.field] = err.message;
         });
         setErrors(backendErrors);
       } else {
-        // General API errors (e.g. 401 Invalid credentials)
-        const message = error.response?.data?.message || 'Failed to authenticate';
-        setErrors({ general: message });
+        const message = error.response?.data?.message || 'Login failed. Please check your credentials.';
+        Alert.alert('Login Error', message);
       }
     } finally {
       setLoading(false);
@@ -81,56 +77,40 @@ export function LoginScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surface.background }]}>
-      {/* Decorative Premium Background Accents */}
-      <View style={[styles.blurAccentLeft, { backgroundColor: theme.colors.brand.primary }]} />
-      <View style={[styles.blurAccentRight, { backgroundColor: theme.colors.brand.secondary }]} />
-
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.surface.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        style={styles.keyboardAvoid}
       >
-        <View style={styles.content}>
-          {/* Logo & Header */}
-          <View style={styles.header}>
-            <View style={[styles.logoContainer, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.surface.input }]}>
-              <View style={[styles.logoDot, { backgroundColor: theme.colors.brand.primary }]} />
-              <View style={[styles.logoRing, { borderColor: theme.colors.brand.secondary }]} />
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          {/* Hero Branding */}
+          <View style={styles.brandHero}>
+            <View style={[styles.logoBadge, { backgroundColor: theme.colors.brand.primary }]}>
+              <AppIcon name="visits" color="#FFFFFF" size={32} />
             </View>
-            <Text style={[styles.title, { color: theme.colors.text.primary }]}>
+            <Text style={[typography.displayLg, { color: theme.colors.text.primary, marginTop: 12 }]}>
               NetroTrack
             </Text>
-            <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
+            <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 4 }]}>
               Track. Manage. Perform.
             </Text>
           </View>
 
-          {/* Login Card Form */}
-          <View style={[
-            styles.card, 
-            { 
-              backgroundColor: theme.colors.surface.card,
-              borderColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.08)' : theme.colors.surface.input,
-              borderRadius: theme.borderRadius.lg
-            }
-          ]}>
-            <Text style={[styles.cardTitle, { color: theme.colors.text.primary, marginBottom: theme.spacing.lg }]}>
-              Sign In
+          {/* Login Card */}
+          <Card variant="elevated" style={styles.loginCard}>
+            <Text style={[typography.headingMd, { color: theme.colors.text.primary, marginBottom: 4 }]}>
+              Welcome Back
             </Text>
-
-            {errors.general && (
-              <View style={[styles.errorBox, { backgroundColor: theme.colors.semantic.error + '20', borderColor: theme.colors.semantic.error }]}>
-                <Text style={[styles.errorText, { color: theme.colors.semantic.error }]}>
-                  {errors.general}
-                </Text>
-              </View>
-            )}
+            <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 20 }]}>
+              Sign in with your enterprise credentials
+            </Text>
 
             <Input
               label="Login ID or Email"
               value={loginId}
               onChangeText={setLoginId}
-              placeholder="e.g. Netro-emp001 or name@company.com"
+              placeholder="e.g. NETRO-EMP001 or employee@netro.com"
+              leftIcon="profile"
               error={errors.loginId}
               autoCapitalize="none"
             />
@@ -140,137 +120,57 @@ export function LoginScreen({ navigation }: any) {
               value={password}
               onChangeText={setPassword}
               placeholder="••••••••"
-              secureTextEntry
+              leftIcon="lock"
+              isPassword
               error={errors.password}
               autoCapitalize="none"
             />
 
             <Button
-              label="Login"
+              label="Sign In"
               onPress={handleLogin}
               loading={loading}
-              style={{ marginTop: theme.spacing.md }}
+              fullWidth
+              size="lg"
+              style={{ marginTop: 8 }}
             />
-          </View>
-        </View>
+          </Card>
+
+          {/* Footer */}
+          <Text style={[typography.caption, { color: theme.colors.text.tertiary, textAlign: 'center', marginTop: 24 }]}>
+            Powered by NetroFusion Labs
+          </Text>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    overflow: 'hidden'
   },
-  blurAccentLeft: {
-    position: 'absolute',
-    top: -120,
-    left: -120,
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-    opacity: 0.15,
-    transform: [{ scale: 1.2 }]
-  },
-  blurAccentRight: {
-    position: 'absolute',
-    bottom: -120,
-    right: -120,
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-    opacity: 0.12,
-    transform: [{ scale: 1.2 }]
-  },
-  keyboardView: {
-    flex: 1
-  },
-  content: {
+  keyboardAvoid: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 32,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    zIndex: 10
   },
-  header: {
+  brandHero: {
     alignItems: 'center',
-    marginBottom: 36
+    marginBottom: 28,
   },
-  logoContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
-    borderWidth: 1,
+  logoBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 12
-      },
-      android: {
-        elevation: 2
-      }
-    })
   },
-  logoDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    position: 'absolute'
+  loginCard: {
+    padding: 20,
   },
-  logoRing: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 3,
-    backgroundColor: 'transparent'
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    textAlign: 'center'
-  },
-  subtitle: {
-    fontSize: 16,
-    marginTop: 4,
-    textAlign: 'center',
-    fontWeight: '500'
-  },
-  card: {
-    padding: 24,
-    borderWidth: 1,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.08,
-        shadowRadius: 24
-      },
-      android: {
-        elevation: 4
-      }
-    })
-  },
-  cardTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    letterSpacing: -0.2
-  },
-  errorBox: {
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: 16,
-    alignItems: 'center'
-  },
-  errorText: {
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center'
-  }
 });

@@ -1,13 +1,18 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
-import { Card } from '../../../shared/components/Card';
-import { ScreenHeader } from '../../../shared/components/ScreenHeader';
-import { EmptyState } from '../../../shared/components/EmptyState';
-import { Badge } from '../../../shared/components/Badge';
+import {
+  Card,
+  ScreenHeader,
+  EmptyState,
+  StatusBadge,
+  AppIcon,
+  SearchInput,
+  LoadingState,
+} from '../../../shared/components';
 import { api } from '../../../shared/services/api';
 
 interface Product {
@@ -20,58 +25,77 @@ interface Product {
 
 export function ProductsScreen() {
   const theme = useTheme();
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ['products'],
     queryFn: async () => {
       const { data } = await api.get('/products');
       return data.data;
-    }
+    },
+  });
+
+  const filteredProducts = products.filter((p) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      p.name.toLowerCase().includes(q) ||
+      p.sku?.toLowerCase().includes(q)
+    );
   });
 
   return (
-    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: theme.colors.surface.background }]}>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+    <SafeAreaView edges={['top']} style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader
           title="Product Catalog"
-          subtitle={`${products.length} products available`}
-          actionLabel="+ Add"
-          onAction={() => {}}
+          subtitle={`${products.length} registered items`}
         />
 
-        {isLoading && (
-          <ActivityIndicator style={{ marginTop: 40 }} color={theme.colors.brand.primary} size="large" />
-        )}
+        <SearchInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search by product name or SKU..."
+        />
 
-        {!isLoading && products.length === 0 && (
+        {isLoading && <LoadingState message="Loading product catalog..." />}
+
+        {!isLoading && filteredProducts.length === 0 && (
           <EmptyState
-            icon="📦"
-            title="No Products Found"
-            subtitle="Your product catalog is empty."
+            icon="products"
+            title={searchQuery ? 'No Products Match' : 'No Products Found'}
+            subtitle={
+              searchQuery
+                ? `No products match "${searchQuery}".`
+                : 'Your product catalog is empty.'
+            }
           />
         )}
 
-        {products.map((p) => (
-          <Card key={p.id} style={{ paddingVertical: 16, paddingHorizontal: 18, marginBottom: 12 }}>
-            <View style={s.rowBetween}>
-              <View style={{ flex: 1 }}>
-                <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
-                  {p.name}
-                </Text>
+        {filteredProducts.map((p) => (
+          <Card key={p.id} style={{ paddingVertical: 14, paddingHorizontal: 16, marginBottom: 10 }}>
+            <View style={styles.rowBetween}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <AppIcon name="products" color={theme.colors.brand.primary} size={18} />
+                  <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+                    {p.name}
+                  </Text>
+                </View>
                 {p.sku && (
-                  <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 4 }]}>
+                  <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 4 }]}>
                     SKU: {p.sku}
                   </Text>
                 )}
               </View>
-              <Text style={[typography.headingSm, { color: theme.colors.brand.primary }]}>
+              <Text style={[typography.headingSm, { color: theme.colors.semantic.success }]}>
                 ₹{Number(p.price || 0).toLocaleString('en-IN')}
               </Text>
             </View>
-            <View style={{ marginTop: 12, alignSelf: 'flex-start' }}>
-              <Badge 
-                label={p.isActive ? 'Active' : 'Inactive'} 
-                color={p.isActive ? theme.colors.semantic.success : theme.colors.semantic.error} 
+            <View style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+              <StatusBadge
+                status={p.isActive ? 'active' : 'offline'}
+                label={p.isActive ? 'Active' : 'Inactive'}
               />
             </View>
           </Card>
@@ -81,8 +105,8 @@ export function ProductsScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   safe: { flex: 1 },
-  scroll: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 40 },
+  scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
 });

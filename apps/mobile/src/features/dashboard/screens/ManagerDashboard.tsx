@@ -1,12 +1,18 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
 import { useAuthStore } from '../../auth/stores/authStore';
-import { Card } from '../../../shared/components/Card';
-import { StatCard } from '../../../shared/components/StatCard';
-import { ActionCard } from '../../../shared/components/ActionCard';
+import {
+  Card,
+  StatCard,
+  Badge,
+  StatusBadge,
+  Section,
+  Button,
+  AppIcon,
+  ProgressBar,
+} from '../../../shared/components';
 import { useTodayVisits } from '../../visits/hooks/useVisits';
 import { useTodaySales } from '../../sales/hooks/useSales';
 import { useTodayInspections } from '../../inspections/hooks/useInspections';
@@ -23,53 +29,177 @@ export function ManagerDashboard({ navigation }: { navigation: any }) {
   );
 
   return (
-    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: theme.colors.surface.background }]}>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={[typography.displaySm, { color: theme.colors.text.primary }]}>
-          Hello, {user?.name?.split(' ')[0] ?? 'Manager'} 👋
-        </Text>
-        <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 4, marginBottom: 24 }]}>
-          Team Supervisor · Today's Overview
-        </Text>
-
-        {/* Team metrics */}
-        <View style={s.statsRow}>
-          <StatCard icon="📍" value={todayVisits.length} label="Team Visits" valueColor={theme.colors.brand.primary} />
-          <StatCard icon="💼" value={todaySales.length} label="Team Sales" valueColor={theme.colors.semantic.success} />
-          <StatCard icon="🔍" value={todayInspections.length} label="Inspections" valueColor={theme.colors.brand.secondary} />
+    <View style={[styles.container, { backgroundColor: theme.colors.surface.background }]}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Top Header */}
+        <View style={styles.topHeader}>
+          <View>
+            <Text style={[typography.headingLg, { color: theme.colors.text.primary }]}>
+              Supervisor Overview
+            </Text>
+            <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 1 }]}>
+              Hello, {user?.name?.split(' ')[0] ?? 'Manager'} · Team Operations
+            </Text>
+          </View>
+          <Badge label="MANAGER" variant="info" size="sm" />
         </View>
 
-        {/* Revenue card */}
-        <Card variant="elevated">
-          <Text style={[typography.headingMd, { color: theme.colors.text.primary, marginBottom: 8 }]}>
-            Revenue Today
-          </Text>
-          <Text style={[typography.displayLg, { color: theme.colors.semantic.success }]}>
-            ₹{Number(totalSalesAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-          </Text>
+        {/* Live Map CTA Card */}
+        <Card variant="elevated" style={styles.mapCard}>
+          <View style={styles.mapRow}>
+            <View style={[styles.mapIconBox, { backgroundColor: theme.colors.brand.primaryLight }]}>
+              <AppIcon name="teamMap" color={theme.colors.brand.primary} size={22} />
+            </View>
+            <View style={styles.mapTextGroup}>
+              <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+                Field Workforce Live Map
+              </Text>
+              <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+                Track live location and route history of all agents
+              </Text>
+            </View>
+          </View>
+          <Button
+            label="Open Live Map"
+            onPress={() => navigation.navigate('TeamMap')}
+            variant="primary"
+            size="md"
+            icon="teamMap"
+            fullWidth
+            style={{ marginTop: 12 }}
+          />
         </Card>
 
-        <Text style={[typography.overline, { color: theme.colors.text.secondary, marginBottom: 12, marginTop: 8 }]}>
-          QUICK LINKS
-        </Text>
-        <View style={s.actionsGrid}>
-          {[
-            { label: 'Visits', icon: '📍', screen: 'Visits' },
-            { label: 'Sales', icon: '💼', screen: 'Sales' },
-            { label: 'Agents', icon: '👥', screen: 'Employees' },
-            { label: 'Inspections', icon: '🔍', screen: 'Inspections' },
-          ].map((a) => (
-            <ActionCard key={a.label} label={a.label} icon={a.icon} onPress={() => navigation.navigate(a.screen)} />
-          ))}
-        </View>
+        {/* Team Performance Stats */}
+        <Section title="Team Performance Today">
+          <View style={styles.statsRow}>
+            <StatCard
+              icon="visits"
+              value={todayVisits.length}
+              label="Team Visits"
+              valueColor={theme.colors.brand.primary}
+            />
+            <StatCard
+              icon="sales"
+              value={todaySales.length}
+              label="Team Sales"
+              valueColor={theme.colors.semantic.success}
+            />
+            <StatCard
+              icon="inspect"
+              value={todayInspections.length}
+              label="Inspections"
+              valueColor={theme.colors.brand.secondary}
+            />
+          </View>
+        </Section>
+
+        {/* Revenue Overview Card */}
+        <Section title="Revenue Today">
+          <Card variant="elevated" style={styles.revenueCard}>
+            <View style={styles.revenueTop}>
+              <View>
+                <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>
+                  Total Team Sales Volume
+                </Text>
+                <Text style={[typography.displayLg, { color: theme.colors.semantic.success, marginTop: 2 }]}>
+                  ₹{Number(totalSalesAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                </Text>
+              </View>
+              <StatusBadge status="completed" label="Target On Track" />
+            </View>
+            <ProgressBar progress={0.75} color={theme.colors.semantic.success} style={{ marginTop: 12 }} />
+            <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 6 }]}>
+              75% of daily target volume achieved
+            </Text>
+          </Card>
+        </Section>
+
+        {/* Quick Management Actions */}
+        <Section title="Team Actions">
+          <View style={styles.actionsRow}>
+            {[
+              { label: 'Agents', icon: 'employees', screen: 'Employees' },
+              { label: 'Visits', icon: 'visits', screen: 'Visits' },
+              { label: 'Sales', icon: 'sales', screen: 'Sales' },
+              { label: 'Inspections', icon: 'inspect', screen: 'Inspections' },
+            ].map((act) => (
+              <Card
+                key={act.label}
+                onPress={() => navigation.navigate(act.screen)}
+                style={styles.actionChip}
+              >
+                <View style={[styles.actionIconBox, { backgroundColor: theme.colors.brand.primaryLight }]}>
+                  <AppIcon name={act.icon} color={theme.colors.brand.primary} size={18} />
+                </View>
+                <Text style={[typography.buttonSm, { color: theme.colors.text.primary, marginTop: 6 }]} numberOfLines={1}>
+                  {act.label}
+                </Text>
+              </Card>
+            ))}
+          </View>
+        </Section>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1 },
-  scroll: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 40 },
-  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
-  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 20 },
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
+  topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  mapCard: {
+    padding: 16,
+    marginBottom: 8,
+  },
+  mapRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  mapIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapTextGroup: {
+    flex: 1,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  revenueCard: {
+    padding: 16,
+  },
+  revenueTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    marginBottom: 0,
+  },
+  actionIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

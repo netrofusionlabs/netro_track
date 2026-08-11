@@ -1,55 +1,82 @@
-import React from 'react';
-import { ScrollView, StyleSheet, ActivityIndicator, Text } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../shared/theme/ThemeProvider';
-import { typography } from '../../shared/theme/typography';
-import { ScreenHeader } from '../../shared/components/ScreenHeader';
-import { ListItem } from '../../shared/components/ListItem';
-import { EmptyState } from '../../shared/components/EmptyState';
-import { Badge } from '../../shared/components/Badge';
+import {
+  ScreenHeader,
+  ListItem,
+  EmptyState,
+  Badge,
+  SearchInput,
+  Avatar,
+  LoadingState,
+} from '../../shared/components';
 import { useCustomers } from './hooks/useCustomers';
 
 export function CustomerListScreen() {
   const theme = useTheme();
   const { data: customers = [], isLoading } = useCustomers();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredCustomers = customers.filter((c) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      c.name.toLowerCase().includes(q) ||
+      c.phone?.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q) ||
+      c.village?.toLowerCase().includes(q)
+    );
+  });
 
   return (
-    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: theme.colors.surface.background }]}>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+    <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader
           title="Customers"
-          subtitle={`${customers.length} total`}
+          subtitle={`${customers.length} total clients`}
         />
 
-        {isLoading && (
-          <ActivityIndicator style={{ marginTop: 40 }} color={theme.colors.brand.primary} size="large" />
-        )}
-        {!isLoading && customers.length === 0 && (
+        <SearchInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search by name, phone, or location..."
+        />
+
+        {isLoading && <LoadingState message="Loading customer directory..." />}
+
+        {!isLoading && filteredCustomers.length === 0 && (
           <EmptyState
-            icon="🏢"
-            title="No Customers"
-            subtitle="Customers added by your company admin will appear here."
+            icon="customers"
+            title={searchQuery ? 'No Customers Match' : 'No Customers'}
+            subtitle={
+              searchQuery
+                ? `No clients found matching "${searchQuery}".`
+                : 'Customers added by your company admin will appear here.'
+            }
           />
         )}
-        {customers.map((c) => (
+
+        {filteredCustomers.map((c) => (
           <ListItem
             key={c.id}
-            icon="🏢"
+            avatar={<Avatar name={c.name} size="md" />}
             title={c.name}
             subtitle={[c.phone, c.email, c.village].filter(Boolean).join(' · ') || 'No contact info'}
             trailing={
               c.type ? (
-                <Badge label={c.type} size="sm" />
+                <Badge label={c.type} variant="info" size="sm" />
               ) : undefined
             }
+            showChevron
           />
         ))}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   safe: { flex: 1 },
-  scroll: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 40 },
+  scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
 });

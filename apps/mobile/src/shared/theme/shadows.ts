@@ -1,19 +1,25 @@
 import { Platform, ViewStyle } from 'react-native';
 
 /**
- * Platform-aware shadow presets.
+ * NetroTrack Design System — Elevation / Shadow Presets
  *
- * Replaces the repeated Platform.select({ ios: { shadow... }, android: { elevation: N } })
- * blocks that were duplicated across every single screen.
+ * Design philosophy: Modern enterprise apps use almost zero shadows.
+ * Depth comes from background contrast and borders — not heavy drop shadows.
+ * Shadows are used sparingly to float critical UI above the page.
+ *
+ * All shadow opacities are deliberately low for a subtle, refined feel.
  */
 export const shadows = {
-  /** Subtle card — e.g. list items, stat boxes */
+  /** No shadow — default for inline elements, flat surfaces */
+  none: {} as ViewStyle,
+
+  /** Subtle card — list items, stat boxes */
   sm: Platform.select<ViewStyle>({
     ios: {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 6,
+      shadowOpacity: 0.03,
+      shadowRadius: 4,
     },
     android: {
       elevation: 1,
@@ -21,13 +27,13 @@ export const shadows = {
     default: {},
   }) as ViewStyle,
 
-  /** Default card elevation — dashboard cards, form cards */
+  /** Standard card elevation — dashboard cards, form cards */
   md: Platform.select<ViewStyle>({
     ios: {
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 3 },
-      shadowOpacity: 0.06,
-      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 8,
     },
     android: {
       elevation: 2,
@@ -35,13 +41,13 @@ export const shadows = {
     default: {},
   }) as ViewStyle,
 
-  /** Prominent card — modals, forms, elevated overlays */
+  /** Prominent — modals, bottom sheets */
   lg: Platform.select<ViewStyle>({
     ios: {
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
+      shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.08,
-      shadowRadius: 20,
+      shadowRadius: 16,
     },
     android: {
       elevation: 4,
@@ -49,13 +55,13 @@ export const shadows = {
     default: {},
   }) as ViewStyle,
 
-  /** Hero / floating cards — login card, bottom sheets */
+  /** Hero / floating cards — login card, elevated overlays */
   xl: Platform.select<ViewStyle>({
     ios: {
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 10 },
+      shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.1,
-      shadowRadius: 28,
+      shadowRadius: 24,
     },
     android: {
       elevation: 6,

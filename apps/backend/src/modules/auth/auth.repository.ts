@@ -1,7 +1,7 @@
 import { prisma } from '../../shared/config/prisma';
 import { User, Device, Session, Company } from '@prisma/client';
 
-export type UserWithMpin = Pick<User, 'id' | 'companyId' | 'employeeId' | 'name' | 'role' | 'mpinHash'>;
+export type UserWithCompany = User & { company?: Company | null };
 
 export class AuthRepository {
   public async findCompanyByCode(code: string): Promise<Company | null> {
@@ -16,7 +16,7 @@ export class AuthRepository {
     });
   }
 
-  public async findUserByEmail(email: string): Promise<User | null> {
+  public async findUserByEmail(email: string): Promise<UserWithCompany | null> {
     return prisma.user.findFirst({
       where: {
         email: {
@@ -24,11 +24,14 @@ export class AuthRepository {
           mode: 'insensitive'
         },
         deletedAt: null
+      },
+      include: {
+        company: true
       }
     });
   }
 
-  public async findUserByEmployeeId(companyId: string, employeeId: string): Promise<User | null> {
+  public async findUserByEmployeeId(companyId: string, employeeId: string): Promise<UserWithCompany | null> {
     return prisma.user.findFirst({
       where: {
         companyId,
@@ -37,7 +40,17 @@ export class AuthRepository {
           mode: 'insensitive'
         },
         deletedAt: null
+      },
+      include: {
+        company: true
       }
+    });
+  }
+
+  public async findUserById(id: string): Promise<UserWithCompany | null> {
+    return prisma.user.findFirst({
+      where: { id, deletedAt: null },
+      include: { company: true }
     });
   }
 
@@ -59,19 +72,8 @@ export class AuthRepository {
     model: string;
     appVersion: string;
   }): Promise<Device> {
-    return prisma.device.upsert({
-      where: {
-        userId_deviceId: {
-          userId: deviceData.userId,
-          deviceId: deviceData.deviceId
-        }
-      },
-      update: {
-        os: deviceData.os,
-        model: deviceData.model,
-        appVersion: deviceData.appVersion
-      },
-      create: deviceData
+    return prisma.device.create({
+      data: deviceData
     });
   }
 
@@ -85,17 +87,15 @@ export class AuthRepository {
     });
   }
 
-  public async findUserById(userId: string): Promise<UserWithMpin | null> {
-    return prisma.user.findFirst({
-      where: { id: userId, deletedAt: null },
-      select: {
-        id: true,
-        companyId: true,
-        employeeId: true,
-        name: true,
-        role: true,
-        mpinHash: true
-      }
+  public async findSession(refreshToken: string): Promise<Session | null> {
+    return prisma.session.findUnique({
+      where: { refreshToken }
+    });
+  }
+
+  public async deleteSession(refreshToken: string): Promise<void> {
+    await prisma.session.delete({
+      where: { refreshToken }
     });
   }
 

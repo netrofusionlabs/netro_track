@@ -43,7 +43,6 @@ export class AuthService {
     // 2. Device Binding Enforcement
     const existingDevice = await this.authRepository.findDevice(user.id, input.deviceId);
     if (!existingDevice) {
-      // If it's a new device, bind it (simplification for Phase 1 - register on first login)
       await this.authRepository.registerDevice({
         userId: user.id,
         deviceId: input.deviceId,
@@ -82,6 +81,7 @@ export class AuthService {
       user: {
         id: user.id,
         companyId: user.companyId,
+        companyName: user.company?.name || 'NetroFusion Technologies',
         employeeId: user.employeeId,
         name: user.name,
         role: user.role
@@ -91,77 +91,55 @@ export class AuthService {
 
   /**
    * Set or update the MPIN for an already-authenticated user.
-   * Called from the MPIN setup screen right after password login.
    */
   public async setupMpin(userId: string, mpin: string): Promise<void> {
     const user = await this.authRepository.findUserById(userId);
     if (!user) {
       throw new AppError('USER_NOT_FOUND', 'User not found', 404);
     }
+
     const mpinHash = await argon2.hash(mpin);
     await this.authRepository.updateMpinHash(userId, mpinHash);
   }
 
   /**
-   * Verify the MPIN for an already-authenticated user.
-   * Returns silently on success, throws on failure.
+   * Quick authenticate using MPIN.
    */
-  public async verifyMpin(userId: string, mpin: string): Promise<void> {
-    const user = await this.authRepository.findUserById(userId);
-    if (!user) {
-      throw new AppError('USER_NOT_FOUND', 'User not found', 404);
-    }
-    if (!user.mpinHash) {
-      throw new AppError('MPIN_NOT_SET', 'MPIN has not been set for this account. Please log in with your password first.', 400);
-    }
-    const valid = await argon2.verify(user.mpinHash, mpin);
-    if (!valid) {
-      throw new AppError('INVALID_MPIN', 'Incorrect MPIN', 401);
-    }
-  }
-
-  /**
-   * Public MPIN login — resolves user by loginId, verifies MPIN, returns tokens.
-   */
-  public async mpinLogin(input: MpinLoginInput) {
+  public async loginWithMpin(input: MpinLoginInput) {
     let user;
-
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.loginId);
+
     if (isEmail) {
       user = await this.authRepository.findUserByEmail(input.loginId);
     } else {
       const parts = input.loginId.split('-');
-      if (parts.length < 2) {
-        throw new AppError('AUTHENTICATION_FAILED', 'Invalid Login ID format. Use COMPANY-EMPLOYEE', 400);
+      if (parts.length >= 2) {
+        const companyCode = parts[0].trim();
+        const employeeId = parts.slice(1).join('-').trim();
+
+        const company = await this.authRepository.findCompanyByCode(companyCode);
+        if (company) {
+          user = await this.authRepository.findUserByEmployeeId(company.id, employeeId);
+        }
       }
-      const companyCode = parts[0].trim();
-      const employeeId = parts.slice(1).join('-').trim();
-      const company = await this.authRepository.findCompanyByCode(companyCode);
-      if (!company) {
-        throw new AppError('AUTHENTICATION_FAILED', 'Invalid credentials', 401);
-      }
-      user = await this.authRepository.findUserByEmployeeId(company.id, employeeId);
     }
 
-    if (!user) {
-      throw new AppError('AUTHENTICATION_FAILED', 'Invalid credentials', 401);
-    }
-    if (!user.mpinHash) {
-      throw new AppError('MPIN_NOT_SET', 'MPIN has not been set. Please log in with your password first.', 400);
+    if (!user || !user.mpinHash) {
+      throw new AppError('AUTHENTICATION_FAILED', 'MPIN not configured for this user', 401);
     }
 
-    const valid = await argon2.verify(user.mpinHash, input.mpin);
-    if (!valid) {
-      throw new AppError('AUTHENTICATION_FAILED', 'Invalid credentials', 401);
-    }
-
-    const device = await this.authRepository.findDevice(user.id, input.deviceId);
-    if (!device) {
-      throw new AppError('DEVICE_NOT_REGISTERED', 'This device is not registered. Please log in with your password first.', 403);
+    const isMpinValid = await argon2.verify(user.mpinHash, input.mpin);
+    if (!isMpinValid) {
+      throw new AppError('AUTHENTICATION_FAILED', 'Invalid MPIN', 401);
     }
 
     const accessToken = jwt.sign(
-      { id: user.id, companyId: user.companyId, employeeId: user.employeeId, role: user.role },
+      {
+        id: user.id,
+        companyId: user.companyId,
+        employeeId: user.employeeId,
+        role: user.role
+      },
       process.env.JWT_ACCESS_SECRET || 'default_access_secret',
       { expiresIn: '15m' }
     );
@@ -182,6 +160,7 @@ export class AuthService {
       user: {
         id: user.id,
         companyId: user.companyId,
+        companyName: user.company?.name || 'NetroFusion Technologies',
         employeeId: user.employeeId,
         name: user.name,
         role: user.role

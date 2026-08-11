@@ -1,46 +1,57 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../shared/theme/ThemeProvider';
 import { typography } from '../../shared/theme/typography';
-import { Card } from '../../shared/components/Card';
-import { Badge } from '../../shared/components/Badge';
-import { EmptyState } from '../../shared/components/EmptyState';
-import { ScreenHeader } from '../../shared/components/ScreenHeader';
-import { Input } from '../../shared/components/Input';
-import { Button } from '../../shared/components/Button';
-import { Divider } from '../../shared/components/Divider';
+import {
+  Card,
+  Badge,
+  EmptyState,
+  ScreenHeader,
+  Input,
+  Button,
+  Divider,
+  AppIcon,
+  IconButton,
+  LoadingState,
+} from '../../shared/components';
 import { useSales, useCreateSale } from './hooks/useSales';
 import { useCustomers } from '../customers/hooks/useCustomers';
 import { useProducts } from '../products/hooks/useProducts';
 import type { SaleRecord, CreateSaleItemPayload } from './types';
 
-function SaleCard({ sale, theme }: { sale: SaleRecord; theme: ReturnType<typeof useTheme> }) {
+function SaleCard({ sale }: { sale: SaleRecord }) {
+  const theme = useTheme();
   return (
-    <Card style={{ paddingVertical: 16, paddingHorizontal: 18 }}>
-      <View style={s.rowBetween}>
-        <View style={{ flex: 1 }}>
-          <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
-            {sale.customer?.name ?? 'Unknown'}
-          </Text>
-          <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 4 }]}>
+    <Card style={{ paddingVertical: 14, paddingHorizontal: 16 }}>
+      <View style={styles.rowBetween}>
+        <View style={{ flex: 1, paddingRight: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <AppIcon name="sales" color={theme.colors.semantic.success} size={18} />
+            <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+              {sale.customer?.name ?? 'Unknown Customer'}
+            </Text>
+          </View>
+          <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 4 }]}>
             {new Date(sale.createdAt).toLocaleDateString([], { day: 'numeric', month: 'short' })} · {sale.items.length} item{sale.items.length !== 1 ? 's' : ''}
           </Text>
         </View>
         <Badge
           label={`₹${Number(sale.totalAmount).toLocaleString('en-IN')}`}
-          color={theme.colors.semantic.success}
-          backgroundColor="#E8F5E9"
+          variant="success"
           size="md"
         />
       </View>
       {sale.remarks && (
-        <Text style={[typography.bodySm, { color: theme.colors.text.tertiary, marginTop: 10 }]} numberOfLines={2}>
-          📝 {sale.remarks}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 }}>
+          <AppIcon name="document" color={theme.colors.text.tertiary} size={14} />
+          <Text style={[typography.bodySm, { color: theme.colors.text.tertiary }]} numberOfLines={2}>
+            {sale.remarks}
+          </Text>
+        </View>
       )}
     </Card>
   );
@@ -104,38 +115,38 @@ export function SalesScreen() {
   }, [selectedCustomerId, remarks, cart, createSale]);
 
   return (
-    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: theme.colors.surface.background }]}>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+    <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader
           title="Sales"
-          subtitle={`${sales.length} total records`}
-          actionLabel={showForm ? 'Cancel' : '+ New'}
+          subtitle={`${sales.length} total transactions`}
+          actionLabel={showForm ? 'Cancel' : '+ Record'}
           onAction={() => setShowForm(!showForm)}
         />
 
         {showForm && (
-          <Card variant="elevated" style={{ marginBottom: 24 }}>
-            <Text style={[typography.headingMd, { color: theme.colors.text.primary, marginBottom: 16 }]}>
-              Record Sale
+          <Card style={{ marginBottom: 16 }}>
+            <Text style={[typography.headingMd, { color: theme.colors.text.primary, marginBottom: 14 }]}>
+              Record New Sale
             </Text>
 
             {/* Customer picker */}
-            <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 8 }]}>
-              Customer
+            <Text style={[typography.label, { color: theme.colors.text.secondary, marginBottom: 6 }]}>
+              Select Customer
             </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {customers.map((c) => (
                 <TouchableOpacity
                   key={c.id}
                   onPress={() => setSelectedCustomerId(c.id)}
-                  style={[s.chip, {
-                    backgroundColor: selectedCustomerId === c.id ? theme.colors.brand.primary : theme.colors.surface.input,
-                    borderRadius: theme.borderRadius.md,
+                  style={[styles.chip, {
+                    backgroundColor: selectedCustomerId === c.id ? theme.colors.brand.primary : theme.colors.surface.subtle,
+                    borderColor: selectedCustomerId === c.id ? theme.colors.brand.primary : theme.colors.surface.border,
                   }]}
                   activeOpacity={0.7}
                 >
                   <Text style={[typography.bodySm, {
-                    color: selectedCustomerId === c.id ? '#FFFFFF' : theme.colors.text.primary,
+                    color: selectedCustomerId === c.id ? theme.colors.text.inverse : theme.colors.text.primary,
                     fontWeight: '600',
                   }]}>
                     {c.name}
@@ -145,24 +156,24 @@ export function SalesScreen() {
             </ScrollView>
 
             {/* Product picker */}
-            <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 8 }]}>
-              Add Products
+            <Text style={[typography.label, { color: theme.colors.text.secondary, marginBottom: 6 }]}>
+              Add Products to Order
             </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {products
                 .filter((p) => p.isActive)
                 .map((p) => (
                   <TouchableOpacity
                     key={p.id}
                     onPress={() => addToCart(p.id)}
-                    style={[s.chip, {
-                      backgroundColor: theme.colors.surface.input,
-                      borderRadius: theme.borderRadius.md,
+                    style={[styles.chip, {
+                      backgroundColor: theme.colors.surface.subtle,
+                      borderColor: theme.colors.surface.border,
                     }]}
                     activeOpacity={0.7}
                   >
                     <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]}>
-                      {p.name} · ₹{Number(p.price ?? 0)}
+                      + {p.name} · ₹{Number(p.price ?? 0)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -170,65 +181,111 @@ export function SalesScreen() {
 
             {/* Cart */}
             {cart.length > 0 && (
-              <View style={{ marginBottom: 16 }}>
+              <View style={{ marginBottom: 12 }}>
                 {cart.map((item) => {
                   const product = products.find((p) => p.id === item.productId);
                   return (
-                    <View key={item.productId} style={s.cartItem}>
+                    <View key={item.productId} style={styles.cartItem}>
                       <Text style={[typography.bodyMd, { color: theme.colors.text.primary, flex: 1 }]} numberOfLines={1}>
                         {product?.name ?? item.productId}
                       </Text>
-                      <View style={s.qtyControls}>
-                        <TouchableOpacity onPress={() => updateQuantity(item.productId, -1)} style={[s.qtyBtn, { backgroundColor: theme.colors.surface.input }]}>
-                          <Text style={[typography.bodyLg, { color: theme.colors.text.primary }]}>−</Text>
-                        </TouchableOpacity>
-                        <Text style={[typography.bodyMd, { color: theme.colors.text.primary, minWidth: 28, textAlign: 'center' }]}>
+                      <View style={styles.qtyControls}>
+                        <IconButton
+                          icon="close"
+                          onPress={() => updateQuantity(item.productId, -1)}
+                          variant="default"
+                          size="sm"
+                        />
+                        <Text style={[typography.headingSm, { color: theme.colors.text.primary, minWidth: 24, textAlign: 'center' }]}>
                           {item.quantity}
                         </Text>
-                        <TouchableOpacity onPress={() => updateQuantity(item.productId, 1)} style={[s.qtyBtn, { backgroundColor: theme.colors.brand.primaryLight }]}>
-                          <Text style={[typography.bodyLg, { color: theme.colors.brand.primary }]}>+</Text>
-                        </TouchableOpacity>
+                        <IconButton
+                          icon="plus"
+                          onPress={() => addToCart(item.productId)}
+                          variant="primary"
+                          size="sm"
+                        />
                       </View>
-                      <Text style={[typography.headingSm, { color: theme.colors.text.primary, width: 80, textAlign: 'right' }]}>
+                      <Text style={[typography.headingSm, { color: theme.colors.text.primary, width: 70, textAlign: 'right' }]}>
                         ₹{(item.price * item.quantity).toLocaleString('en-IN')}
                       </Text>
                     </View>
                   );
                 })}
-                <Divider spacing={12} />
-                <View style={s.totalRow}>
+                <Divider spacing={8} />
+                <View style={styles.totalRow}>
                   <Text style={[typography.headingMd, { color: theme.colors.text.primary }]}>Total</Text>
-                  <Text style={[typography.headingMd, { color: theme.colors.semantic.success }]}>
+                  <Text style={[typography.headingLg, { color: theme.colors.semantic.success }]}>
                     ₹{cartTotal.toLocaleString('en-IN')}
                   </Text>
                 </View>
               </View>
             )}
 
-            <Input label="Remarks" value={remarks} onChangeText={setRemarks} placeholder="Optional notes..." multiline numberOfLines={2} />
-            <Button label="Record Sale" onPress={handleSubmit} loading={createSale.isPending} size="lg" />
+            <Input
+              label="Remarks / Notes"
+              value={remarks}
+              onChangeText={setRemarks}
+              placeholder="e.g. Paid via UPI, discount applied..."
+            />
+
+            <Button
+              label="Submit Order"
+              onPress={handleSubmit}
+              loading={createSale.isPending}
+              fullWidth
+              size="md"
+            />
           </Card>
         )}
 
-        {isLoading && <ActivityIndicator style={{ marginTop: 40 }} color={theme.colors.brand.primary} size="large" />}
+        {isLoading && <LoadingState message="Loading sales records..." />}
+
         {!isLoading && sales.length === 0 && (
-          <EmptyState icon="💼" title="No Sales Yet" subtitle="Tap '+ New' to record your first sale." />
+          <EmptyState
+            icon="sales"
+            title="No Sales Transactions"
+            subtitle="Record your first product sale to track your revenue."
+            actionLabel="Record Sale"
+            onAction={() => setShowForm(true)}
+          />
         )}
-        {sales.map((sale) => (
-          <SaleCard key={sale.id} sale={sale} theme={theme} />
+
+        {sales.map((sItem) => (
+          <SaleCard key={sItem.id} sale={sItem} />
         ))}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   safe: { flex: 1 },
-  scroll: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 40 },
+  scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  chip: { paddingHorizontal: 16, paddingVertical: 10, marginRight: 10 },
-  cartItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 8 },
-  qtyControls: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  qtyBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  cartItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  qtyControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 12,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
 });

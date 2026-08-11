@@ -4,7 +4,7 @@
  * Implements Phase 4 GPS Tracking & Live location updates.
  *
  * Key features:
- * - Background/Foreground tracking via @react-native-community/geolocation
+ * - Background/Foreground tracking via @react-native-community/geolocation and Native Kotlin AppLocation module
  * - Adaptive intervals based on device speed (30s, 60s, 120s) per BR-G07
  * - Local MMKV-backed buffer with 2000-point guard rail per BR-G09
  * - Periodic batch upload every 150 seconds (2.5 minutes) to POST /tracking/sync
@@ -38,7 +38,6 @@ export interface GeolocationError {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let BackgroundService: any = null;
 try {
-  // Safely import background actions native module without breaking module initialization
   BackgroundService = require('react-native-background-actions').default;
 } catch {
   console.warn('[trackingService] react-native-background-actions native module not loaded');
@@ -46,7 +45,6 @@ try {
 
 // ─── Constants & State ────────────────────────────────────────────────────────
 
-const SYNC_INTERVAL_MS = 150_000; // 2.5 minutes
 const BATCH_SIZE = 500;
 
 interface TrackingState {
@@ -66,12 +64,6 @@ const state: TrackingState = {
   lastSpeed: 0,
   intervalSeconds: 10,
 };
-
-// ─── Helper: Adaptive Interval Logic ──────────────────────────────────────────
-
-function getAdaptiveInterval(speedMs: number): number {
-  return 10; // Fixed 10-second capture interval as requested
-}
 
 // ─── Helper: Get Current Coordinates ──────────────────────────────────────────
 
@@ -142,13 +134,6 @@ function onLocationSuccess(position: GeolocationResponse): void {
   const speedMs = speed ?? 0;
   state.lastSpeed = speedMs;
 
-  // Compute and set adaptive interval for subsequent watch updates
-  const newInterval = getAdaptiveInterval(speedMs);
-  if (newInterval !== state.intervalSeconds) {
-    state.intervalSeconds = newInterval;
-    // Re-watch with new interval if needed (handled by platform provider)
-  }
-
   const point: GpsPoint = {
     localId: generateLocalId(),
     attendanceId: state.attendanceId ?? undefined,
@@ -165,8 +150,6 @@ function onLocationSuccess(position: GeolocationResponse): void {
   appendGpsPoints([point]);
 
   // 2. Emit real-time update via Socket.IO (for manager's live map)
-  // Note: syncNow() is NOT called here to avoid racing with the background task loop.
-  // Points are uploaded by backgroundSyncTask every 10s, or by drainNativeBuffer on resume.
   emitLocationUpdate({
     latitude,
     longitude,
@@ -175,10 +158,6 @@ function onLocationSuccess(position: GeolocationResponse): void {
     heading: heading ?? undefined,
     recordedAt: point.recordedAt,
   });
-}
-
-function onLocationError(error: GeolocationError): void {
-  console.warn('[trackingService] Geolocation error:', error.message);
 }
 
 // ─── Sync Logic ───────────────────────────────────────────────────────────────
@@ -210,13 +189,6 @@ export async function syncNow(): Promise<void> {
 
 // ─── Native Buffer Drain ──────────────────────────────────────────────────────
 
-/**
- * Drains all GPS points written by Kotlin's LocationListener into Android
- * SharedPreferences (captured during Doze / JS-throttled background periods)
- * and merges them into the MMKV buffer so syncNow() can upload them.
- *
- * Called on every AppState.active transition to recover any background GPS data.
- */
 async function drainNativeBufferToMmkv(): Promise<void> {
   try {
     if (Platform.OS !== 'android' || !NativeModules.AppLocation?.drainNativeBuffer) return;
@@ -250,10 +222,10 @@ async function drainNativeBufferToMmkv(): Promise<void> {
 const sleep = (time: number) => new Promise<void>((resolve) => setTimeout(resolve, time));
 
 const backgroundSyncTask = async (taskDataArguments?: any) => {
-  const delay = taskDataArguments?.delay ?? 30000;
+  const delay = taskDataArguments?.delay ?? 10000;
   
   await new Promise(async (resolve) => {
-    while (BackgroundService.isRunning()) {
+    while (BackgroundService && BackgroundService.isRunning && BackgroundService.isRunning()) {
       try {
         await sleep(delay);
         await capturePoint();
@@ -274,10 +246,9 @@ const backgroundOptions = {
     name: 'ic_launcher',
     type: 'mipmap',
   },
-  color: '#007AFF', // brand primary
-  linkingURI: 'netrotrack://',
+  color: '#1E40AF',
   parameters: {
-    delay: 10000, // Fixed 10 seconds iteration
+    delay: 10000,
   },
 };
 
@@ -292,43 +263,40 @@ export async function startTracking(attendanceId: string): Promise<void> {
   state.isTracking = true;
   state.attendanceId = attendanceId;
 
-  // Start native location listener
+  // 1. Start native Kotlin location listener (Android)
   try {
     if (Platform.OS === 'android' && NativeModules.AppLocation) {
       NativeModules.AppLocation.startLocationUpdates();
     }
-  } catch {
-    // ignore
+  } catch (err) {
+    console.warn('[trackingService] Native Kotlin location start notice:', err);
   }
 
-  // Capture first point immediately + drain any pre-existing native buffer points
+  // 2. Capture first point immediately + drain any pre-existing native buffer points
   void capturePoint();
   await drainNativeBufferToMmkv();
   void syncNow();
 
-  // Start background service if native module is available
-  let bgStarted = false;
-  try {
-    if (BackgroundService && typeof BackgroundService.start === 'function') {
-      await BackgroundService.start(backgroundSyncTask, backgroundOptions);
-      bgStarted = true;
+  // 3. Start iOS background service if available (Android uses native Kotlin AppLocation + JS timer)
+  if (Platform.OS !== 'android') {
+    try {
+      if (BackgroundService && typeof BackgroundService.start === 'function') {
+        await BackgroundService.start(backgroundSyncTask, backgroundOptions);
+      }
+    } catch (e) {
+      console.warn('[trackingService] iOS BackgroundService notice:', e);
     }
-  } catch (e) {
-    console.warn('[trackingService] Background service notice:', e);
   }
 
-  // Fallback timer if BackgroundService is unavailable
-  if (!bgStarted) {
+  // 4. JS interval timer for continuous 10s location capture & sync
+  if (state.watchId === null) {
     state.watchId = setInterval(() => {
       void capturePoint();
       void syncNow();
     }, 10000) as unknown as number;
   }
 
-  // On AppState change: tell Kotlin whether to buffer fixes natively.
-  //   background/inactive → setBackgroundMode(true)  → Kotlin captures every 3s fix to SharedPreferences
-  //   active              → setBackgroundMode(false) → Kotlin stops buffering (JS takes over)
-  //                       → drain any buffered native points → upload all to server
+  // 5. On AppState change: tell Kotlin whether to buffer fixes natively when app goes to background
   state.appStateSubscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
     if (Platform.OS === 'android' && NativeModules.AppLocation?.setBackgroundMode) {
       const isBackground = nextState === 'background' || nextState === 'inactive';
@@ -339,7 +307,7 @@ export async function startTracking(attendanceId: string): Promise<void> {
     }
   });
 
-  console.info('[trackingService] Started tracking', { attendanceId });
+  console.info('[trackingService] Started tracking successfully', { attendanceId });
 }
 
 /**
@@ -356,12 +324,14 @@ export async function stopTracking(): Promise<void> {
     state.watchId = null;
   }
 
-  try {
-    if (BackgroundService && typeof BackgroundService.stop === 'function') {
-      await BackgroundService.stop();
+  if (Platform.OS !== 'android') {
+    try {
+      if (BackgroundService && typeof BackgroundService.stop === 'function') {
+        await BackgroundService.stop();
+      }
+    } catch (e) {
+      console.warn('[trackingService] Background service notice:', e);
     }
-  } catch (e) {
-    console.warn('[trackingService] Background service notice:', e);
   }
 
   if (state.appStateSubscription) {

@@ -1,38 +1,53 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { typography } from '../theme/typography';
+import { AppIcon, AppIconName } from './AppIcon';
+import { Button } from './Button';
 
 interface EmptyStateProps {
-  icon?: string;
+  icon?: AppIconName | string;
   title: string;
   subtitle?: string;
   actionLabel?: string;
   onAction?: () => void;
 }
 
-export function EmptyState({ icon = '📭', title, subtitle, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({
+  icon = 'document',
+  title,
+  subtitle,
+  actionLabel,
+  onAction,
+}: EmptyStateProps) {
   const theme = useTheme();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>{icon}</Text>
-      <Text style={[typography.headingSm, { color: theme.colors.text.primary, textAlign: 'center' }]}>
+      <View style={[styles.iconBox, { backgroundColor: theme.colors.surface.subtle }]}>
+        <AppIcon name={icon} color={theme.colors.text.tertiary} size={28} />
+      </View>
+      <Text style={[typography.headingMd, { color: theme.colors.text.primary, textAlign: 'center' }]}>
         {title}
       </Text>
       {subtitle && (
-        <Text style={[typography.bodySm, { color: theme.colors.text.tertiary, textAlign: 'center', marginTop: 6 }]}>
+        <Text
+          style={[
+            typography.bodySm,
+            { color: theme.colors.text.secondary, textAlign: 'center', marginTop: 4, maxWidth: 280 },
+          ]}
+        >
           {subtitle}
         </Text>
       )}
       {actionLabel && onAction && (
-        <TouchableOpacity
+        <Button
+          label={actionLabel}
           onPress={onAction}
-          style={[styles.actionBtn, { backgroundColor: theme.colors.brand.primary }]}
-          activeOpacity={0.8}
-        >
-          <Text style={[typography.buttonSm, { color: '#FFFFFF' }]}>{actionLabel}</Text>
-        </TouchableOpacity>
+          variant="primary"
+          size="sm"
+          style={{ marginTop: 16 }}
+        />
       )}
     </View>
   );
@@ -42,17 +57,15 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 32,
-  },
-  icon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  actionBtn: {
-    marginTop: 20,
-    borderRadius: 10,
+    paddingVertical: 36,
     paddingHorizontal: 24,
-    paddingVertical: 12,
+  },
+  iconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
 });

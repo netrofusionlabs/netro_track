@@ -16,13 +16,13 @@ export function Divider({ direction = 'horizontal', spacing = 0, style }: Divide
       ? {
           height: 1,
           width: '100%',
-          backgroundColor: theme.colors.surface.input,
+          backgroundColor: theme.colors.surface.divider,
           marginVertical: spacing,
         }
       : {
           width: 1,
           alignSelf: 'stretch',
-          backgroundColor: theme.colors.surface.input,
+          backgroundColor: theme.colors.surface.divider,
           marginHorizontal: spacing,
         };
 

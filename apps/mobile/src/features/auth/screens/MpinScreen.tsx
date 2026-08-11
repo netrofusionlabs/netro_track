@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
-  StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert
+  StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
+import { AppIcon } from '../../../shared/components';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../../../shared/services/api';
 
@@ -31,8 +32,6 @@ export function MpinScreen({ navigation: _navigation }: any) {
   const verifyMpin = async (mpin: string) => {
     setLoading(true);
     try {
-      // The user just logged in with their password — set/overwrite their MPIN.
-      // Uses the access token already injected by the api interceptor.
       await api.post('/auth/mpin/setup', { mpin });
       setMpinVerified(true);
     } catch (err: any) {
@@ -51,7 +50,7 @@ export function MpinScreen({ navigation: _navigation }: any) {
         ]);
       } else {
         Alert.alert('MPIN Error', message, [
-          { text: 'Retry', onPress: () => setPin('') }
+          { text: 'Retry', onPress: () => setPin('') },
         ]);
       }
     } finally {
@@ -72,9 +71,9 @@ export function MpinScreen({ navigation: _navigation }: any) {
               : filled
               ? theme.colors.brand.primary
               : 'transparent',
-            borderColor: theme.colors.text.secondary,
-            borderWidth: filled || loading ? 0 : 2
-          }
+            borderColor: filled || loading ? theme.colors.brand.primary : theme.colors.surface.border,
+            borderWidth: filled || loading ? 0 : 2,
+          },
         ]}
       />
     );
@@ -83,19 +82,19 @@ export function MpinScreen({ navigation: _navigation }: any) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surface.background }]}>
       <View style={styles.content}>
-        <Text style={[typography.headingLg, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
+        <Text style={[typography.displaySm, { color: theme.colors.text.primary, textAlign: 'center' }]}>
           Enter MPIN
         </Text>
-        <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginBottom: theme.spacing.xl }]}>
+        <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 4, textAlign: 'center' }]}>
           Set your 4-digit passcode to proceed
         </Text>
 
-        <View style={[styles.dotContainer, { marginBottom: theme.spacing.xxxl }]}>
+        <View style={styles.dotContainer}>
           {[0, 1, 2, 3].map(renderDot)}
         </View>
 
         {loading && (
-          <ActivityIndicator color={theme.colors.brand.primary} style={{ marginBottom: 24 }} />
+          <ActivityIndicator color={theme.colors.brand.primary} style={{ marginBottom: 20 }} />
         )}
 
         <View style={[styles.keypad, { opacity: loading ? 0.4 : 1 }]}>
@@ -106,9 +105,17 @@ export function MpinScreen({ navigation: _navigation }: any) {
                   key={num}
                   onPress={() => handleKeyPress(num)}
                   disabled={loading}
-                  style={[styles.key, { backgroundColor: theme.colors.surface.card }]}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.key,
+                    {
+                      backgroundColor: theme.colors.surface.card,
+                      borderColor: theme.colors.surface.border,
+                      borderRadius: theme.borderRadius.lg,
+                    },
+                  ]}
                 >
-                  <Text style={[styles.keyText, { color: theme.colors.text.primary }]}>{num}</Text>
+                  <Text style={[typography.statValue, { color: theme.colors.text.primary }]}>{num}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -118,16 +125,32 @@ export function MpinScreen({ navigation: _navigation }: any) {
             <TouchableOpacity
               onPress={() => handleKeyPress('0')}
               disabled={loading}
-              style={[styles.key, { backgroundColor: theme.colors.surface.card }]}
+              activeOpacity={0.8}
+              style={[
+                styles.key,
+                {
+                  backgroundColor: theme.colors.surface.card,
+                  borderColor: theme.colors.surface.border,
+                  borderRadius: theme.borderRadius.lg,
+                },
+              ]}
             >
-              <Text style={[styles.keyText, { color: theme.colors.text.primary }]}>0</Text>
+              <Text style={[typography.statValue, { color: theme.colors.text.primary }]}>0</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleBackspace}
               disabled={loading}
-              style={[styles.key, { backgroundColor: theme.colors.surface.card }]}
+              activeOpacity={0.8}
+              style={[
+                styles.key,
+                {
+                  backgroundColor: theme.colors.surface.card,
+                  borderColor: theme.colors.surface.border,
+                  borderRadius: theme.borderRadius.lg,
+                },
+              ]}
             >
-              <Text style={[styles.keyText, { color: theme.colors.semantic.error }]}>⌫</Text>
+              <AppIcon name="backspace" color={theme.colors.text.secondary} size={22} />
             </TouchableOpacity>
           </View>
         </View>
@@ -149,17 +172,17 @@ export function MpinScreen({ navigation: _navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  dotContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  dot: { width: 20, height: 20, borderRadius: 10, marginHorizontal: 12 },
-  keypad: { width: '100%', paddingHorizontal: 20 },
-  keypadRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  dotContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 24, marginBottom: 32 },
+  dot: { width: 16, height: 16, borderRadius: 8, marginHorizontal: 10 },
+  keypad: { width: '100%', maxWidth: 280 },
+  keypadRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   key: {
-    width: 70, height: 70, borderRadius: 35,
-    justifyContent: 'center', alignItems: 'center',
-    elevation: 2, shadowColor: '#000', shadowOpacity: 0.1,
-    shadowRadius: 4, shadowOffset: { width: 0, height: 2 }
+    width: 72,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
   },
-  keyText: { fontSize: 24, fontWeight: '600' },
-  keyEmpty: { width: 70, height: 70 },
-  reloginBtn: { marginTop: 24, padding: 12 },
+  keyEmpty: { width: 72, height: 56 },
+  reloginBtn: { marginTop: 28, padding: 12 },
 });

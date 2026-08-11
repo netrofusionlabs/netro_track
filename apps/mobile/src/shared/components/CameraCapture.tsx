@@ -30,7 +30,6 @@ export function CameraCapture({ onPhotoCaptured, onCancel }: CameraCaptureProps)
       setIsCapturing(true);
       try {
         const photo = await camera.current.takePhoto({
-          qualityPrioritization: 'speed',
           flash: 'auto'
         });
         onPhotoCaptured(`file://${photo.path}`);

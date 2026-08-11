@@ -1,23 +1,13 @@
-/**
- * OfflineBanner — Animated connectivity status indicator.
- *
- * Subscribes to NetInfo and slides in from the top when offline.
- * Automatically disappears when connection is restored.
- *
- * Usage: Place inside the root navigator shell (e.g. AppNavigator.tsx)
- *
- *   <NavigationContainer>
- *     <OfflineBanner />
- *     <Stack.Navigator ... />
- *   </NavigationContainer>
- */
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View, Platform } from 'react-native';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+import { useTheme } from '../theme/ThemeProvider';
+import { AppIcon } from './AppIcon';
 
 const BANNER_HEIGHT = 44;
 
 export function OfflineBanner(): React.JSX.Element | null {
+  const theme = useTheme();
   const [isOffline, setIsOffline] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
   const translateY = useRef(new Animated.Value(-BANNER_HEIGHT)).current;
@@ -35,7 +25,6 @@ export function OfflineBanner(): React.JSX.Element | null {
   useEffect(() => {
     if (isOffline) {
       setShowBanner(true);
-      // Slide in + fade in
       Animated.parallel([
         Animated.spring(translateY, {
           toValue: 0,
@@ -50,7 +39,6 @@ export function OfflineBanner(): React.JSX.Element | null {
         }),
       ]).start();
     } else if (showBanner) {
-      // Slide out + fade out, then hide
       Animated.parallel([
         Animated.timing(translateY, {
           toValue: -BANNER_HEIGHT,
@@ -72,14 +60,20 @@ export function OfflineBanner(): React.JSX.Element | null {
     <Animated.View
       style={[
         styles.container,
-        { transform: [{ translateY }], opacity },
+        {
+          backgroundColor: theme.colors.semantic.warningBg,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.semantic.warning,
+          transform: [{ translateY }],
+          opacity,
+        },
       ]}
       accessibilityRole="alert"
       accessibilityLabel="No internet connection. Changes will sync automatically when reconnected."
     >
       <View style={styles.content}>
-        <Text style={styles.icon}>⚠</Text>
-        <Text style={styles.text}>
+        <AppIcon name="wifiOff" color={theme.colors.semantic.warning} size={16} />
+        <Text style={[styles.text, { color: theme.colors.semantic.warning }]}>
           You're offline — changes sync automatically
         </Text>
       </View>
@@ -94,14 +88,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 9999,
-    backgroundColor: '#D97706', // Amber-600 — visible but not alarming
     height: BANNER_HEIGHT,
     justifyContent: 'flex-end',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
+        shadowOpacity: 0.1,
         shadowRadius: 4,
       },
       android: {
@@ -113,18 +106,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: 8,
+    paddingBottom: 10,
     paddingHorizontal: 16,
     gap: 8,
-  },
-  icon: {
-    fontSize: 14,
-    color: '#FFFBEB',
   },
   text: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#FFFBEB',
     textAlign: 'center',
   },
 });

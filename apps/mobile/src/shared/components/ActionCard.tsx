@@ -2,11 +2,11 @@ import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { typography } from '../theme/typography';
-import { shadows } from '../theme/shadows';
+import { AppIcon, AppIconName } from './AppIcon';
 
 interface ActionCardProps {
   label: string;
-  icon: string;
+  icon: AppIconName | string;
   onPress: () => void;
 }
 
@@ -18,15 +18,18 @@ export function ActionCard({ label, icon, onPress }: ActionCardProps) {
       onPress={onPress}
       style={[
         s.actionCard,
-        shadows.sm,
-        { backgroundColor: theme.colors.surface.card, borderRadius: theme.borderRadius.lg },
+        {
+          backgroundColor: theme.colors.surface.card,
+          borderRadius: theme.borderRadius.lg,
+          borderColor: theme.colors.surface.border,
+        },
       ]}
       activeOpacity={0.7}
     >
       <View style={[s.actionIconWrap, { backgroundColor: theme.colors.brand.primaryLight }]}>
-        <Text style={{ fontSize: 22 }}>{icon}</Text>
+        <AppIcon name={icon} color={theme.colors.brand.primary} size={18} />
       </View>
-      <Text style={[typography.buttonSm, { color: theme.colors.text.primary, marginTop: 8 }]}>
+      <Text style={[typography.buttonSm, { color: theme.colors.text.primary, marginTop: 8, fontSize: 12, fontWeight: '600' }]}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -35,15 +38,16 @@ export function ActionCard({ label, icon, onPress }: ActionCardProps) {
 
 const s = StyleSheet.create({
   actionCard: {
-    width: '47%',
-    paddingVertical: 20,
-    paddingHorizontal: 16,
+    width: '48%',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     alignItems: 'center',
+    borderWidth: 1,
   },
   actionIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },

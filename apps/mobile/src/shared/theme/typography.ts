@@ -1,107 +1,137 @@
 import { TextStyle } from 'react-native';
 
 /**
- * Centralised typography presets for the NetroTrack design system.
+ * NetroTrack Design System — Typography Presets
  *
- * Usage:
- *   import { typography } from '@/shared/theme/typography';
- *   <Text style={typography.headingLg}>Dashboard</Text>
+ * Design philosophy:
+ * - Max weight is '700' — never '800'. Enterprise apps don't shout.
+ * - Display sizes are restrained — no 32pt text on mobile.
+ * - Negative letter spacing on headings for modern, tight feel.
+ * - Strict hierarchy: display > heading > body > caption > overline
+ * - Every text element in the app must use one of these presets.
  */
 export const typography = {
-  /** Hero / display numbers — 32pt */
+  // ─── Display ───────────────────────────────────────────────────
+  /** Hero numbers on dashboard (working hours, revenue totals) — 26pt */
   displayLg: {
-    fontSize: 32,
-    fontWeight: '800',
-    lineHeight: 40,
+    fontSize: 26,
+    fontWeight: '700',
+    lineHeight: 32,
     letterSpacing: -0.5,
   } as TextStyle,
 
-  /** Screen title — 28pt */
+  /** Screen titles — 22pt */
   displaySm: {
-    fontSize: 28,
-    fontWeight: '800',
-    lineHeight: 34,
-    letterSpacing: -0.4,
-  } as TextStyle,
-
-  /** Section heading — 22pt */
-  headingLg: {
     fontSize: 22,
     fontWeight: '700',
     lineHeight: 28,
     letterSpacing: -0.3,
   } as TextStyle,
 
-  /** Card title — 18pt */
-  headingMd: {
+  // ─── Headings ──────────────────────────────────────────────────
+  /** Section titles, card titles — 18pt */
+  headingLg: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '600',
     lineHeight: 24,
     letterSpacing: -0.2,
   } as TextStyle,
 
-  /** Sub-heading — 16pt */
-  headingSm: {
+  /** Subsection headers, form titles — 16pt */
+  headingMd: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
     lineHeight: 22,
   } as TextStyle,
 
-  /** Body text (default) — 15pt */
+  /** List item titles, bold inline text — 14pt */
+  headingSm: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+  } as TextStyle,
+
+  // ─── Body ──────────────────────────────────────────────────────
+  /** Primary body text, descriptions — 15pt */
   bodyLg: {
     fontSize: 15,
     fontWeight: '400',
     lineHeight: 22,
   } as TextStyle,
 
-  /** Body text — 14pt */
+  /** Standard body text — 14pt */
   bodyMd: {
     fontSize: 14,
     fontWeight: '400',
     lineHeight: 20,
   } as TextStyle,
 
-  /** Small body — 13pt */
+  /** Secondary text, metadata — 13pt */
   bodySm: {
     fontSize: 13,
     fontWeight: '400',
     lineHeight: 18,
   } as TextStyle,
 
-  /** Caption / metadata — 12pt */
+  // ─── Utility ───────────────────────────────────────────────────
+  /** Timestamps, counts, small metadata — 12pt */
   caption: {
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 16,
   } as TextStyle,
 
-  /** Overline / section labels — 11pt */
+  /** Form labels, section labels — 13pt */
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  } as TextStyle,
+
+  /** Section headers (ATTENDANCE, TODAY'S ACTIVITY) — 11pt uppercase */
   overline: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
     lineHeight: 14,
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
   } as TextStyle,
 
-  /** Stat value — large emphasis numbers */
-  statValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    lineHeight: 30,
+  /** Bottom tab labels — 11pt */
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    lineHeight: 14,
   } as TextStyle,
 
-  /** Button label — 15pt */
+  /** Dashboard stat numbers — 22pt */
+  statValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    lineHeight: 28,
+  } as TextStyle,
+
+  /** Monospace numeric displays — 14pt */
+  mono: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+    fontFamily: undefined, // Falls back to system mono if available
+    fontVariant: ['tabular-nums'],
+  } as TextStyle,
+
+  // ─── Buttons ───────────────────────────────────────────────────
+  /** Primary button text — 15pt */
   button: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '600',
     lineHeight: 20,
   } as TextStyle,
 
-  /** Small button / tag — 13pt */
+  /** Small button / chip text — 13pt */
   buttonSm: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '600',
     lineHeight: 18,
   } as TextStyle,
 };

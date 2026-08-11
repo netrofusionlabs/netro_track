@@ -2,45 +2,62 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { typography } from '../theme/typography';
-import { shadows } from '../theme/shadows';
+import { AppIcon, AppIconName } from './AppIcon';
 
 interface ListItemProps {
-  icon?: string;
+  icon?: AppIconName | string;
+  avatar?: React.ReactNode;
   title: string;
   subtitle?: string;
   trailing?: React.ReactNode;
   trailingText?: string;
   trailingColor?: string;
+  showChevron?: boolean;
+  compact?: boolean;
   onPress?: () => void;
   style?: ViewStyle;
 }
 
 export function ListItem({
   icon,
+  avatar,
   title,
   subtitle,
   trailing,
   trailingText,
   trailingColor,
+  showChevron = false,
+  compact = false,
   onPress,
   style,
 }: ListItemProps) {
   const theme = useTheme();
 
+  const isPressable = !!onPress;
+  const shouldShowChevron = showChevron || (isPressable && !trailing && !trailingText);
+
   const content = (
     <View
       style={[
         styles.container,
-        shadows.sm,
-        { backgroundColor: theme.colors.surface.card, borderRadius: theme.borderRadius.lg },
+        {
+          backgroundColor: theme.colors.surface.card,
+          borderRadius: theme.borderRadius.lg,
+          borderColor: theme.colors.surface.border,
+          paddingVertical: compact ? 8 : 12,
+          paddingHorizontal: 12,
+        },
         style,
       ]}
     >
-      {icon && (
+      {avatar ? (
+        <View style={styles.leftContainer}>{avatar}</View>
+      ) : icon ? (
         <View style={[styles.iconContainer, { backgroundColor: theme.colors.brand.primaryLight }]}>
-          <Text style={styles.icon}>{icon}</Text>
+          <AppIcon name={icon} color={theme.colors.brand.primary} size={18} />
         </View>
-      )}
+      ) : null}
+
       <View style={styles.body}>
         <Text style={[typography.headingSm, { color: theme.colors.text.primary }]} numberOfLines={1}>
           {title}
@@ -51,23 +68,30 @@ export function ListItem({
           </Text>
         )}
       </View>
+
       {trailing ?? (trailingText ? (
         <Text
           style={[
             typography.headingSm,
-            { color: trailingColor ?? theme.colors.text.primary, marginLeft: 12 },
+            { color: trailingColor ?? theme.colors.text.primary, marginLeft: 10 },
           ]}
           numberOfLines={1}
         >
           {trailingText}
         </Text>
       ) : null)}
+
+      {shouldShowChevron && (
+        <View style={styles.chevronContainer}>
+          <AppIcon name="chevronRight" color={theme.colors.text.tertiary} size={16} />
+        </View>
+      )}
     </View>
   );
 
   if (onPress) {
     return (
-      <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
         {content}
       </TouchableOpacity>
     );
@@ -80,21 +104,24 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    marginBottom: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+  },
+  leftContainer: {
+    marginRight: 12,
   },
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
-  },
-  icon: {
-    fontSize: 20,
+    marginRight: 12,
   },
   body: {
     flex: 1,
+  },
+  chevronContainer: {
+    marginLeft: 8,
   },
 });

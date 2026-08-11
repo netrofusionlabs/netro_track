@@ -1,24 +1,37 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator, RefreshControl
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../shared/theme/ThemeProvider';
 import { typography } from '../../shared/theme/typography';
-import { Card } from '../../shared/components/Card';
-import { Divider } from '../../shared/components/Divider';
-import { EmptyState } from '../../shared/components/EmptyState';
+import {
+  Card,
+  EmptyState,
+  ErrorState,
+  AppIcon,
+  StatusBadge,
+  Button,
+  IconButton,
+  SegmentedControl,
+  Section,
+  SyncIndicator,
+} from '../../shared/components';
 import {
   useAttendanceToday,
   useAttendanceSummary,
   usePunchIn,
-  usePunchOut
+  usePunchOut,
 } from './hooks/useAttendance';
 import { requestLocationPermission } from '../../shared/utils/locationPermissions';
-import { startTracking } from '../../shared/services/trackingService';
+import { startTracking, isTrackingActive } from '../../shared/services/trackingService';
 
-/** Safe Hermes Date Parser for ISO/SQL timestamp strings */
 function parseDate(iso: string | null | undefined): Date | null {
   if (!iso) return null;
   const safeStr = typeof iso === 'string' ? iso.replace(' ', 'T') : iso;
@@ -26,7 +39,6 @@ function parseDate(iso: string | null | undefined): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-/** Safe Number parser for Prisma Decimal string responses */
 function safeNum(val: number | string | null | undefined): number | null {
   if (val == null || val === '') return null;
   const num = typeof val === 'string' ? parseFloat(val) : val;
@@ -36,7 +48,7 @@ function safeNum(val: number | string | null | undefined): number | null {
 function formatDate(iso: string | null | undefined): string {
   const d = parseDate(iso);
   if (!d) return '—';
-  return d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 function formatTime(iso: string | null | undefined): string {
@@ -58,32 +70,32 @@ type FilterMode = 'monthly' | 'all' | 'today';
 export function AttendanceScreen() {
   const theme = useTheme();
 
-  // Mode state: Default is 'monthly'
   const [filterMode, setFilterMode] = useState<FilterMode>('monthly');
-
-  // Month state for navigation in monthly mode
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
   const selectedYear = selectedDate.getFullYear();
   const selectedMonthNum = selectedDate.getMonth() + 1;
 
-  // 1. Today Active / Latest Punch Query
   const { data: record, isLoading: isTodayLoading, error: todayError, refetch: refetchToday } = useAttendanceToday();
 
-  // 2. Pure Backend API Summary Query (No client-side math / filters)
   const {
     data: summaryData,
     isLoading: isSummaryLoading,
-    refetch: refetchSummary
-  } = useAttendanceSummary(filterMode, filterMode === 'monthly' ? selectedYear : undefined, filterMode === 'monthly' ? selectedMonthNum : undefined);
+    error: summaryError,
+    refetch: refetchSummary,
+  } = useAttendanceSummary(
+    filterMode,
+    filterMode === 'monthly' ? selectedYear : undefined,
+    filterMode === 'monthly' ? selectedMonthNum : undefined
+  );
 
   const punchIn = usePunchIn();
   const punchOut = usePunchOut();
 
   useEffect(() => {
     void requestLocationPermission();
-    if (record && !record.punchOutTime) {
+    if (record && !record.punchOutTime && record.id) {
       void startTracking(record.id);
     }
   }, [record]);
@@ -101,36 +113,25 @@ export function AttendanceScreen() {
     if (!isPunchedIn) {
       punchIn.mutate(undefined, {
         onSuccess: () => void onRefresh(),
-        onError: (err) => Alert.alert('Punch In Failed', err.message)
+        onError: (err) => Alert.alert('Punch In Failed', err.message),
       });
     } else {
       Alert.alert('Punch Out', 'Are you sure you want to punch out?', [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Punch Out', style: 'destructive',
+          text: 'Punch Out',
+          style: 'destructive',
           onPress: () =>
             punchOut.mutate(undefined, {
               onSuccess: () => void onRefresh(),
-              onError: (e) => Alert.alert('Punch Out Failed', e.message)
-            })
-        }
+              onError: (e) => Alert.alert('Punch Out Failed', e.message),
+            }),
+        },
       ]);
     }
   }, [isPunchedIn, punchIn, punchOut, onRefresh]);
 
   const isMutating = punchIn.isPending || punchOut.isPending;
-
-  const statusColor = isPunchedIn
-    ? theme.colors.semantic.success
-    : isPunchedOut
-    ? theme.colors.semantic.info
-    : theme.colors.semantic.warning;
-
-  const statusLabel = isPunchedIn
-    ? '● Punched In'
-    : isPunchedOut
-    ? '✓ Session Complete (Ready for Next Shift)'
-    : '○ Not Punched In';
 
   const changeMonth = (offset: number) => {
     const next = new Date(selectedDate);
@@ -139,11 +140,12 @@ export function AttendanceScreen() {
   };
 
   const monthYearLabel = selectedDate.toLocaleDateString([], { month: 'long', year: 'numeric' });
+  const isGpsActive = isTrackingActive() || isPunchedIn;
 
   return (
-    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: theme.colors.surface.background }]}>
+    <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
       <ScrollView
-        contentContainerStyle={s.scroll}
+        contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -154,175 +156,184 @@ export function AttendanceScreen() {
           />
         }
       >
-        {/* Title */}
-        <Text style={[typography.displaySm, { color: theme.colors.text.primary }]}>Attendance</Text>
-        <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 4, marginBottom: 20 }]}>
-          Track sessions, manage shifts & view history
-        </Text>
+        {/* Screen Title Header */}
+        <View style={styles.headerArea}>
+          <Text style={[typography.displaySm, { color: theme.colors.text.primary }]}>Attendance</Text>
+          <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+            Track shifts, record working hours & view history
+          </Text>
+        </View>
 
-        {/* Hero Punch Action Card */}
-        <Card variant="elevated" style={{ marginBottom: 20 }}>
-          <Text style={[typography.headingSm, { color: statusColor, marginBottom: 16 }]}>{statusLabel}</Text>
+        {/* Hero Current Session Card */}
+        <Card variant="elevated" style={styles.heroCard}>
+          <View style={styles.heroTopRow}>
+            <StatusBadge
+              status={isPunchedIn ? 'active' : isPunchedOut ? 'completed' : 'offline'}
+              label={isPunchedIn ? 'Punched In' : isPunchedOut ? 'Shift Complete' : 'Not Punched In'}
+              size="md"
+            />
+            <SyncIndicator state={isPunchedIn ? 'synced' : 'pending'} />
+          </View>
 
-          {isTodayLoading && <ActivityIndicator style={{ marginBottom: 16 }} color={theme.colors.brand.primary} />}
+          {isTodayLoading && <ActivityIndicator style={{ marginVertical: 10 }} color={theme.colors.brand.primary} />}
           {todayError && (
-            <Text style={[typography.bodySm, { color: theme.colors.semantic.error, marginBottom: 12 }]}>
+            <Text style={[typography.bodySm, { color: theme.colors.semantic.error, marginVertical: 6 }]}>
               {(todayError as Error).message}
             </Text>
           )}
 
-          <View style={s.timeRow}>
-            <View style={s.timeBlock}>
-              <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 6 }]}>
-                Punch In
-              </Text>
-              <Text style={[typography.headingMd, { color: theme.colors.text.primary }]}>
+          {/* 3-Column Info Layout */}
+          <View style={styles.columnsRow}>
+            <View style={styles.columnItem}>
+              <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>Punch In</Text>
+              <Text style={[typography.headingSm, { color: theme.colors.text.primary, marginTop: 2 }]}>
                 {formatTime(record?.punchInTime)}
               </Text>
             </View>
-            <Divider direction="vertical" spacing={8} style={{ height: 44 }} />
-            <View style={s.timeBlock}>
-              <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 6 }]}>
-                Punch Out
-              </Text>
-              <Text style={[typography.headingMd, { color: theme.colors.text.primary }]}>
+            <View style={[styles.colDivider, { backgroundColor: theme.colors.surface.divider }]} />
+            <View style={styles.columnItem}>
+              <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>Punch Out</Text>
+              <Text style={[typography.headingSm, { color: theme.colors.text.primary, marginTop: 2 }]}>
                 {formatTime(record?.punchOutTime)}
               </Text>
             </View>
-            <Divider direction="vertical" spacing={8} style={{ height: 44 }} />
-            <View style={s.timeBlock}>
-              <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 6 }]}>
-                Hours
-              </Text>
-              <Text style={[typography.headingMd, { color: theme.colors.text.primary }]}>
+            <View style={[styles.colDivider, { backgroundColor: theme.colors.surface.divider }]} />
+            <View style={styles.columnItem}>
+              <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>Hours</Text>
+              <Text style={[typography.headingSm, { color: theme.colors.brand.primary, marginTop: 2 }]}>
                 {formatHours(record?.workingHours)}
               </Text>
             </View>
           </View>
 
-          <TouchableOpacity
+          {/* Punch Button */}
+          <Button
+            label={isPunchedIn ? 'Punch Out' : 'Punch In'}
             onPress={handlePunch}
             disabled={isMutating || isTodayLoading}
-            style={[
-              s.btn,
-              {
-                backgroundColor: isPunchedIn
-                  ? theme.colors.semantic.error
-                  : theme.colors.brand.primary,
-                borderRadius: theme.borderRadius.md,
-                opacity: isMutating || isTodayLoading ? 0.6 : 1,
-              },
-            ]}
-            activeOpacity={0.8}
-          >
-            {isMutating
-              ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={[typography.button, { color: '#FFFFFF' }]}>{isPunchedIn ? 'Punch Out' : 'Punch In'}</Text>
-            }
-          </TouchableOpacity>
+            loading={isMutating}
+            variant={isPunchedIn ? 'danger' : 'primary'}
+            size="lg"
+            fullWidth
+            icon={isPunchedIn ? 'logout' : 'attendance'}
+          />
         </Card>
 
-        {/* Filter Controls Header */}
-        <View style={s.filterHeader}>
-          <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>Attendance Logs</Text>
-          <View style={s.tabContainer}>
-            <TouchableOpacity
-              onPress={() => setFilterMode('monthly')}
-              style={[s.tabItem, filterMode === 'monthly' && { backgroundColor: theme.colors.brand.primary }]}
-            >
-              <Text style={[s.tabText, filterMode === 'monthly' && { color: '#FFF', fontWeight: '600' }]}>Monthly</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setFilterMode('all')}
-              style={[s.tabItem, filterMode === 'all' && { backgroundColor: theme.colors.brand.primary }]}
-            >
-              <Text style={[s.tabText, filterMode === 'all' && { color: '#FFF', fontWeight: '600' }]}>All</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setFilterMode('today')}
-              style={[s.tabItem, filterMode === 'today' && { backgroundColor: theme.colors.brand.primary }]}
-            >
-              <Text style={[s.tabText, filterMode === 'today' && { color: '#FFF', fontWeight: '600' }]}>Today</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        {/* Section Header & Segmented Filter Control */}
+        <Section title="Attendance Logs">
+          <SegmentedControl
+            options={[
+              { value: 'today', label: 'Today' },
+              { value: 'monthly', label: 'Monthly' },
+              { value: 'all', label: 'All' },
+            ]}
+            value={filterMode}
+            onChange={(val) => setFilterMode(val as FilterMode)}
+            style={{ marginBottom: 12 }}
+          />
+        </Section>
 
-        {/* Monthly Calendar Bar */}
+        {/* Monthly Month Selector Bar */}
         {filterMode === 'monthly' && (
-          <View style={[s.monthBar, { backgroundColor: theme.colors.surface.card, borderRadius: theme.borderRadius.md }]}>
-            <TouchableOpacity onPress={() => changeMonth(-1)} style={s.monthBtn}>
-              <Text style={{ fontSize: 18, color: theme.colors.brand.primary }}>◀</Text>
-            </TouchableOpacity>
-            <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>📅 {summaryData?.monthName || monthYearLabel}</Text>
-            <TouchableOpacity onPress={() => changeMonth(1)} style={s.monthBtn}>
-              <Text style={{ fontSize: 18, color: theme.colors.brand.primary }}>▶</Text>
-            </TouchableOpacity>
-          </View>
+          <Card style={styles.monthBar}>
+            <IconButton
+              icon="chevronLeft"
+              onPress={() => changeMonth(-1)}
+              variant="ghost"
+              size="sm"
+            />
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <AppIcon name="calendar" color={theme.colors.brand.primary} size={16} />
+              <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+                {summaryData?.monthName || monthYearLabel}
+              </Text>
+            </View>
+            <IconButton
+              icon="chevronRight"
+              onPress={() => changeMonth(1)}
+              variant="ghost"
+              size="sm"
+            />
+          </Card>
         )}
 
-        {/* Stats Summary Bar from Backend API */}
+        {/* Summary Card */}
         {summaryData && (
-          <View style={[s.statsBar, { backgroundColor: theme.colors.surface.input, borderRadius: theme.borderRadius.md }]}>
-            <View style={s.statItem}>
+          <Card variant="elevated" style={styles.summaryCard}>
+            <View style={styles.summaryCol}>
+              <Text style={[typography.statValue, { color: theme.colors.text.primary }]}>
+                {filterMode === 'all'
+                  ? summaryData.totalMonths ?? 0
+                  : filterMode === 'monthly'
+                  ? summaryData.totalDaysWorked ?? 0
+                  : summaryData.sessionsCount ?? 0}
+              </Text>
               <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>
                 {filterMode === 'all' ? 'Months' : filterMode === 'monthly' ? 'Days Worked' : 'Sessions'}
               </Text>
-              <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
-                {filterMode === 'all' ? summaryData.totalMonths : filterMode === 'monthly' ? summaryData.totalDaysWorked : summaryData.sessionsCount}
+            </View>
+            <View style={[styles.summaryDivider, { backgroundColor: theme.colors.surface.divider }]} />
+            <View style={styles.summaryCol}>
+              <Text style={[typography.statValue, { color: theme.colors.brand.primary }]}>
+                {formatHours(summaryData.totalHours)}
               </Text>
-            </View>
-            <Divider direction="vertical" spacing={8} style={{ height: 28 }} />
-            <View style={s.statItem}>
               <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>Total Hours</Text>
-              <Text style={[typography.headingSm, { color: theme.colors.brand.primary }]}>{formatHours(summaryData.totalHours)}</Text>
             </View>
-          </View>
+          </Card>
+        )}
+
+        {/* Summary Error State */}
+        {summaryError && !isSummaryLoading && (
+          <ErrorState
+            title="Could not load summary"
+            message={(summaryError as Error).message}
+            onRetry={() => void refetchSummary()}
+          />
         )}
 
         {/* Loading Indicator */}
-        {isSummaryLoading && <ActivityIndicator style={{ marginTop: 20 }} color={theme.colors.brand.primary} size="large" />}
+        {isSummaryLoading && (
+          <ActivityIndicator style={{ marginVertical: 20 }} color={theme.colors.brand.primary} size="large" />
+        )}
 
-        {/* MODE 1: MONTHLY VIEW -> Daily Breakdown from Backend */}
-        {!isSummaryLoading && filterMode === 'monthly' && (
+        {/* MODE 1: MONTHLY VIEW -> Daily Breakdown */}
+        {!isSummaryLoading && !summaryError && filterMode === 'monthly' && (
           <>
             {(!summaryData?.days || summaryData.days.length === 0) ? (
               <EmptyState
-                icon="📅"
+                icon="calendar"
                 title="No Attendance for Selected Month"
                 subtitle="Daily attendance totals for this month will appear here."
               />
             ) : (
-              summaryData.days.map((day) => (
-                <Card key={day.date} style={s.historyCard}>
-                  <View style={s.historyRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
-                        📅 {formatDate(day.date)} ({day.dayOfWeek})
-                      </Text>
-                      <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                        Shifts/Sessions: {day.sessionsCount}
-                      </Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>Daily Total</Text>
-                      <Text style={[typography.headingMd, { color: theme.colors.brand.primary }]}>
-                        {formatHours(day.totalHours)}
-                      </Text>
-                    </View>
+              (summaryData.days || []).map((day, dIdx) => (
+                <Card key={day.date || `day-${dIdx}`} style={styles.logCard}>
+                  <View style={styles.logRowTop}>
+                    <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+                      {formatDate(day.date)} {day.dayOfWeek ? `(${day.dayOfWeek})` : ''}
+                    </Text>
+                    <Text style={[typography.headingSm, { color: theme.colors.brand.primary }]}>
+                      {formatHours(day.totalHours)}
+                    </Text>
                   </View>
 
-                  {/* Individual Shift Sessions for this day */}
-                  <Divider direction="horizontal" spacing={12} />
-                  {day.records.map((r, idx) => (
-                    <View key={r.id} style={{ marginTop: idx > 0 ? 8 : 0 }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={[typography.caption, { color: theme.colors.text.primary }]}>
-                          ⏰ {formatTime(r.punchInTime)} → {formatTime(r.punchOutTime)}
-                        </Text>
-                        <Text style={[typography.caption, { color: theme.colors.brand.primary, fontWeight: '600' }]}>
-                          {formatHours(r.workingHours)}
+                  <View style={styles.logRowBottom}>
+                    <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>
+                      Shifts: {day.sessionsCount ?? 0}
+                    </Text>
+                  </View>
+
+                  {(day.records || []).map((r, rIdx) => (
+                    <View key={r.id || `rec-${rIdx}`} style={[styles.shiftSubRow, { borderTopColor: theme.colors.surface.divider }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <AppIcon name="clock" color={theme.colors.text.tertiary} size={14} />
+                        <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>
+                          {formatTime(r.punchInTime)} → {formatTime(r.punchOutTime)}
                         </Text>
                       </View>
+                      <Text style={[typography.caption, { color: theme.colors.brand.primary, fontWeight: '600' }]}>
+                        {formatHours(r.workingHours)}
+                      </Text>
                     </View>
                   ))}
                 </Card>
@@ -331,33 +342,33 @@ export function AttendanceScreen() {
           </>
         )}
 
-        {/* MODE 2: ALL VIEW -> Monthly Breakdown from Backend */}
-        {!isSummaryLoading && filterMode === 'all' && (
+        {/* MODE 2: ALL VIEW -> Monthly Breakdown */}
+        {!isSummaryLoading && !summaryError && filterMode === 'all' && (
           <>
             {(!summaryData?.months || summaryData.months.length === 0) ? (
               <EmptyState
-                icon="📊"
+                icon="history"
                 title="No Attendance History"
                 subtitle="Monthly attendance summary totals will be listed here."
               />
             ) : (
-              summaryData.months.map((mItem) => (
-                <Card key={mItem.monthKey} style={s.historyCard}>
-                  <View style={s.historyRow}>
-                    <View style={{ flex: 1 }}>
+              (summaryData.months || []).map((mItem, mIdx) => (
+                <Card key={mItem.monthKey || `m-${mIdx}`} style={styles.logCard}>
+                  <View style={styles.logRowTop}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <AppIcon name="calendar" color={theme.colors.brand.primary} size={16} />
                       <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
-                        🗓️ {mItem.monthName}
-                      </Text>
-                      <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                        Days Worked: {mItem.daysWorked} | Total Sessions: {mItem.sessionsCount}
+                        {mItem.monthName}
                       </Text>
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>Monthly Total</Text>
-                      <Text style={[typography.headingMd, { color: theme.colors.brand.primary }]}>
-                        {formatHours(mItem.totalHours)}
-                      </Text>
-                    </View>
+                    <Text style={[typography.headingSm, { color: theme.colors.brand.primary }]}>
+                      {formatHours(mItem.totalHours)}
+                    </Text>
+                  </View>
+                  <View style={styles.logRowBottom}>
+                    <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>
+                      Days Worked: {mItem.daysWorked ?? 0} · Total Sessions: {mItem.sessionsCount ?? 0}
+                    </Text>
                   </View>
                 </Card>
               ))
@@ -365,43 +376,37 @@ export function AttendanceScreen() {
           </>
         )}
 
-        {/* MODE 3: TODAY VIEW -> Today Sessions from Backend */}
-        {!isSummaryLoading && filterMode === 'today' && (
+        {/* MODE 3: TODAY VIEW -> Today Sessions */}
+        {!isSummaryLoading && !summaryError && filterMode === 'today' && (
           <>
             {(!summaryData?.records || summaryData.records.length === 0) ? (
               <EmptyState
-                icon="☀️"
+                icon="attendance"
                 title="No Attendance Today"
                 subtitle="Punch in to record your attendance for today."
               />
             ) : (
-              summaryData.records.map((r) => (
-                <Card key={r.id} style={s.historyCard}>
-                  <View style={s.historyRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
-                        {formatDate(r.punchInTime)}
-                      </Text>
-                      <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                        ⏰ {formatTime(r.punchInTime)} → {formatTime(r.punchOutTime)}
+              (summaryData.records || []).map((r, rIdx) => (
+                <Card key={r.id || `rec-${rIdx}`} style={styles.logCard}>
+                  <View style={styles.logRowTop}>
+                    <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+                      {formatDate(r.punchInTime)}
+                    </Text>
+                    <Text style={[typography.headingSm, { color: theme.colors.brand.primary }]}>
+                      {formatHours(r.workingHours)}
+                    </Text>
+                  </View>
+                  <View style={styles.logRowBottom}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <AppIcon name="clock" color={theme.colors.text.tertiary} size={14} />
+                      <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>
+                        {formatTime(r.punchInTime)} → {formatTime(r.punchOutTime)}
                       </Text>
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={[typography.headingMd, { color: theme.colors.brand.primary }]}>
-                        {formatHours(r.workingHours)}
-                      </Text>
-                      <View style={[
-                        s.badge,
-                        { backgroundColor: r.punchOutTime ? '#E6F4EA' : '#FEF7E0' }
-                      ]}>
-                        <Text style={[
-                          typography.caption,
-                          { color: r.punchOutTime ? theme.colors.semantic.success : theme.colors.semantic.warning }
-                        ]}>
-                          {r.punchOutTime ? 'Completed' : 'Active'}
-                        </Text>
-                      </View>
-                    </View>
+                    <StatusBadge
+                      status={r.punchOutTime ? 'completed' : 'active'}
+                      label={r.punchOutTime ? 'Completed' : 'Active'}
+                    />
                   </View>
                 </Card>
               ))
@@ -409,85 +414,114 @@ export function AttendanceScreen() {
           </>
         )}
 
-        {/* GPS Note */}
-        <View style={[s.infoBox, { backgroundColor: theme.colors.surface.input, borderRadius: theme.borderRadius.md, marginTop: 16 }]}>
-          <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>
-            📍 GPS location is captured automatically and synced to the server every 2.5 minutes.
-          </Text>
-        </View>
+        {/* GPS Status Card */}
+        <Card style={styles.gpsCard}>
+          <AppIcon name="visits" color={theme.colors.brand.primary} size={20} />
+          <View style={styles.gpsTextGroup}>
+            <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+              {isGpsActive ? 'GPS tracking active' : 'GPS tracking available'}
+            </Text>
+            <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+              Location is captured automatically and synced to the server every 2.5 minutes during active shift hours.
+            </Text>
+          </View>
+        </Card>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1 },
-  scroll: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 40 },
-  timeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  timeBlock: { flex: 1, alignItems: 'center' },
-  btn: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
   },
-  filterHeader: {
+  scroll: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 32,
+  },
+  headerArea: {
+    marginBottom: 16,
+  },
+  heroCard: {
+    padding: 16,
+    marginBottom: 16,
+  },
+  heroTopRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  tabContainer: {
+  columnsRow: {
     flexDirection: 'row',
-    backgroundColor: '#E8ECEF',
-    borderRadius: 20,
-    padding: 3,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
-  tabItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+  columnItem: {
+    flex: 1,
+    alignItems: 'center',
   },
-  tabText: {
-    fontSize: 12,
-    color: '#666',
+  colDivider: {
+    width: 1,
+    height: 32,
   },
   monthBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     marginBottom: 12,
   },
-  monthBtn: {
-    padding: 6,
-  },
-  statsBar: {
+  summaryCard: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 12,
+    justifyContent: 'space-around',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     marginBottom: 16,
   },
-  statItem: {
+  summaryCol: {
+    flex: 1,
     alignItems: 'center',
   },
-  historyCard: {
-    marginBottom: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+  summaryDivider: {
+    width: 1,
+    height: 36,
   },
-  historyRow: {
+  logCard: {
+    padding: 14,
+    marginBottom: 8,
+  },
+  logRowTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  logRowBottom: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 6,
+  shiftSubRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
   },
-  infoBox: { padding: 16 },
+  gpsCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 14,
+    marginTop: 8,
+    gap: 12,
+  },
+  gpsTextGroup: {
+    flex: 1,
+  },
 });

@@ -1,33 +1,49 @@
 import React from 'react';
-import { View, ViewStyle, StyleSheet } from 'react-native';
+import { View, ViewStyle, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { shadows } from '../theme/shadows';
 
 interface CardProps {
   children: React.ReactNode;
   variant?: 'default' | 'elevated' | 'outlined';
+  noPadding?: boolean;
+  onPress?: () => void;
   style?: ViewStyle;
 }
 
-export function Card({ children, variant = 'default', style }: CardProps) {
+export function Card({
+  children,
+  variant = 'default',
+  noPadding = false,
+  onPress,
+  style,
+}: CardProps) {
   const theme = useTheme();
 
-  const variantStyles: ViewStyle =
-    variant === 'outlined'
-      ? { borderWidth: 1, borderColor: theme.colors.surface.input }
-      : variant === 'elevated'
-      ? shadows.lg
-      : shadows.md;
+  const isElevated = variant === 'elevated';
+
+  const cardStyle: ViewStyle = {
+    backgroundColor: theme.colors.surface.card,
+    borderRadius: theme.borderRadius.lg,
+    borderColor: theme.colors.surface.border,
+    padding: noPadding ? 0 : theme.spacing.lg,
+    ...(isElevated ? shadows.sm : {}),
+  };
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.85}
+        style={[styles.card, cardStyle, style]}
+      >
+        {children}
+      </TouchableOpacity>
+    );
+  }
 
   return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: theme.colors.surface.card, borderRadius: theme.borderRadius.lg },
-        variantStyles,
-        style,
-      ]}
-    >
+    <View style={[styles.card, cardStyle, style]}>
       {children}
     </View>
   );
@@ -35,7 +51,8 @@ export function Card({ children, variant = 'default', style }: CardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    padding: 20,
-    marginBottom: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
 });

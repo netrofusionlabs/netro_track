@@ -1,11 +1,17 @@
-import React from 'react';
-import { ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../shared/theme/ThemeProvider';
-import { ScreenHeader } from '../../shared/components/ScreenHeader';
-import { ListItem } from '../../shared/components/ListItem';
-import { EmptyState } from '../../shared/components/EmptyState';
-import { Badge } from '../../shared/components/Badge';
+import {
+  ScreenHeader,
+  ListItem,
+  EmptyState,
+  Badge,
+  SearchInput,
+  Avatar,
+  LoadingState,
+  BadgeVariant,
+} from '../../shared/components';
 import { useEmployees } from './hooks/useEmployees';
 
 function formatRole(role: string): string {
@@ -15,39 +21,65 @@ function formatRole(role: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function getRoleColor(role: string) {
+function getRoleBadgeVariant(role: string): BadgeVariant {
   switch (role) {
-    case 'COMPANY_ADMIN': return { bg: '#FFF3E0', fg: '#E65100' };
-    case 'MANAGER': return { bg: '#E3F2FD', fg: '#1565C0' };
-    case 'SUPER_ADMIN': return { bg: '#FCE4EC', fg: '#C62828' };
-    default: return { bg: '#E8F5E9', fg: '#2E7D32' };
+    case 'COMPANY_ADMIN':
+      return 'warning';
+    case 'MANAGER':
+      return 'info';
+    case 'SUPER_ADMIN':
+      return 'error';
+    default:
+      return 'success';
   }
 }
 
 export function EmployeeListScreen() {
   const theme = useTheme();
   const { data: employees = [], isLoading } = useEmployees();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredEmployees = employees.filter((emp) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      emp.name.toLowerCase().includes(q) ||
+      emp.employeeId?.toLowerCase().includes(q) ||
+      emp.designation?.name?.toLowerCase().includes(q) ||
+      emp.department?.name?.toLowerCase().includes(q)
+    );
+  });
 
   return (
-    <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: theme.colors.surface.background }]}>
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+    <SafeAreaView edges={['top']} style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader
           title="Workforce"
-          subtitle={`${employees.length} employees`}
+          subtitle={`${employees.length} total employees`}
         />
 
-        {isLoading && (
-          <ActivityIndicator style={{ marginTop: 40 }} color={theme.colors.brand.primary} size="large" />
-        )}
-        {!isLoading && employees.length === 0 && (
+        <SearchInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search by name, ID, or department..."
+        />
+
+        {isLoading && <LoadingState message="Loading workforce directory..." />}
+
+        {!isLoading && filteredEmployees.length === 0 && (
           <EmptyState
-            icon="👥"
-            title="No Employees"
-            subtitle="Your company workforce will appear here."
+            icon="employees"
+            title={searchQuery ? 'No Employees Match' : 'No Employees'}
+            subtitle={
+              searchQuery
+                ? `No employees found matching "${searchQuery}".`
+                : 'Your company workforce will appear here.'
+            }
           />
         )}
-        {employees.map((emp) => {
-          const colors = getRoleColor(emp.role);
+
+        {filteredEmployees.map((emp) => {
+          const variant = getRoleBadgeVariant(emp.role);
           const details = [
             emp.designation?.name,
             emp.department?.name,
@@ -57,17 +89,17 @@ export function EmployeeListScreen() {
           return (
             <ListItem
               key={emp.id}
-              icon="👤"
+              avatar={<Avatar name={emp.name} size="md" />}
               title={emp.name}
               subtitle={details}
               trailing={
                 <Badge
                   label={formatRole(emp.role)}
-                  color={colors.fg}
-                  backgroundColor={colors.bg}
+                  variant={variant}
                   size="sm"
                 />
               }
+              showChevron
             />
           );
         })}
@@ -76,7 +108,7 @@ export function EmployeeListScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const styles = StyleSheet.create({
   safe: { flex: 1 },
-  scroll: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 40 },
+  scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
 });

@@ -9,7 +9,7 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { useTheme } from '../../shared/theme/ThemeProvider';
 import { typography } from '../../shared/theme/typography';
@@ -161,6 +161,12 @@ export function AttendanceScreen() {
     await Promise.all([refetchToday(), refetchSummary()]);
     setRefreshing(false);
   }, [refetchToday, refetchSummary]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void onRefresh();
+    }, [onRefresh])
+  );
 
   const isPunchedIn = !!record && !record.punchOutTime;
   const isPunchedOut = !!record && !!record.punchOutTime;

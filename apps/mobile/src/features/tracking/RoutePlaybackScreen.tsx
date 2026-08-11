@@ -9,6 +9,7 @@ import { AppIcon, IconButton, Card, EmptyState, ErrorState, Badge } from '../../
 import { NetroMap } from '../../shared/components/map';
 import { useGpsRoute } from './hooks/useTracking';
 import { routeDataToMapData } from './adapters/mapDataAdapter';
+import { useRefreshOnFocus } from '../../shared/utils/useRefreshOnFocus';
 import type { AppIconName } from '../../shared/components/AppIcon';
 
 function todayISO(): string {
@@ -69,7 +70,9 @@ export function RoutePlaybackScreen({ route, navigation }: Props = {}) {
     setDate(paramDate);
   }, [paramDate, userId, attendanceId, startAt, endAt]);
 
-  const { data: routeData, isLoading, error } = useGpsRoute(userId, date);
+  const { data: routeData, isLoading, error, refetch } = useGpsRoute(userId, date);
+
+  useRefreshOnFocus(refetch);
 
   const sessionFilter = useMemo(() => {
     if (mode !== 'session') return null;

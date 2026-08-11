@@ -14,11 +14,14 @@ import {
   ProgressBar,
 } from '../../../shared/components';
 import { useTeamSummary } from '../hooks/useDashboard';
+import { useRefreshOnFocus } from '../../../shared/utils/useRefreshOnFocus';
 
 export function ManagerDashboard({ navigation }: { navigation: any }) {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
-  const { data: teamSummary } = useTeamSummary();
+  const { data: teamSummary, refetch } = useTeamSummary();
+
+  useRefreshOnFocus(refetch);
 
   const visitsCount = teamSummary?.visitsToday ?? 0;
   const salesCount = teamSummary?.salesToday ?? 0;

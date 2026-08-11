@@ -12,6 +12,7 @@ import {
 } from '../../shared/components';
 import { useSales } from './hooks/useSales';
 import { useEmployeeSales } from '../employees/hooks/useEmployeeDetail';
+import { useRefreshOnFocus } from '../../shared/utils/useRefreshOnFocus';
 import type { SaleRecord } from './types';
 
 function SaleCard({ sale }: { sale: SaleRecord }) {
@@ -60,7 +61,9 @@ export function SalesScreen({ route, navigation }: Props = {}) {
 
   const self = useSales();
   const emp = useEmployeeSales(employeeId ?? '');
-  const { data: sales = [], isLoading } = employeeId ? emp : self;
+  const { data: sales = [], isLoading, refetch } = employeeId ? emp : self;
+
+  useRefreshOnFocus(refetch);
 
   const viewOnly = !!employeeId;
 

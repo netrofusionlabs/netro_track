@@ -9,7 +9,8 @@
  *
  * "All Time" month cards are tappable → jumps to Monthly tab for that month/year.
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -710,6 +711,26 @@ export function AttendanceHistoryScreen({ route, navigation }: Props = {}) {
   const todayVisits = useMemo(() => filterByDateRange(allVisits, 'checkInTime', startOfToday(), endOfToday()), [allVisits]);
   const todaySales = useMemo(() => filterByDateRange(allSales, 'createdAt', startOfToday(), endOfToday()), [allSales]);
   const todayInspections = useMemo(() => filterByDateRange(allInspections, 'createdAt', startOfToday(), endOfToday()), [allInspections]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void attRefetch();
+      void empVisits.refetch();
+      void selfVisits.refetch();
+      void empSales.refetch();
+      void selfSales.refetch();
+      void empInspections.refetch();
+      void selfInspections.refetch();
+    }, [
+      attRefetch,
+      empVisits.refetch,
+      selfVisits.refetch,
+      empSales.refetch,
+      selfSales.refetch,
+      empInspections.refetch,
+      selfInspections.refetch,
+    ])
+  );
 
   const title = employeeId ? `${employeeName ?? 'Employee'}'s Activity` : 'Activity History';
 

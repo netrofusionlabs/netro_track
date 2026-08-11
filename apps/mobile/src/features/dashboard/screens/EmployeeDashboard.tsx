@@ -17,6 +17,7 @@ import {
 import { useAttendanceToday } from '../../attendance/hooks/useAttendance';
 import { useTodayVisits } from '../../visits/hooks/useVisits';
 import { useTodaySales } from '../../sales/hooks/useSales';
+import { useRefreshOnFocus } from '../../../shared/utils/useRefreshOnFocus';
 
 function formatTime(iso: string | null | undefined): string {
   if (!iso) return '--:--';
@@ -32,9 +33,15 @@ function formatDate(date: Date): string {
 export function EmployeeDashboard({ navigation }: { navigation: any }) {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
-  const { data: todayRecord } = useAttendanceToday();
-  const { data: todayVisits = [] } = useTodayVisits();
-  const { data: todaySales = [] } = useTodaySales();
+  const { data: todayRecord, refetch: r1 } = useAttendanceToday();
+  const { data: todayVisits = [], refetch: r2 } = useTodayVisits();
+  const { data: todaySales = [], refetch: r3 } = useTodaySales();
+
+  useRefreshOnFocus(React.useCallback(() => {
+    void r1();
+    void r2();
+    void r3();
+  }, [r1, r2, r3]));
 
   const isPunchedIn = !!todayRecord && !todayRecord.punchOutTime;
   const isPunchedOut = !!todayRecord && !!todayRecord.punchOutTime;

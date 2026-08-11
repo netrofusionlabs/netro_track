@@ -15,12 +15,18 @@ import {
 } from '../../../shared/components';
 import { useCustomers } from '../../customers/hooks/useCustomers';
 import { useEmployees } from '../../employees/hooks/useEmployees';
+import { useRefreshOnFocus } from '../../../shared/utils/useRefreshOnFocus';
 
 export function AdminDashboard({ navigation }: { navigation: any }) {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
-  const { data: customers = [] } = useCustomers();
-  const { data: employees = [] } = useEmployees();
+  const { data: customers = [], refetch: r1 } = useCustomers();
+  const { data: employees = [], refetch: r2 } = useEmployees();
+
+  useRefreshOnFocus(React.useCallback(() => {
+    void r1();
+    void r2();
+  }, [r1, r2]));
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface.background }]}>

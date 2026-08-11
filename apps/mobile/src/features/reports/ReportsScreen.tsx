@@ -16,6 +16,7 @@ import {
   Divider,
 } from '../../shared/components';
 import { api } from '../../shared/services/api';
+import { useRefreshOnFocus } from '../../shared/utils/useRefreshOnFocus';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -123,6 +124,8 @@ function AttendanceReportView({ startDate, endDate }: { startDate: string; endDa
   const theme = useTheme();
   const { data, isLoading, isError, refetch } = useAttendanceReport(startDate, endDate);
 
+  useRefreshOnFocus(refetch);
+
   if (isLoading) return <LoadingState message="Generating attendance report..." />;
   if (isError) return <ErrorState message="Failed to load report" onRetry={refetch} />;
   if (!data) return null;
@@ -168,6 +171,8 @@ function AttendanceReportView({ startDate, endDate }: { startDate: string; endDa
 function VisitsReportView({ startDate, endDate }: { startDate: string; endDate: string }) {
   const theme = useTheme();
   const { data, isLoading, isError, refetch } = useVisitsReport(startDate, endDate);
+
+  useRefreshOnFocus(refetch);
 
   if (isLoading) return <LoadingState message="Generating visits report..." />;
   if (isError) return <ErrorState message="Failed to load report" onRetry={refetch} />;
@@ -218,6 +223,8 @@ function VisitsReportView({ startDate, endDate }: { startDate: string; endDate: 
 function SalesReportView({ startDate, endDate }: { startDate: string; endDate: string }) {
   const theme = useTheme();
   const { data, isLoading, isError, refetch } = useSalesReport(startDate, endDate);
+
+  useRefreshOnFocus(refetch);
 
   if (isLoading) return <LoadingState message="Generating sales report..." />;
   if (isError) return <ErrorState message="Failed to load report" onRetry={refetch} />;

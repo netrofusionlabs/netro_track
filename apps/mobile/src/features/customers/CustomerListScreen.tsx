@@ -12,11 +12,14 @@ import {
   LoadingState,
 } from '../../shared/components';
 import { useCustomers } from './hooks/useCustomers';
+import { useRefreshOnFocus } from '../../shared/utils/useRefreshOnFocus';
 
 export function CustomerListScreen() {
   const theme = useTheme();
-  const { data: customers = [], isLoading } = useCustomers();
+  const { data: customers = [], isLoading, refetch } = useCustomers();
   const [searchQuery, setSearchQuery] = useState('');
+
+  useRefreshOnFocus(refetch);
 
   const filteredCustomers = customers.filter((c) => {
     const q = searchQuery.toLowerCase().trim();

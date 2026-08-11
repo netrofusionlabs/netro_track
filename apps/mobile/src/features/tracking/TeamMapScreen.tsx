@@ -9,6 +9,7 @@ import { connectSocket } from '../../shared/services/socketService';
 import { IconButton, EmptyState, ErrorState } from '../../shared/components';
 import { NetroMap } from '../../shared/components/map';
 import { liveLocationsToMarkers } from './adapters/mapDataAdapter';
+import { useRefreshOnFocus } from '../../shared/utils/useRefreshOnFocus';
 import type { LiveLocationPoint } from './types';
 
 interface EmployeeStatusMap {
@@ -63,6 +64,8 @@ export function TeamMapScreen() {
   const [livePoints, setLivePoints] = useState<LiveLocationPoint[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [statusMap, setStatusMap] = useState<EmployeeStatusMap>({});
+
+  useRefreshOnFocus(refetch);
 
   useEffect(() => {
     if (restPoints.length > 0) {

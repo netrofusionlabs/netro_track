@@ -12,6 +12,7 @@ import {
 } from '../../shared/components';
 import { useVisits } from './hooks/useVisits';
 import { useEmployeeVisits } from '../employees/hooks/useEmployeeDetail';
+import { useRefreshOnFocus } from '../../shared/utils/useRefreshOnFocus';
 import type { VisitRecord } from './types';
 
 function formatTime(iso: string | null): string {
@@ -80,7 +81,9 @@ export function VisitsScreen({ route, navigation }: Props = {}) {
 
   const self = useVisits();
   const emp = useEmployeeVisits(employeeId ?? '');
-  const { data: visits = [], isLoading } = employeeId ? emp : self;
+  const { data: visits = [], isLoading, refetch } = employeeId ? emp : self;
+
+  useRefreshOnFocus(refetch);
 
   const viewOnly = !!employeeId;
 

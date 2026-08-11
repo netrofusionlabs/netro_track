@@ -14,6 +14,7 @@ import {
   LoadingState,
 } from '../../../shared/components';
 import { api } from '../../../shared/services/api';
+import { useRefreshOnFocus } from '../../../shared/utils/useRefreshOnFocus';
 
 interface Product {
   id: string;
@@ -27,13 +28,15 @@ export function ProductsScreen() {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: products = [], isLoading } = useQuery<Product[]>({
+  const { data: products = [], isLoading, refetch } = useQuery<Product[]>({
     queryKey: ['products'],
     queryFn: async () => {
       const { data } = await api.get('/products');
       return data.data;
     },
   });
+
+  useRefreshOnFocus(refetch);
 
   const filteredProducts = products.filter((p) => {
     const q = searchQuery.toLowerCase().trim();

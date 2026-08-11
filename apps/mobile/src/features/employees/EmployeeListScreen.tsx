@@ -13,6 +13,7 @@ import {
   BadgeVariant,
 } from '../../shared/components';
 import { useEmployees } from './hooks/useEmployees';
+import { useRefreshOnFocus } from '../../shared/utils/useRefreshOnFocus';
 
 function formatRole(role: string): string {
   return role
@@ -36,8 +37,10 @@ function getRoleBadgeVariant(role: string): BadgeVariant {
 
 export function EmployeeListScreen({ navigation }: { navigation: any }) {
   const theme = useTheme();
-  const { data: employees = [], isLoading } = useEmployees();
+  const { data: employees = [], isLoading, refetch } = useEmployees();
   const [searchQuery, setSearchQuery] = useState('');
+
+  useRefreshOnFocus(refetch);
 
   const filteredEmployees = employees.filter((emp) => {
     const q = searchQuery.toLowerCase().trim();

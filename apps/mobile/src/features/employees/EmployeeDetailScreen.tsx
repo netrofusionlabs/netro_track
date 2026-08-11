@@ -20,6 +20,7 @@ import {
   useEmployeeSales,
   useEmployeeInspections,
 } from './hooks/useEmployeeDetail';
+import { useRefreshOnFocus } from '../../shared/utils/useRefreshOnFocus';
 import type { EmployeeRecord } from './types';
 
 interface Props {
@@ -44,10 +45,17 @@ export function EmployeeDetailScreen({ route, navigation }: Props) {
   const theme = useTheme();
   const { employee } = route.params;
 
-  const { data: attendance, isLoading: loadingAttendance } = useEmployeeAttendanceToday(employee.id);
-  const { data: visits = [], isLoading: loadingVisits } = useEmployeeVisits(employee.id);
-  const { data: sales = [], isLoading: loadingSales } = useEmployeeSales(employee.id);
-  const { data: inspections = [], isLoading: loadingInspections } = useEmployeeInspections(employee.id);
+  const { data: attendance, isLoading: loadingAttendance, refetch: r1 } = useEmployeeAttendanceToday(employee.id);
+  const { data: visits = [], isLoading: loadingVisits, refetch: r2 } = useEmployeeVisits(employee.id);
+  const { data: sales = [], isLoading: loadingSales, refetch: r3 } = useEmployeeSales(employee.id);
+  const { data: inspections = [], isLoading: loadingInspections, refetch: r4 } = useEmployeeInspections(employee.id);
+
+  useRefreshOnFocus(React.useCallback(() => {
+    void r1();
+    void r2();
+    void r3();
+    void r4();
+  }, [r1, r2, r3, r4]));
 
   const isPunched = !!attendance && !attendance.punchOutTime;
   const totalSalesAmount = sales.reduce((sum, s) => sum + Number(s.totalAmount), 0);

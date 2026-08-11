@@ -12,6 +12,7 @@ import {
 } from '../../shared/components';
 import { useInspections } from './hooks/useInspections';
 import { useEmployeeInspections } from '../employees/hooks/useEmployeeDetail';
+import { useRefreshOnFocus } from '../../shared/utils/useRefreshOnFocus';
 import type { InspectionRecord } from './types';
 
 function InspectionCard({ item }: { item: InspectionRecord }) {
@@ -69,7 +70,9 @@ export function InspectionsScreen({ route, navigation }: Props = {}) {
 
   const self = useInspections();
   const emp = useEmployeeInspections(employeeId ?? '');
-  const { data: inspections = [], isLoading } = employeeId ? emp : self;
+  const { data: inspections = [], isLoading, refetch } = employeeId ? emp : self;
+
+  useRefreshOnFocus(refetch);
 
   const viewOnly = !!employeeId;
 

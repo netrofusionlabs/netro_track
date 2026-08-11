@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../shared/theme/ThemeProvider';
 import {
@@ -34,7 +34,7 @@ function getRoleBadgeVariant(role: string): BadgeVariant {
   }
 }
 
-export function EmployeeListScreen() {
+export function EmployeeListScreen({ navigation }: { navigation: any }) {
   const theme = useTheme();
   const { data: employees = [], isLoading } = useEmployees();
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,7 +51,7 @@ export function EmployeeListScreen() {
   });
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
+    <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader
           title="Workforce"
@@ -100,11 +100,12 @@ export function EmployeeListScreen() {
                 />
               }
               showChevron
+              onPress={() => navigation.navigate('EmployeeDetail', { employee: emp })}
             />
           );
         })}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

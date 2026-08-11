@@ -82,7 +82,7 @@ export class AuthController {
     try {
       const { loginId, mpin, deviceId } = req.body;
 
-      const result = await this.authService.mpinLogin({ loginId, mpin, deviceId });
+      const result = await this.authService.loginWithMpin({ loginId, mpin, deviceId });
 
       res.status(200).json({
         success: true,

@@ -58,7 +58,12 @@ export class InspectionService {
     });
   }
 
-  public async getInspections(companyId: string, userId: string, role: Role): Promise<Inspection[]> {
+  public async getInspections(companyId: string, userId: string, role: Role, employeeId?: string): Promise<Inspection[]> {
+    // Drill-down: manager/admin viewing a specific employee's inspections
+    if (employeeId && (role === Role.MANAGER || role === Role.COMPANY_ADMIN || role === Role.SUPER_ADMIN)) {
+      return this.inspectionRepository.findMany(companyId, { userId: employeeId });
+    }
+
     if (role === Role.SUPER_ADMIN || role === Role.COMPANY_ADMIN) {
       return this.inspectionRepository.findMany(companyId);
     }

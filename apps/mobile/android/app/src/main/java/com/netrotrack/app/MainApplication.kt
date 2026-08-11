@@ -9,7 +9,6 @@ import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 
 import com.reactnativecommunity.geolocation.GeolocationPackage
 import com.reactnativecommunity.netinfo.NetInfoPackage
-import com.rnmaps.maps.MapsPackage
 import com.mrousavy.camera.react.CameraPackage
 
 class MainApplication : Application(), ReactApplication {
@@ -21,7 +20,6 @@ class MainApplication : Application(), ReactApplication {
         PackageList(this).packages.apply {
           add(LocationPackage())
           add(NetInfoPackage())
-          add(MapsPackage())
           add(CameraPackage())
         },
     )

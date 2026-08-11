@@ -12,8 +12,9 @@ export class SaleController {
       const companyId = req.user!.companyId;
       const userId = req.user!.id;
       const role = req.user!.role as Role;
+      const employeeId = req.query.employeeId as string | undefined;
 
-      const sales = await this.saleService.getSales(companyId, userId, role);
+      const sales = await this.saleService.getSales(companyId, userId, role, employeeId);
       res.status(200).json({
         success: true,
         message: 'Sales records retrieved successfully',

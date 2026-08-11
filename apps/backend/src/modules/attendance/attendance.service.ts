@@ -90,6 +90,17 @@ export class AttendanceService {
     return this.attendanceRepository.findForDay(companyId, userId, startOfDay, endOfDay);
   }
 
+  public async getEmployeeAttendanceForDate(
+    companyId: string,
+    employeeId: string,
+    dateStr?: string
+  ): Promise<Attendance | null> {
+    const targetDate = dateStr ? new Date(dateStr) : new Date();
+    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+    return this.attendanceRepository.findForDay(companyId, employeeId, startOfDay, endOfDay);
+  }
+
   public async getTeamAttendance(
     companyId: string,
     managerId: string,

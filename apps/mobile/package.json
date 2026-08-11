@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@maplibre/maplibre-react-native": "^11.3.6",
     "@netrotrack/shared": "*",
     "@react-native-community/geolocation": "^3.4.0",
     "@react-native-community/netinfo": "^12.0.1",
@@ -27,7 +28,6 @@
     "react-native": "0.86.0",
     "react-native-background-actions": "^3.0.0",
     "react-native-gesture-handler": "^3.0.2",
-    "react-native-maps": "^1.29.0",
     "react-native-mmkv": "^4.3.2",
     "react-native-nitro-modules": "^0.36.1",
     "react-native-safe-area-context": "^5.5.2",

@@ -76,7 +76,12 @@ export class SaleService {
     });
   }
 
-  public async getSales(companyId: string, userId: string, role: Role): Promise<Sale[]> {
+  public async getSales(companyId: string, userId: string, role: Role, employeeId?: string): Promise<Sale[]> {
+    // Drill-down: manager/admin viewing a specific employee's sales
+    if (employeeId && (role === Role.MANAGER || role === Role.COMPANY_ADMIN || role === Role.SUPER_ADMIN)) {
+      return this.saleRepository.findMany(companyId, { userId: employeeId });
+    }
+
     if (role === Role.SUPER_ADMIN || role === Role.COMPANY_ADMIN) {
       return this.saleRepository.findMany(companyId);
     }

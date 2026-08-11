@@ -1,15 +1,15 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ActivityIndicator, Platform,
+  View, Text, StyleSheet, Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Polyline, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import Slider from '@react-native-community/slider';
 import { useTheme } from '../../shared/theme/ThemeProvider';
 import { typography } from '../../shared/theme/typography';
-import { AppIcon, IconButton, Card, EmptyState, ErrorState } from '../../shared/components';
+import { AppIcon, IconButton, Card, EmptyState, ErrorState, Badge } from '../../shared/components';
+import { NetroMap } from '../../shared/components/map';
 import { useGpsRoute } from './hooks/useTracking';
-import type { GpsRoutePoint } from './types';
+import { routeDataToMapData } from './adapters/mapDataAdapter';
+import type { AppIconName } from '../../shared/components/AppIcon';
 
 function todayISO(): string {
   return new Date().toISOString().split('T')[0];
@@ -31,45 +31,81 @@ function formatDistance(metres: number): string {
   return `${metres} m`;
 }
 
-interface Props {
+interface RouteParams {
   userId?: string;
+  date?: string;
+  attendanceId?: string;
+  startAt?: string;
+  endAt?: string | null;
+  sessionLabel?: string;
+  mode?: 'session' | 'day';
 }
 
-export function RoutePlaybackScreen({ userId = '' }: Props) {
-  const theme = useTheme();
-  const mapRef = useRef<MapView>(null);
+interface Props {
+  route?: { params?: RouteParams };
+  navigation?: {
+    canGoBack?: () => boolean;
+    goBack?: () => void;
+  };
+}
 
-  const [date, setDate] = useState(todayISO());
+export function RoutePlaybackScreen({ route, navigation }: Props = {}) {
+  const theme = useTheme();
+
+  const paramDate = route?.params?.date ?? todayISO();
+  const userId = route?.params?.userId ?? '';
+  const attendanceId = route?.params?.attendanceId;
+  const startAt = route?.params?.startAt;
+  const endAt = route?.params?.endAt ?? null;
+  const sessionLabel = route?.params?.sessionLabel;
+  const mode = route?.params?.mode ?? (attendanceId || startAt ? 'session' : 'day');
+
+  const [date, setDate] = useState(paramDate);
   const [sliderIndex, setSliderIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  useEffect(() => {
+    setDate(paramDate);
+  }, [paramDate, userId, attendanceId, startAt, endAt]);
+
   const { data: routeData, isLoading, error } = useGpsRoute(userId, date);
 
-  const points: GpsRoutePoint[] = (routeData as { points?: GpsRoutePoint[] })?.points ?? (Array.isArray(routeData) ? (routeData as GpsRoutePoint[]) : []);
-  const totalDistanceMeters: number = (routeData as { totalDistanceMeters?: number })?.totalDistanceMeters ?? 0;
-  const totalDurationSeconds: number = (routeData as { totalDurationSeconds?: number })?.totalDurationSeconds ?? 0;
-  const averageSpeedMs: number = (routeData as { averageSpeedMs?: number })?.averageSpeedMs ?? 0;
+  const sessionFilter = useMemo(() => {
+    if (mode !== 'session') return null;
+    return {
+      attendanceId,
+      startAt,
+      endAt,
+    };
+  }, [mode, attendanceId, startAt, endAt]);
 
+  const mapData = useMemo(
+    () =>
+      routeDataToMapData(routeData, {
+        cursorIndex: sliderIndex,
+        routeId: `user-${userId}-${date}-${mode}-${attendanceId ?? 'day'}`,
+        filter: sessionFilter,
+      }),
+    [routeData, sliderIndex, userId, date, mode, attendanceId, sessionFilter],
+  );
+
+  const points = mapData.points;
   const total = points.length;
-  const currentPoint: GpsRoutePoint | undefined = points[sliderIndex];
-  const routeCoords = points.slice(0, sliderIndex + 1).map((p) => ({
-    latitude: p.latitude,
-    longitude: p.longitude,
-  }));
+  const currentPoint = points[sliderIndex];
+  const { totalDistanceMeters, totalDurationSeconds, averageSpeedMs } = mapData.meta;
+
+  useEffect(() => {
+    // Start at the end so the full path + end marker are visible immediately
+    setSliderIndex(Math.max(total - 1, 0));
+    setPlaying(false);
+    if (playTimerRef.current) clearInterval(playTimerRef.current);
+  }, [date, userId, routeData, attendanceId, startAt, endAt, total]);
 
   const goTo = useCallback((idx: number) => {
-    const clamped = Math.max(0, Math.min(Math.round(idx), total - 1));
+    const clamped = Math.max(0, Math.min(Math.round(idx), Math.max(total - 1, 0)));
     setSliderIndex(clamped);
-    if (points[clamped] && mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: points[clamped].latitude,
-        longitude: points[clamped].longitude,
-        latitudeDelta: 0.008,
-        longitudeDelta: 0.008,
-      }, 250);
-    }
-  }, [total, points]);
+  }, [total]);
 
   const togglePlay = useCallback(() => {
     if (playing) {
@@ -78,7 +114,11 @@ export function RoutePlaybackScreen({ userId = '' }: Props) {
       return;
     }
     setPlaying(true);
-    let idx = sliderIndex;
+    let idx = sliderIndex >= total - 1 ? 0 : sliderIndex;
+    if (sliderIndex >= total - 1) {
+      setSliderIndex(0);
+      idx = 0;
+    }
     playTimerRef.current = setInterval(() => {
       idx += 1;
       if (idx >= total) {
@@ -90,46 +130,60 @@ export function RoutePlaybackScreen({ userId = '' }: Props) {
     }, 250);
   }, [playing, sliderIndex, total, goTo]);
 
-  const fitAll = useCallback(() => {
-    if (!mapRef.current || points.length === 0) return;
-    mapRef.current.fitToCoordinates(
-      points.map((p) => ({ latitude: p.latitude, longitude: p.longitude })),
-      { edgePadding: { top: 60, right: 40, bottom: 200, left: 40 }, animated: true }
-    );
-  }, [points]);
+  useEffect(() => {
+    return () => {
+      if (playTimerRef.current) clearInterval(playTimerRef.current);
+    };
+  }, []);
 
   const changeDate = (direction: 1 | -1) => {
+    // Session routes are tied to a fixed window — date nav only for day mode
+    if (mode === 'session') return;
     const d = new Date(date);
     d.setDate(d.getDate() + direction);
     setDate(d.toISOString().split('T')[0]);
-    setSliderIndex(0);
-    setPlaying(false);
-    if (playTimerRef.current) clearInterval(playTimerRef.current);
   };
 
-  const initialRegion = points.length > 0
-    ? { latitude: points[0].latitude, longitude: points[0].longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 }
-    : { latitude: 20.5937, longitude: 78.9629, latitudeDelta: 10, longitudeDelta: 10 };
+  const title = mode === 'session' ? 'Session Route' : 'Day Route';
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
-      {/* Header */}
+    <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
       <View style={styles.header}>
-        <Text style={[typography.displaySm, { color: theme.colors.text.primary }]}>Route Playback</Text>
-        <View style={styles.dateNav}>
-          <IconButton icon="chevronLeft" onPress={() => changeDate(-1)} variant="ghost" size="sm" />
-          <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>{date}</Text>
-          <IconButton
-            icon="chevronRight"
-            onPress={() => changeDate(1)}
-            disabled={date >= todayISO()}
-            variant="ghost"
-            size="sm"
-          />
+        <View style={styles.headerLeft}>
+          {navigation?.canGoBack?.() ? (
+            <IconButton
+              icon="chevronLeft"
+              onPress={() => navigation.goBack?.()}
+              variant="ghost"
+              size="sm"
+            />
+          ) : null}
+          <View>
+            <Text style={[typography.displaySm, { color: theme.colors.text.primary }]}>{title}</Text>
+            {sessionLabel ? (
+              <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+                {sessionLabel}
+              </Text>
+            ) : null}
+          </View>
         </View>
+        {mode === 'day' ? (
+          <View style={styles.dateNav}>
+            <IconButton icon="chevronLeft" onPress={() => changeDate(-1)} variant="ghost" size="sm" />
+            <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>{date}</Text>
+            <IconButton
+              icon="chevronRight"
+              onPress={() => changeDate(1)}
+              disabled={date >= todayISO()}
+              variant="ghost"
+              size="sm"
+            />
+          </View>
+        ) : (
+          <Badge label={date} variant="info" size="sm" />
+        )}
       </View>
 
-      {/* Route Metadata Header Card */}
       {total > 0 && (
         <Card variant="elevated" style={styles.metaRow}>
           <MetaChip icon="mapPin" label={formatDistance(totalDistanceMeters)} sub="Distance" />
@@ -137,71 +191,50 @@ export function RoutePlaybackScreen({ userId = '' }: Props) {
           <MetaChip icon="clock" label={formatDuration(totalDurationSeconds)} sub="Duration" />
           <View style={[styles.metaDivider, { backgroundColor: theme.colors.surface.divider }]} />
           <MetaChip icon="visits" label={`${(averageSpeedMs * 3.6).toFixed(1)} km/h`} sub="Avg Speed" />
-          <View style={[styles.metaDivider, { backgroundColor: theme.colors.surface.divider }]} />
-          <MetaChip icon="locationPin" label={String(total)} sub="Points" />
         </Card>
       )}
 
-      {isLoading && <ActivityIndicator style={{ marginTop: 20 }} color={theme.colors.brand.primary} size="large" />}
-      {error && <ErrorState message={(error as Error).message} />}
-      {!isLoading && total === 0 && (
+      {error ? <ErrorState message={(error as Error).message} /> : null}
+      {!isLoading && !error && total === 0 ? (
         <EmptyState
           icon="teamMap"
           title="No Route Data"
-          subtitle={`No GPS data recorded for ${date}.`}
+          subtitle={
+            userId
+              ? mode === 'session'
+                ? 'No GPS points found for this attendance session.'
+                : `No GPS data recorded for ${date}.`
+              : 'Select an employee to view route history.'
+          }
+        />
+      ) : (
+        <NetroMap
+          markers={mapData.markers}
+          routes={mapData.routes}
+          currentLocation={
+            currentPoint
+              ? { latitude: Number(currentPoint.latitude), longitude: Number(currentPoint.longitude) }
+              : null
+          }
+          fitToCoordinates
+          showControls
+          loading={isLoading}
+          padding={{ top: 48, right: 40, bottom: 220, left: 40 }}
+          style={styles.map}
         />
       )}
 
-      {/* Map */}
-      <MapView
-        ref={mapRef}
-        provider={PROVIDER_GOOGLE}
-        style={styles.map}
-        initialRegion={initialRegion}
-        showsUserLocation={false}
-      >
-        {routeCoords.length > 1 && (
-          <Polyline
-            coordinates={routeCoords}
-            strokeColor={theme.colors.brand.primary}
-            strokeWidth={4}
-          />
-        )}
-        {points.length > sliderIndex + 1 && (
-          <Polyline
-            coordinates={points.slice(sliderIndex).map((p) => ({ latitude: p.latitude, longitude: p.longitude }))}
-            strokeColor={theme.colors.text.muted}
-            strokeWidth={2}
-          />
-        )}
-        {points.length > 0 && (
-          <Marker coordinate={{ latitude: points[0].latitude, longitude: points[0].longitude }} title="Start" pinColor="green" />
-        )}
-        {points.length > 1 && sliderIndex === total - 1 && (
-          <Marker coordinate={{ latitude: points[total - 1].latitude, longitude: points[total - 1].longitude }} title="End" pinColor="red" />
-        )}
-        {currentPoint && sliderIndex > 0 && sliderIndex < total - 1 && (
-          <Marker
-            coordinate={{ latitude: currentPoint.latitude, longitude: currentPoint.longitude }}
-            title={`${sliderIndex + 1} / ${total}`}
-            description={formatTime(currentPoint.recordedAt)}
-            pinColor="#1E40AF"
-          />
-        )}
-      </MapView>
-
-      {/* Playback Controls */}
       {total > 0 && (
         <Card variant="elevated" style={styles.controls}>
           <View style={styles.timelineInfo}>
             <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>
-              Point {sliderIndex + 1} / {total}
+              Playback
             </Text>
-            {currentPoint && (
+            {currentPoint ? (
               <Text style={[typography.headingSm, { color: theme.colors.brand.primary }]}>
                 {formatTime(currentPoint.recordedAt)}
               </Text>
-            )}
+            ) : null}
           </View>
 
           <Slider
@@ -225,20 +258,19 @@ export function RoutePlaybackScreen({ userId = '' }: Props) {
               size="lg"
             />
             <IconButton icon="skipForward" onPress={() => goTo(total - 1)} variant="default" size="md" />
-            <IconButton icon="maximize" onPress={fitAll} variant="default" size="md" />
           </View>
         </Card>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
-function MetaChip({ icon, label, sub }: { icon: string; label: string; sub: string }) {
+function MetaChip({ icon, label, sub }: { icon: AppIconName; label: string; sub: string }) {
   const theme = useTheme();
   return (
     <View style={styles.metaChip}>
       <AppIcon name={icon} color={theme.colors.brand.primary} size={16} />
-      <Text style={[typography.headingSm, { color: theme.colors.text.primary, marginTop: 2 }]}>{label}</Text>
+      <Text style={[typography.headingSm, styles.metaLabel, { color: theme.colors.text.primary }]}>{label}</Text>
       <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>{sub}</Text>
     </View>
   );
@@ -253,6 +285,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 1,
+  },
   dateNav: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaRow: {
     flexDirection: 'row',
@@ -263,6 +301,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   metaChip: { alignItems: 'center', flex: 1 },
+  metaLabel: { marginTop: 2 },
   metaDivider: { width: 1, height: 28 },
   map: { flex: 1 },
   controls: {

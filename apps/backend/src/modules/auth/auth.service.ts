@@ -90,6 +90,26 @@ export class AuthService {
   }
 
   /**
+   * Verify the MPIN for an already-authenticated user.
+   * Used for daily unlock after session is restored from storage.
+   */
+  public async verifyMpin(userId: string, mpin: string): Promise<void> {
+    const user = await this.authRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError('USER_NOT_FOUND', 'User not found', 404);
+    }
+
+    if (!user.mpinHash) {
+      throw new AppError('MPIN_NOT_SET', 'MPIN has not been configured for this account', 400);
+    }
+
+    const isMpinValid = await argon2.verify(user.mpinHash, mpin);
+    if (!isMpinValid) {
+      throw new AppError('INVALID_MPIN', 'Incorrect MPIN', 401);
+    }
+  }
+
+  /**
    * Set or update the MPIN for an already-authenticated user.
    */
   public async setupMpin(userId: string, mpin: string): Promise<void> {

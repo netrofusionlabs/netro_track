@@ -9,57 +9,122 @@ import { AppIcon, BrandLogo } from '../../../shared/components';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../../../shared/services/api';
 
-export function MpinScreen({ navigation: _navigation }: any) {
+interface Props {
+  /** When true, user already has an MPIN — show verify UI. When false, show setup UI. */
+  mode: 'setup' | 'verify';
+}
+
+export function MpinScreen({ mode }: Props) {
   const theme = useTheme();
   const [pin, setPin] = useState<string>('');
+  const [confirmPin, setConfirmPin] = useState<string>('');
+  const [stage, setStage] = useState<'enter' | 'confirm'>('enter');
   const [loading, setLoading] = useState(false);
+
   const setMpinVerified = useAuthStore((state) => state.setMpinVerified);
+  const setHasMpin = useAuthStore((state) => state.setHasMpin);
   const clearCredentials = useAuthStore((state) => state.clearCredentials);
 
+  const isSetup = mode === 'setup';
+  const activePin = stage === 'confirm' ? confirmPin : pin;
+
   const handleKeyPress = (num: string) => {
-    if (loading || pin.length >= 4) return;
-    const newPin = pin + num;
-    setPin(newPin);
-    if (newPin.length === 4) {
-      verifyMpin(newPin);
+    if (loading || activePin.length >= 4) return;
+    const newPin = activePin + num;
+
+    if (stage === 'enter') {
+      setPin(newPin);
+      if (newPin.length === 4) {
+        if (isSetup) {
+          // Move to confirm stage
+          setTimeout(() => setStage('confirm'), 150);
+        } else {
+          submitVerify(newPin);
+        }
+      }
+    } else {
+      // stage === 'confirm' (setup only)
+      setConfirmPin(newPin);
+      if (newPin.length === 4) {
+        if (newPin !== pin) {
+          Alert.alert('Mismatch', 'PINs do not match. Please try again.', [
+            { text: 'Retry', onPress: resetSetup },
+          ]);
+        } else {
+          submitSetup(newPin);
+        }
+      }
     }
   };
 
   const handleBackspace = () => {
-    if (!loading) setPin((p) => p.slice(0, -1));
+    if (loading) return;
+    if (stage === 'confirm') {
+      setConfirmPin((p) => p.slice(0, -1));
+    } else {
+      setPin((p) => p.slice(0, -1));
+    }
   };
 
-  const verifyMpin = async (mpin: string) => {
+  const resetSetup = () => {
+    setPin('');
+    setConfirmPin('');
+    setStage('enter');
+  };
+
+  const submitSetup = async (mpin: string) => {
     setLoading(true);
     try {
       await api.post('/auth/mpin/setup', { mpin });
+      setHasMpin(true);
       setMpinVerified(true);
     } catch (err: any) {
       const message = err.response?.data?.message ?? 'Failed to set MPIN. Please try again.';
-      const isAuthError = err.response?.status === 401 || message.toLowerCase().includes('token');
-
+      const isAuthError = err.response?.status === 401;
       if (isAuthError) {
-        Alert.alert('Session Expired', 'Your login session has expired. Please sign in again.', [
-          {
-            text: 'Sign In Again',
-            onPress: () => {
-              setPin('');
-              clearCredentials();
-            },
-          },
+        Alert.alert('Session Expired', 'Your login session expired. Please sign in again.', [
+          { text: 'Sign In Again', onPress: () => { resetSetup(); clearCredentials(); } },
         ]);
       } else {
-        Alert.alert('MPIN Error', message, [
-          { text: 'Retry', onPress: () => setPin('') },
-        ]);
+        Alert.alert('Error', message, [{ text: 'Retry', onPress: resetSetup }]);
       }
     } finally {
       setLoading(false);
     }
   };
 
+  const submitVerify = async (mpin: string) => {
+    setLoading(true);
+    try {
+      await api.post('/auth/mpin/verify', { mpin });
+      setMpinVerified(true);
+    } catch (err: any) {
+      const message = err.response?.data?.message ?? 'Incorrect MPIN. Please try again.';
+      const isAuthError = err.response?.status === 401 && message.toLowerCase().includes('token');
+      if (isAuthError) {
+        Alert.alert('Session Expired', 'Your login session expired. Please sign in again.', [
+          { text: 'Sign In Again', onPress: () => { setPin(''); clearCredentials(); } },
+        ]);
+      } else {
+        Alert.alert('Incorrect MPIN', message, [{ text: 'Retry', onPress: () => setPin('') }]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const subtitle = isSetup
+    ? stage === 'enter'
+      ? 'Choose a 4-digit passcode for quick access'
+      : 'Re-enter your PIN to confirm'
+    : 'Enter your 4-digit passcode to continue';
+
+  const heading = isSetup
+    ? stage === 'enter' ? 'Set Your MPIN' : 'Confirm MPIN'
+    : 'Enter MPIN';
+
   const renderDot = (index: number) => {
-    const filled = pin.length > index;
+    const filled = activePin.length > index;
     return (
       <View
         key={index}
@@ -84,10 +149,10 @@ export function MpinScreen({ navigation: _navigation }: any) {
       <View style={styles.content}>
         <BrandLogo variant="mark" size={64} style={styles.brandLogo} />
         <Text style={[typography.displaySm, { color: theme.colors.text.primary, textAlign: 'center' }]}>
-          Enter MPIN
+          {heading}
         </Text>
         <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 4, textAlign: 'center' }]}>
-          Set your 4-digit passcode to proceed
+          {subtitle}
         </Text>
 
         <View style={styles.dotContainer}>
@@ -156,6 +221,14 @@ export function MpinScreen({ navigation: _navigation }: any) {
           </View>
         </View>
 
+        {isSetup && stage === 'confirm' && (
+          <TouchableOpacity onPress={resetSetup} style={styles.reloginBtn} activeOpacity={0.7}>
+            <Text style={[typography.buttonSm, { color: theme.colors.brand.primary }]}>
+              ← Change PIN
+            </Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           onPress={() => clearCredentials()}
           style={styles.reloginBtn}
@@ -186,5 +259,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   keyEmpty: { width: 72, height: 56 },
-  reloginBtn: { marginTop: 28, padding: 12 },
+  reloginBtn: { marginTop: 16, padding: 12 },
 });

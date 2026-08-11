@@ -1,9 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useTheme } from '../../shared/theme/ThemeProvider';
 import { typography } from '../../shared/theme/typography';
 import {
@@ -11,15 +7,11 @@ import {
   StatusBadge,
   EmptyState,
   ScreenHeader,
-  Input,
-  Button,
   AppIcon,
-  Section,
   LoadingState,
 } from '../../shared/components';
-import { CameraCapture } from '../../shared/components/CameraCapture';
-import { useVisits, useCreateVisit } from './hooks/useVisits';
-import { useCustomers } from '../customers/hooks/useCustomers';
+import { useVisits } from './hooks/useVisits';
+import { useEmployeeVisits } from '../employees/hooks/useEmployeeDetail';
 import type { VisitRecord } from './types';
 
 function formatTime(iso: string | null): string {
@@ -76,156 +68,37 @@ function VisitCard({ visit }: { visit: VisitRecord }) {
   );
 }
 
-export function VisitsScreen() {
+interface Props {
+  route?: { params?: { employeeId?: string; employeeName?: string } };
+  navigation?: any;
+}
+
+export function VisitsScreen({ route, navigation }: Props = {}) {
   const theme = useTheme();
-  const { data: visits = [], isLoading } = useVisits();
-  const { data: customers = [] } = useCustomers();
-  const createVisit = useCreateVisit();
+  const employeeId = route?.params?.employeeId;
+  const employeeName = route?.params?.employeeName;
 
-  const [showForm, setShowForm] = useState(false);
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
-  const [productsDiscussed, setProductsDiscussed] = useState('');
-  const [notes, setNotes] = useState('');
-  const [showCamera, setShowCamera] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const self = useVisits();
+  const emp = useEmployeeVisits(employeeId ?? '');
+  const { data: visits = [], isLoading } = employeeId ? emp : self;
 
-  const handleSubmit = useCallback(() => {
-    if (!selectedCustomerId) {
-      Alert.alert('Required', 'Please select a customer');
-      return;
+  const viewOnly = !!employeeId;
+
+  const handleNew = () => {
+    if (navigation) {
+      navigation.navigate('NewVisit');
     }
-    createVisit.mutate(
-      {
-        customerId: selectedCustomerId,
-        checkInTime: new Date().toISOString(),
-        latitude: 0,
-        longitude: 0,
-        productsDiscussed: productsDiscussed || undefined,
-        notes: notes || undefined,
-        imageUrl: imageUrl || undefined,
-      },
-      {
-        onSuccess: () => {
-          setShowForm(false);
-          setSelectedCustomerId('');
-          setProductsDiscussed('');
-          setNotes('');
-          setImageUrl(null);
-          Alert.alert('Success', 'Visit logged successfully');
-        },
-        onError: (e) => Alert.alert('Error', e.message),
-      }
-    );
-  }, [selectedCustomerId, productsDiscussed, notes, imageUrl, createVisit]);
-
-  if (showCamera) {
-    return (
-      <CameraCapture
-        onCancel={() => setShowCamera(false)}
-        onPhotoCaptured={(uri) => {
-          setImageUrl(uri);
-          setShowCamera(false);
-        }}
-      />
-    );
-  }
+  };
 
   return (
     <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader
-          title="Visits"
+          title={employeeId ? `${employeeName ?? 'Employee'}'s Visits` : 'Visits'}
           subtitle={`${visits.length} total records`}
-          actionLabel={showForm ? 'Cancel' : '+ New'}
-          onAction={() => setShowForm(!showForm)}
+          actionLabel={(!viewOnly && '+ New') || undefined}
+          onAction={!viewOnly ? handleNew : undefined}
         />
-
-        {showForm && (
-          <Card style={{ marginBottom: 16 }}>
-            <Text style={[typography.headingMd, { color: theme.colors.text.primary, marginBottom: 14 }]}>
-              Log New Visit
-            </Text>
-
-            <Text style={[typography.label, { color: theme.colors.text.secondary, marginBottom: 6 }]}>
-              Select Customer
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-              {customers.map((c) => (
-                <TouchableOpacity
-                  key={c.id}
-                  onPress={() => setSelectedCustomerId(c.id)}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: selectedCustomerId === c.id ? theme.colors.brand.primary : theme.colors.surface.subtle,
-                      borderColor: selectedCustomerId === c.id ? theme.colors.brand.primary : theme.colors.surface.border,
-                    },
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      typography.bodySm,
-                      {
-                        color: selectedCustomerId === c.id ? theme.colors.text.inverse : theme.colors.text.primary,
-                        fontWeight: '600',
-                      },
-                    ]}
-                  >
-                    {c.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <Input
-              label="Products Discussed"
-              value={productsDiscussed}
-              onChangeText={setProductsDiscussed}
-              placeholder="e.g. Product A, Product B"
-            />
-            <Input
-              label="Notes"
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Visit notes..."
-              multiline
-              numberOfLines={3}
-            />
-
-            <View style={{ marginBottom: 16 }}>
-              {imageUrl ? (
-                <View style={[styles.photoPreview, { borderColor: theme.colors.surface.border, backgroundColor: theme.colors.surface.subtle }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <AppIcon name="camera" color={theme.colors.semantic.success} size={18} />
-                    <Text style={[typography.bodySm, { color: theme.colors.text.primary }]}>Proof Photo Attached</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => setImageUrl(null)}>
-                    <Text style={[typography.buttonSm, { color: theme.colors.semantic.error }]}>Remove</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  onPress={() => setShowCamera(true)}
-                  style={[styles.cameraButton, { backgroundColor: theme.colors.surface.subtle, borderColor: theme.colors.surface.border }]}
-                >
-                  <AppIcon name="camera" color={theme.colors.brand.primary} size={18} />
-                  <Text style={[typography.buttonSm, { color: theme.colors.brand.primary }]}>
-                    Take Proof Photo
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <Button
-              label="Check In Visit"
-              onPress={handleSubmit}
-              loading={createVisit.isPending}
-              fullWidth
-              size="md"
-            />
-          </Card>
-        )}
 
         {isLoading && <LoadingState message="Loading visits..." />}
 
@@ -235,7 +108,7 @@ export function VisitsScreen() {
             title="No Visits Recorded"
             subtitle="Log your first customer visit to keep your activity updated."
             actionLabel="Log Visit"
-            onAction={() => setShowForm(true)}
+            onAction={handleNew}
           />
         )}
 
@@ -251,28 +124,4 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginRight: 8,
-  },
-  photoPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    borderWidth: 1,
-    borderRadius: 8,
-  },
-  cameraButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderWidth: 1,
-    borderRadius: 8,
-    gap: 8,
-  },
 });

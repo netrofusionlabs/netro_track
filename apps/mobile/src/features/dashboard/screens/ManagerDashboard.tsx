@@ -13,20 +13,21 @@ import {
   AppIcon,
   ProgressBar,
 } from '../../../shared/components';
-import { useTodayVisits } from '../../visits/hooks/useVisits';
-import { useTodaySales } from '../../sales/hooks/useSales';
-import { useTodayInspections } from '../../inspections/hooks/useInspections';
+import { useTeamSummary } from '../hooks/useDashboard';
 
 export function ManagerDashboard({ navigation }: { navigation: any }) {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
-  const { data: todayVisits = [] } = useTodayVisits();
-  const { data: todaySales = [] } = useTodaySales();
-  const { data: todayInspections = [] } = useTodayInspections();
+  const { data: teamSummary } = useTeamSummary();
 
-  const totalSalesAmount = todaySales.reduce(
-    (sum, sale) => sum + Number(sale.totalAmount), 0
-  );
+  const visitsCount = teamSummary?.visitsToday ?? 0;
+  const salesCount = teamSummary?.salesToday ?? 0;
+  const inspectionsCount = 0; // not yet in team summary — shows 0 gracefully
+  const totalSalesAmount = teamSummary?.revenueToday ?? 0;
+  const presentCount = teamSummary?.presentToday ?? 0;
+  const teamSize = teamSummary?.teamSize ?? 0;
+  const absentCount = Math.max(0, teamSize - presentCount);
+  const targetProgress = teamSize > 0 ? Math.min(1, presentCount / teamSize) : 0;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface.background }]}>
@@ -70,24 +71,48 @@ export function ManagerDashboard({ navigation }: { navigation: any }) {
           />
         </Card>
 
+        {/* Attendance Overview */}
+        <Section title="Team Attendance Today">
+          <View style={styles.statsRow}>
+            <StatCard
+              icon="attendance"
+              value={presentCount}
+              label="Present"
+              valueColor={theme.colors.semantic.success}
+            />
+            <StatCard
+              icon="employees"
+              value={absentCount}
+              label="Absent"
+              valueColor={theme.colors.semantic.error}
+            />
+            <StatCard
+              icon="employees"
+              value={teamSize}
+              label="Team Size"
+              valueColor={theme.colors.brand.primary}
+            />
+          </View>
+        </Section>
+
         {/* Team Performance Stats */}
         <Section title="Team Performance Today">
           <View style={styles.statsRow}>
             <StatCard
               icon="visits"
-              value={todayVisits.length}
+              value={visitsCount}
               label="Team Visits"
               valueColor={theme.colors.brand.primary}
             />
             <StatCard
               icon="sales"
-              value={todaySales.length}
+              value={salesCount}
               label="Team Sales"
               valueColor={theme.colors.semantic.success}
             />
             <StatCard
               icon="inspect"
-              value={todayInspections.length}
+              value={inspectionsCount}
               label="Inspections"
               valueColor={theme.colors.brand.secondary}
             />
@@ -106,11 +131,11 @@ export function ManagerDashboard({ navigation }: { navigation: any }) {
                   ₹{Number(totalSalesAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                 </Text>
               </View>
-              <StatusBadge status="completed" label="Target On Track" />
+              <StatusBadge status={presentCount > 0 ? 'completed' : 'offline'} label={presentCount > 0 ? 'Team Active' : 'No Activity'} />
             </View>
-            <ProgressBar progress={0.75} color={theme.colors.semantic.success} style={{ marginTop: 12 }} />
+            <ProgressBar progress={targetProgress} color={theme.colors.semantic.success} style={{ marginTop: 12 }} />
             <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 6 }]}>
-              75% of daily target volume achieved
+              {presentCount} of {teamSize} team members present today
             </Text>
           </Card>
         </Section>

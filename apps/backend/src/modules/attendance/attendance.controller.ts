@@ -65,8 +65,15 @@ export class AttendanceController {
     try {
       const companyId = req.user!.companyId;
       const userId = req.user!.id;
+      const role = req.user!.role;
+      const employeeId = req.query.employeeId as string | undefined;
 
-      const history = await this.attendanceService.getHistory(companyId, userId);
+      // Manager/Admin can request any employee's history via ?employeeId=
+      const targetId = (employeeId && (role === 'MANAGER' || role === 'COMPANY_ADMIN' || role === 'SUPER_ADMIN'))
+        ? employeeId
+        : userId;
+
+      const history = await this.attendanceService.getHistory(companyId, targetId);
       res.status(200).json({
         success: true,
         message: 'Attendance history retrieved',
@@ -100,6 +107,19 @@ export class AttendanceController {
       const companyId = req.user!.companyId;
       const userId = req.user!.id;
       const dateStr = req.query.date as string | undefined;
+      const employeeId = req.query.employeeId as string | undefined;
+
+      // Drill-down: manager viewing a specific employee's attendance for a date
+      if (employeeId) {
+        const record = await this.attendanceService.getEmployeeAttendanceForDate(companyId, employeeId, dateStr);
+        res.status(200).json({
+          success: true,
+          message: 'Employee attendance retrieved',
+          data: record,
+          meta: { timestamp: new Date().toISOString() }
+        });
+        return;
+      }
 
       const records = await this.attendanceService.getTeamAttendance(companyId, userId, dateStr);
       res.status(200).json({
@@ -153,11 +173,18 @@ export class AttendanceController {
     try {
       const companyId = req.user!.companyId;
       const userId = req.user!.id;
+      const role = req.user!.role;
       const mode = (req.query.mode as 'monthly' | 'all' | 'today') || 'monthly';
       const year = req.query.year ? parseInt(req.query.year as string, 10) : undefined;
       const month = req.query.month ? parseInt(req.query.month as string, 10) : undefined;
+      const employeeId = req.query.employeeId as string | undefined;
 
-      const summary = await this.attendanceService.getSummary(companyId, userId, mode, year, month);
+      // Managers/Admins can view any employee's summary via ?employeeId=
+      const targetId = (employeeId && (role === 'MANAGER' || role === 'COMPANY_ADMIN' || role === 'SUPER_ADMIN'))
+        ? employeeId
+        : userId;
+
+      const summary = await this.attendanceService.getSummary(companyId, targetId, mode, year, month);
       res.status(200).json({
         success: true,
         message: 'Attendance summary retrieved',

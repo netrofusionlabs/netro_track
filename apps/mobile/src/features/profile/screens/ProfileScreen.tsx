@@ -33,7 +33,7 @@ export function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
+    <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <Text style={[typography.displaySm, { color: theme.colors.text.primary }]}>Profile</Text>
@@ -119,7 +119,7 @@ export function ProfileScreen() {
 
       <TermsModal visible={termsVisible} onClose={() => setTermsVisible(false)} />
       <PrivacyModal visible={privacyVisible} onClose={() => setPrivacyVisible(false)} />
-    </SafeAreaView>
+    </View>
   );
 }
 

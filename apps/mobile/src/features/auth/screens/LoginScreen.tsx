@@ -57,9 +57,7 @@ export function LoginScreen({ navigation }: { navigation: any }) {
       const { accessToken, refreshToken, user } = response.data.data;
       setCredentials({ user, accessToken, refreshToken, loginId: loginId.trim() });
 
-      Alert.alert('Success', 'Login successful!', [
-        { text: 'OK', onPress: () => navigation.navigate('MpinSetup') },
-      ]);
+
     } catch (error: any) {
       if (error.response?.data?.error?.code === 'VALIDATION_ERROR' && error.response?.data?.error?.details) {
         const backendErrors: { [key: string]: string } = {};

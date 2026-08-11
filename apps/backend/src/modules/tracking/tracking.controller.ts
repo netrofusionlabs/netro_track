@@ -44,12 +44,17 @@ export class TrackingController {
 
   /**
    * GET /api/v1/tracking/route?userId=&date=
-   * Manager/Admin fetches a user's GPS route for a given date with metadata.
+   * Employees fetch their own route; managers/admins may fetch any company user's route.
    */
   public getRoute = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const companyId = req.user!.companyId;
-      const targetUserId = (req.query.userId as string) || req.user!.id;
+      const role = req.user!.role as Role;
+      const requestedUserId = req.query.userId as string | undefined;
+      const canViewOthers =
+        role === Role.MANAGER || role === Role.COMPANY_ADMIN || role === Role.SUPER_ADMIN;
+      const targetUserId =
+        canViewOthers && requestedUserId ? requestedUserId : req.user!.id;
       const dateStr = req.query.date as string | undefined;
 
       const routeData = await this.trackingService.getRouteForDay(companyId, targetUserId, dateStr);

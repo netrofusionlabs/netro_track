@@ -2,6 +2,8 @@ export interface GpsRoutePoint {
   id: string;
   userId: string;
   companyId: string;
+  /** Links point to an attendance session when available. */
+  attendanceId?: string | null;
   latitude: number;
   longitude: number;
   accuracy: number | null;
@@ -31,11 +33,11 @@ export interface LiveLocationPoint {
   userId: string;
   /** Display name resolved from the user record. */
   userName: string;
-  companyId: string;
+  companyId?: string;
   latitude: number;
   longitude: number;
   accuracy: number | null;
-  speed: number | null;
+  speed?: number | null;
   batteryLevel: number | null;
   recordedAt: string;
   /** True when last update is older than 15 minutes. */

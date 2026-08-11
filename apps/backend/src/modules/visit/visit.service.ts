@@ -79,7 +79,12 @@ export class VisitService {
     });
   }
 
-  public async getVisits(companyId: string, userId: string, role: Role): Promise<Visit[]> {
+  public async getVisits(companyId: string, userId: string, role: Role, employeeId?: string): Promise<Visit[]> {
+    // Drill-down: manager/admin viewing a specific employee's visits
+    if (employeeId && (role === Role.MANAGER || role === Role.COMPANY_ADMIN || role === Role.SUPER_ADMIN)) {
+      return this.visitRepository.findMany(companyId, { userId: employeeId });
+    }
+
     if (role === Role.SUPER_ADMIN || role === Role.COMPANY_ADMIN) {
       return this.visitRepository.findMany(companyId);
     }

@@ -18,9 +18,12 @@ interface AuthState {
   isAuthenticated: boolean;
   lastLoginId: string | null;
   isMpinVerified: boolean;
+  /** True once the user has successfully completed MPIN setup (persisted) */
+  hasMpin: boolean;
   setCredentials: (credentials: { user: UserProfile; accessToken: string; refreshToken: string; loginId: string }) => void;
   clearCredentials: () => void;
   setMpinVerified: (verified: boolean) => void;
+  setHasMpin: (has: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -32,11 +35,13 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       lastLoginId: null,
       isMpinVerified: false,
+      hasMpin: false,
       setCredentials: ({ user, accessToken, refreshToken, loginId }) =>
         set({ user, accessToken, refreshToken, isAuthenticated: true, lastLoginId: loginId }),
       clearCredentials: () =>
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, isMpinVerified: false }),
-      setMpinVerified: (verified) => set({ isMpinVerified: verified })
+      setMpinVerified: (verified) => set({ isMpinVerified: verified }),
+      setHasMpin: (has) => set({ hasMpin: has }),
     }),
     {
       name: 'auth-store',
@@ -46,7 +51,8 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
-        lastLoginId: state.lastLoginId
+        lastLoginId: state.lastLoginId,
+        hasMpin: state.hasMpin,
       })
     }
   )

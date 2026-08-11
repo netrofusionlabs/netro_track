@@ -52,6 +52,8 @@ import {
   SkipForward,
   SkipBack,
   Maximize2,
+  ZoomIn,
+  ZoomOut,
   Map,
   TrendingUp,
   TrendingDown,
@@ -119,6 +121,8 @@ export type AppIconName =
   | 'skipForward'
   | 'skipBack'
   | 'maximize'
+  | 'zoomIn'
+  | 'zoomOut'
   | 'mapPin'
   | 'route'
   | 'barChart'
@@ -188,6 +192,8 @@ const ICON_MAP: Record<string, React.ComponentType<LucideProps>> = {
   skipForward: SkipForward,
   skipBack: SkipBack,
   maximize: Maximize2,
+  zoomIn: ZoomIn,
+  zoomOut: ZoomOut,
   mapPin: MapPin,
   route: Map,
   barChart: TrendingUp,

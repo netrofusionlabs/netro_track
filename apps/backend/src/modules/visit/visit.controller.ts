@@ -12,8 +12,9 @@ export class VisitController {
       const companyId = req.user!.companyId;
       const userId = req.user!.id;
       const role = req.user!.role as Role;
+      const employeeId = req.query.employeeId as string | undefined;
 
-      const visits = await this.visitService.getVisits(companyId, userId, role);
+      const visits = await this.visitService.getVisits(companyId, userId, role, employeeId);
       res.status(200).json({
         success: true,
         message: 'Visits retrieved successfully',

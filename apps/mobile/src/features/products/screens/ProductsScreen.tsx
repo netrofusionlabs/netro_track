@@ -45,7 +45,7 @@ export function ProductsScreen() {
   });
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
+    <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader
           title="Product Catalog"
@@ -101,7 +101,7 @@ export function ProductsScreen() {
           </Card>
         ))}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

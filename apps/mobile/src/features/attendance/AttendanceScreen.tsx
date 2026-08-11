@@ -7,8 +7,10 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import { useTheme } from '../../shared/theme/ThemeProvider';
 import { typography } from '../../shared/theme/typography';
 import {
@@ -29,8 +31,25 @@ import {
   usePunchIn,
   usePunchOut,
 } from './hooks/useAttendance';
+import { useAuthStore } from '../auth/stores/authStore';
 import { requestLocationPermission } from '../../shared/utils/locationPermissions';
 import { startTracking, isTrackingActive } from '../../shared/services/trackingService';
+
+type RoutePlaybackParams = {
+  userId: string;
+  date: string;
+  mode?: 'session' | 'day';
+  attendanceId?: string;
+  startAt?: string;
+  endAt?: string | null;
+  sessionLabel?: string;
+};
+
+type AttendanceStackParamList = {
+  AttendanceToday: undefined;
+  AttendanceHistory: undefined;
+  RoutePlayback: RoutePlaybackParams;
+};
 
 function parseDate(iso: string | null | undefined): Date | null {
   if (!iso) return null;
@@ -65,14 +84,51 @@ function formatHours(h: number | string | null | undefined): string {
   return `${hrs}h ${mins}m`;
 }
 
+function toDateKey(iso: string | null | undefined): string {
+  if (!iso) {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const d = parseDate(iso);
+  if (!d) return iso.split('T')[0] || iso.split(' ')[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function sessionRouteLabel(punchInTime: string, punchOutTime: string | null): string {
+  return `${formatTime(punchInTime)} → ${formatTime(punchOutTime)}`;
+}
+
 type FilterMode = 'monthly' | 'all' | 'today';
 
 export function AttendanceScreen() {
   const theme = useTheme();
+  const navigation = useNavigation<StackNavigationProp<AttendanceStackParamList>>();
+  const userId = useAuthStore((s) => s.user?.id);
 
   const [filterMode, setFilterMode] = useState<FilterMode>('monthly');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [refreshing, setRefreshing] = useState<boolean>(false);
+
+  const openSessionRoute = useCallback(
+    (params: Omit<RoutePlaybackParams, 'userId' | 'mode'> & { mode?: 'session' }) => {
+      if (!userId) return;
+      navigation.navigate('RoutePlayback', {
+        userId,
+        mode: 'session',
+        ...params,
+      });
+    },
+    [navigation, userId],
+  );
+
+  const openDayRoute = useCallback(
+    (date: string) => {
+      if (!userId) return;
+      navigation.navigate('RoutePlayback', { userId, date, mode: 'day' });
+    },
+    [navigation, userId],
+  );
 
   const selectedYear = selectedDate.getFullYear();
   const selectedMonthNum = selectedDate.getMonth() + 1;
@@ -323,19 +379,64 @@ export function AttendanceScreen() {
                     </Text>
                   </View>
 
-                  {(day.records || []).map((r, rIdx) => (
-                    <View key={r.id || `rec-${rIdx}`} style={[styles.shiftSubRow, { borderTopColor: theme.colors.surface.divider }]}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <AppIcon name="clock" color={theme.colors.text.tertiary} size={14} />
-                        <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>
-                          {formatTime(r.punchInTime)} → {formatTime(r.punchOutTime)}
-                        </Text>
-                      </View>
-                      <Text style={[typography.caption, { color: theme.colors.brand.primary, fontWeight: '600' }]}>
-                        {formatHours(r.workingHours)}
-                      </Text>
-                    </View>
-                  ))}
+                  {(day.records || []).map((r, rIdx) => {
+                    const label = sessionRouteLabel(r.punchInTime, r.punchOutTime);
+                    return (
+                      <TouchableOpacity
+                        key={r.id || `rec-${rIdx}`}
+                        activeOpacity={0.7}
+                        disabled={!userId}
+                        onPress={() =>
+                          openSessionRoute({
+                            date: day.date || toDateKey(r.punchInTime),
+                            attendanceId: r.id,
+                            startAt: r.punchInTime,
+                            endAt: r.punchOutTime,
+                            sessionLabel: label,
+                          })
+                        }
+                        style={[styles.shiftSubRow, { borderTopColor: theme.colors.surface.divider }]}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+                          <AppIcon name="clock" color={theme.colors.text.tertiary} size={14} />
+                          <Text style={[typography.caption, { color: theme.colors.text.secondary, flex: 1 }]}>
+                            {label}
+                          </Text>
+                        </View>
+                        <View style={styles.routeHint}>
+                          <Text style={[typography.caption, { color: theme.colors.brand.primary, fontWeight: '600' }]}>
+                            {formatHours(r.workingHours)}
+                          </Text>
+                          <Text style={[typography.caption, { color: theme.colors.brand.primary, fontWeight: '600' }]}>
+                            Route
+                          </Text>
+                          <AppIcon name="chevronRight" color={theme.colors.brand.primary} size={14} />
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+
+                  {(day.records?.length ?? 0) > 1 ? (
+                    <Button
+                      variant="outline"
+                      label="View Full Day Route"
+                      onPress={() => openDayRoute(day.date)}
+                      disabled={!userId}
+                      icon="teamMap"
+                      size="sm"
+                      style={styles.dayRouteBtn}
+                    />
+                  ) : (day.records?.length ?? 0) === 1 ? (
+                    <Button
+                      variant="outline"
+                      label="View Route"
+                      onPress={() => openDayRoute(day.date)}
+                      disabled={!userId}
+                      icon="teamMap"
+                      size="sm"
+                      style={styles.dayRouteBtn}
+                    />
+                  ) : null}
                 </Card>
               ))
             )}
@@ -352,26 +453,47 @@ export function AttendanceScreen() {
                 subtitle="Monthly attendance summary totals will be listed here."
               />
             ) : (
-              (summaryData.months || []).map((mItem, mIdx) => (
-                <Card key={mItem.monthKey || `m-${mIdx}`} style={styles.logCard}>
-                  <View style={styles.logRowTop}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <AppIcon name="calendar" color={theme.colors.brand.primary} size={16} />
-                      <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
-                        {mItem.monthName}
-                      </Text>
-                    </View>
-                    <Text style={[typography.headingSm, { color: theme.colors.brand.primary }]}>
-                      {formatHours(mItem.totalHours)}
-                    </Text>
-                  </View>
-                  <View style={styles.logRowBottom}>
-                    <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>
-                      Days Worked: {mItem.daysWorked ?? 0} · Total Sessions: {mItem.sessionsCount ?? 0}
-                    </Text>
-                  </View>
-                </Card>
-              ))
+              (summaryData.months || []).map((mItem, mIdx) => {
+                const [yearStr, monthStr] = (mItem.monthKey || '').split('-');
+                const year = Number(yearStr);
+                const month = Number(monthStr);
+                const canOpenMonth = Number.isFinite(year) && Number.isFinite(month) && month >= 1 && month <= 12;
+
+                return (
+                  <TouchableOpacity
+                    key={mItem.monthKey || `m-${mIdx}`}
+                    activeOpacity={0.75}
+                    disabled={!canOpenMonth}
+                    onPress={() => {
+                      if (!canOpenMonth) return;
+                      setSelectedDate(new Date(year, month - 1, 1));
+                      setFilterMode('monthly');
+                    }}
+                  >
+                    <Card style={styles.logCard}>
+                      <View style={styles.logRowTop}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, paddingRight: 8 }}>
+                          <AppIcon name="calendar" color={theme.colors.brand.primary} size={16} />
+                          <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+                            {mItem.monthName}
+                          </Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Text style={[typography.headingSm, { color: theme.colors.brand.primary }]}>
+                            {formatHours(mItem.totalHours)}
+                          </Text>
+                          <AppIcon name="chevronRight" color={theme.colors.text.tertiary} size={14} />
+                        </View>
+                      </View>
+                      <View style={styles.logRowBottom}>
+                        <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>
+                          Days Worked: {mItem.daysWorked ?? 0} · Total Sessions: {mItem.sessionsCount ?? 0}
+                        </Text>
+                      </View>
+                    </Card>
+                  </TouchableOpacity>
+                );
+              })
             )}
           </>
         )}
@@ -386,30 +508,66 @@ export function AttendanceScreen() {
                 subtitle="Punch in to record your attendance for today."
               />
             ) : (
-              (summaryData.records || []).map((r, rIdx) => (
-                <Card key={r.id || `rec-${rIdx}`} style={styles.logCard}>
-                  <View style={styles.logRowTop}>
-                    <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
-                      {formatDate(r.punchInTime)}
-                    </Text>
-                    <Text style={[typography.headingSm, { color: theme.colors.brand.primary }]}>
-                      {formatHours(r.workingHours)}
-                    </Text>
-                  </View>
-                  <View style={styles.logRowBottom}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <AppIcon name="clock" color={theme.colors.text.tertiary} size={14} />
-                      <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>
-                        {formatTime(r.punchInTime)} → {formatTime(r.punchOutTime)}
-                      </Text>
-                    </View>
-                    <StatusBadge
-                      status={r.punchOutTime ? 'completed' : 'active'}
-                      label={r.punchOutTime ? 'Completed' : 'Active'}
-                    />
-                  </View>
-                </Card>
-              ))
+              <>
+                {(summaryData.records || []).map((r, rIdx) => {
+                  const label = sessionRouteLabel(r.punchInTime, r.punchOutTime);
+                  const date = toDateKey(r.punchInTime);
+                  return (
+                    <Card key={r.id || `rec-${rIdx}`} style={styles.logCard}>
+                      <View style={styles.logRowTop}>
+                        <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+                          {formatDate(r.punchInTime)}
+                        </Text>
+                        <Text style={[typography.headingSm, { color: theme.colors.brand.primary }]}>
+                          {formatHours(r.workingHours)}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        disabled={!userId}
+                        onPress={() =>
+                          openSessionRoute({
+                            date,
+                            attendanceId: r.id,
+                            startAt: r.punchInTime,
+                            endAt: r.punchOutTime,
+                            sessionLabel: label,
+                          })
+                        }
+                        style={styles.logRowBottom}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+                          <AppIcon name="clock" color={theme.colors.text.tertiary} size={14} />
+                          <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>
+                            {label}
+                          </Text>
+                        </View>
+                        <View style={styles.routeHint}>
+                          <StatusBadge
+                            status={r.punchOutTime ? 'completed' : 'active'}
+                            label={r.punchOutTime ? 'Completed' : 'Active'}
+                          />
+                          <Text style={[typography.caption, { color: theme.colors.brand.primary, fontWeight: '600' }]}>
+                            Route
+                          </Text>
+                          <AppIcon name="chevronRight" color={theme.colors.brand.primary} size={14} />
+                        </View>
+                      </TouchableOpacity>
+                    </Card>
+                  );
+                })}
+                {(summaryData.records?.length ?? 0) > 1 ? (
+                  <Button
+                    variant="outline"
+                    label="View Full Day Route"
+                    onPress={() => openDayRoute(toDateKey(summaryData.records![0].punchInTime))}
+                    disabled={!userId}
+                    icon="teamMap"
+                    size="sm"
+                    style={styles.dayRouteBtn}
+                  />
+                ) : null}
+              </>
             )}
           </>
         )}
@@ -513,6 +671,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
+  },
+  routeHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dayRouteBtn: {
+    marginTop: 12,
   },
   gpsCard: {
     flexDirection: 'row',

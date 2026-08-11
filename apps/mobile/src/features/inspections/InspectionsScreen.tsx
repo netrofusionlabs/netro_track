@@ -1,8 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import {
-  View, Text, ScrollView, StyleSheet, Alert, TouchableOpacity
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useTheme } from '../../shared/theme/ThemeProvider';
 import { typography } from '../../shared/theme/typography';
 import {
@@ -10,13 +7,11 @@ import {
   Badge,
   EmptyState,
   ScreenHeader,
-  Input,
-  Button,
   AppIcon,
   LoadingState,
 } from '../../shared/components';
-import { CameraCapture } from '../../shared/components/CameraCapture';
-import { useInspections, useCreateInspection } from './hooks/useInspections';
+import { useInspections } from './hooks/useInspections';
+import { useEmployeeInspections } from '../employees/hooks/useEmployeeDetail';
 import type { InspectionRecord } from './types';
 
 function InspectionCard({ item }: { item: InspectionRecord }) {
@@ -62,121 +57,37 @@ function InspectionCard({ item }: { item: InspectionRecord }) {
   );
 }
 
-export function InspectionsScreen() {
+interface Props {
+  route?: { params?: { employeeId?: string; employeeName?: string } };
+  navigation?: any;
+}
+
+export function InspectionsScreen({ route, navigation }: Props = {}) {
   const theme = useTheme();
-  const { data: inspections = [], isLoading } = useInspections();
-  const createInspection = useCreateInspection();
+  const employeeId = route?.params?.employeeId;
+  const employeeName = route?.params?.employeeName;
 
-  const [showForm, setShowForm] = useState(false);
-  const [siteName, setSiteName] = useState('');
-  const [category, setCategory] = useState('');
-  const [observation, setObservation] = useState('');
-  const [recommendation, setRecommendation] = useState('');
-  const [showCamera, setShowCamera] = useState(false);
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const self = useInspections();
+  const emp = useEmployeeInspections(employeeId ?? '');
+  const { data: inspections = [], isLoading } = employeeId ? emp : self;
 
-  const handleSubmit = useCallback(() => {
-    if (!siteName.trim()) { Alert.alert('Required', 'Site name is required'); return; }
-    if (!observation.trim()) { Alert.alert('Required', 'Observation is required'); return; }
+  const viewOnly = !!employeeId;
 
-    createInspection.mutate(
-      {
-        siteName: siteName.trim(),
-        category: category.trim() || undefined,
-        latitude: 0,
-        longitude: 0,
-        observation: observation.trim(),
-        recommendation: recommendation.trim() || undefined,
-        imageUrls: imageUrls,
-      },
-      {
-        onSuccess: () => {
-          setShowForm(false);
-          setSiteName('');
-          setCategory('');
-          setObservation('');
-          setRecommendation('');
-          setImageUrls([]);
-          Alert.alert('Success', 'Inspection recorded');
-        },
-        onError: (e) => Alert.alert('Error', e.message),
-      }
-    );
-  }, [siteName, category, observation, recommendation, imageUrls, createInspection]);
-
-  if (showCamera) {
-    return (
-      <CameraCapture
-        onCancel={() => setShowCamera(false)}
-        onPhotoCaptured={(uri) => {
-          setImageUrls(prev => [...prev, uri]);
-          setShowCamera(false);
-        }}
-      />
-    );
-  }
+  const handleNew = () => {
+    if (navigation) {
+      navigation.navigate('NewInspection');
+    }
+  };
 
   return (
     <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <ScreenHeader
-          title="Inspections"
+          title={employeeId ? `${employeeName ?? 'Employee'}'s Inspections` : 'Inspections'}
           subtitle={`${inspections.length} total records`}
-          actionLabel={showForm ? 'Cancel' : '+ New'}
-          onAction={() => setShowForm(!showForm)}
+          actionLabel={(!viewOnly && '+ New') || undefined}
+          onAction={!viewOnly ? handleNew : undefined}
         />
-
-        {showForm && (
-          <Card style={{ marginBottom: 16 }}>
-            <Text style={[typography.headingMd, { color: theme.colors.text.primary, marginBottom: 14 }]}>
-              New Inspection
-            </Text>
-            <Input label="Site Name" value={siteName} onChangeText={setSiteName} placeholder="e.g. Warehouse B" />
-            <Input label="Category" value={category} onChangeText={setCategory} placeholder="e.g. Safety, Quality" />
-            <Input label="Observation" value={observation} onChangeText={setObservation} placeholder="Describe what you found..." multiline numberOfLines={3} />
-            <Input label="Recommendation" value={recommendation} onChangeText={setRecommendation} placeholder="Suggested actions..." multiline numberOfLines={2} />
-
-            <View style={{ marginBottom: 16 }}>
-              {imageUrls.length > 0 && (
-                <View style={[styles.photoPreview, { borderColor: theme.colors.surface.border, backgroundColor: theme.colors.surface.subtle }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <AppIcon name="camera" color={theme.colors.brand.primary} size={18} />
-                    <Text style={[typography.bodySm, { color: theme.colors.text.primary }]}>
-                      {imageUrls.length} Photo(s) Attached
-                    </Text>
-                  </View>
-                  <TouchableOpacity onPress={() => setImageUrls([])}>
-                    <Text style={[typography.buttonSm, { color: theme.colors.semantic.error }]}>Clear</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-              <TouchableOpacity
-                onPress={() => setShowCamera(true)}
-                style={[
-                  styles.cameraButton,
-                  {
-                    backgroundColor: theme.colors.surface.subtle,
-                    borderColor: theme.colors.surface.border,
-                    marginTop: imageUrls.length > 0 ? 8 : 0,
-                  },
-                ]}
-              >
-                <AppIcon name="camera" color={theme.colors.brand.primary} size={18} />
-                <Text style={[typography.buttonSm, { color: theme.colors.brand.primary }]}>
-                  Add Photo
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <Button
-              label="Submit Inspection"
-              onPress={handleSubmit}
-              loading={createInspection.isPending}
-              fullWidth
-              size="md"
-            />
-          </Card>
-        )}
 
         {isLoading && <LoadingState message="Loading inspection records..." />}
 
@@ -186,7 +97,7 @@ export function InspectionsScreen() {
             title="No Inspections Yet"
             subtitle="Tap '+ New' to record your first site inspection."
             actionLabel="Record Inspection"
-            onAction={() => setShowForm(true)}
+            onAction={handleNew}
           />
         )}
 
@@ -202,22 +113,4 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  cameraButton: {
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-  },
-  photoPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-    borderWidth: 1,
-    borderRadius: 8,
-  },
 });

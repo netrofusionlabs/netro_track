@@ -26,3 +26,4 @@ export * from './SyncIndicator';
 export * from './ProgressBar';
 export * from './Divider';
 export * from './CameraCapture';
+export * from './map';

@@ -1,9 +1,13 @@
 import React from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, ActivityIndicator, Platform
+  View, Text, ScrollView, StyleSheet, ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../shared/theme/ThemeProvider';
+import { typography } from '../../shared/theme/typography';
+import { Card } from '../../shared/components/Card';
+import { EmptyState } from '../../shared/components/EmptyState';
+import { ScreenHeader } from '../../shared/components/ScreenHeader';
 import { useAttendanceHistory } from './hooks/useAttendance';
 import type { AttendanceRecord } from './types';
 
@@ -26,24 +30,26 @@ function formatHours(h: number | null | undefined): string {
 function AttendanceRow({ record, theme }: { record: AttendanceRecord; theme: ReturnType<typeof useTheme> }) {
   const complete = !!record.punchOutTime;
   return (
-    <View style={[s.row, { backgroundColor: theme.colors.surface.card }]}>
-      <View style={s.rowLeft}>
-        <Text style={[s.rowDate, { color: theme.colors.text.primary }]}>
-          {formatDate(record.punchInTime)}
-        </Text>
-        <Text style={[s.rowTimes, { color: theme.colors.text.secondary }]}>
-          {formatTime(record.punchInTime)} → {formatTime(record.punchOutTime)}
-        </Text>
+    <Card style={{ paddingVertical: 16, paddingHorizontal: 18 }}>
+      <View style={s.row}>
+        <View style={s.rowLeft}>
+          <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+            {formatDate(record.punchInTime)}
+          </Text>
+          <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 4 }]}>
+            {formatTime(record.punchInTime)} → {formatTime(record.punchOutTime)}
+          </Text>
+        </View>
+        <View style={s.rowRight}>
+          <Text style={[typography.headingMd, { color: complete ? theme.colors.semantic.success : theme.colors.semantic.warning }]}>
+            {formatHours(record.workingHours)}
+          </Text>
+          <Text style={[typography.caption, { color: complete ? theme.colors.semantic.success : theme.colors.semantic.warning, marginTop: 2 }]}>
+            {complete ? 'Complete' : 'Active'}
+          </Text>
+        </View>
       </View>
-      <View style={s.rowRight}>
-        <Text style={[s.rowHours, { color: complete ? theme.colors.semantic.success : theme.colors.semantic.warning }]}>
-          {formatHours(record.workingHours)}
-        </Text>
-        <Text style={[s.rowStatus, { color: complete ? theme.colors.semantic.success : theme.colors.semantic.warning }]}>
-          {complete ? 'Complete' : 'Active'}
-        </Text>
-      </View>
-    </View>
+    </Card>
   );
 }
 
@@ -53,18 +59,26 @@ export function AttendanceHistoryScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[s.safe, { backgroundColor: theme.colors.surface.background }]}>
-      <ScrollView contentContainerStyle={s.scroll}>
-        <Text style={[s.heading, { color: theme.colors.text.primary }]}>History</Text>
-        <Text style={[s.sub, { color: theme.colors.text.secondary }]}>Last 30 attendance records</Text>
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+        <ScreenHeader
+          title="History"
+          subtitle="Last 30 attendance records"
+        />
 
         {isLoading && (
           <ActivityIndicator style={{ marginTop: 40 }} color={theme.colors.brand.primary} size="large" />
         )}
         {error && (
-          <Text style={[s.error, { color: theme.colors.semantic.error }]}>{(error as Error).message}</Text>
+          <Text style={[typography.bodyMd, { color: theme.colors.semantic.error, textAlign: 'center', marginTop: 20 }]}>
+            {(error as Error).message}
+          </Text>
         )}
         {!isLoading && records.length === 0 && (
-          <Text style={[s.empty, { color: theme.colors.text.tertiary }]}>No attendance records yet.</Text>
+          <EmptyState
+            icon="📋"
+            title="No Attendance Records"
+            subtitle="Your attendance history will appear here once you start punching in."
+          />
         )}
         {records.map((r) => (
           <AttendanceRow key={r.id} record={r} theme={theme} />
@@ -76,23 +90,8 @@ export function AttendanceHistoryScreen() {
 
 const s = StyleSheet.create({
   safe: { flex: 1 },
-  scroll: { padding: 20 },
-  heading: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-  sub: { fontSize: 14, marginTop: 2, marginBottom: 20 },
-  error: { fontSize: 14, marginTop: 20, textAlign: 'center' },
-  empty: { fontSize: 14, marginTop: 40, textAlign: 'center' },
-  row: {
-    borderRadius: 12, padding: 16, marginBottom: 10,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-      android: { elevation: 1 }
-    })
-  },
+  scroll: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 40 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rowLeft: { flex: 1 },
-  rowDate: { fontSize: 15, fontWeight: '700' },
-  rowTimes: { fontSize: 13, marginTop: 2 },
   rowRight: { alignItems: 'flex-end' },
-  rowHours: { fontSize: 16, fontWeight: '800' },
-  rowStatus: { fontSize: 11, fontWeight: '600', marginTop: 2 }
 });

@@ -148,4 +148,24 @@ export class AttendanceController {
       next(error);
     }
   };
+
+  public getSummary = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const companyId = req.user!.companyId;
+      const userId = req.user!.id;
+      const mode = (req.query.mode as 'monthly' | 'all' | 'today') || 'monthly';
+      const year = req.query.year ? parseInt(req.query.year as string, 10) : undefined;
+      const month = req.query.month ? parseInt(req.query.month as string, 10) : undefined;
+
+      const summary = await this.attendanceService.getSummary(companyId, userId, mode, year, month);
+      res.status(200).json({
+        success: true,
+        message: 'Attendance summary retrieved',
+        data: summary,
+        meta: { timestamp: new Date().toISOString() }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

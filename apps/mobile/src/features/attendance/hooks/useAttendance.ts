@@ -7,6 +7,7 @@ import type { AttendanceRecord, PunchPayload } from '../types';
 export const attendanceKeys = {
   today: ['attendance', 'today'] as const,
   history: ['attendance', 'history'] as const,
+  summary: (mode: string, year?: number, month?: number) => ['attendance', 'summary', mode, year, month] as const,
   monthly: (year: number, month: number) => ['attendance', 'monthly', year, month] as const
 };
 
@@ -32,6 +33,49 @@ export function useAttendanceHistory() {
   });
 }
 
+export interface DailySummaryItem {
+  date: string;
+  dayOfWeek: string;
+  totalHours: number;
+  sessionsCount: number;
+  records: AttendanceRecord[];
+}
+
+export interface MonthlySummaryItem {
+  monthKey: string;
+  monthName: string;
+  totalHours: number;
+  sessionsCount: number;
+  daysWorked: number;
+}
+
+export interface AttendanceSummaryData {
+  mode: 'monthly' | 'all' | 'today';
+  totalHours: number;
+  monthName?: string;
+  month?: number;
+  year?: number;
+  totalDaysWorked?: number;
+  totalMonths?: number;
+  sessionsCount?: number;
+  days?: DailySummaryItem[];
+  months?: MonthlySummaryItem[];
+  records?: AttendanceRecord[];
+}
+
+export function useAttendanceSummary(mode: 'monthly' | 'all' | 'today', year?: number, month?: number) {
+  return useQuery<AttendanceSummaryData>({
+    queryKey: attendanceKeys.summary(mode, year, month),
+    queryFn: async () => {
+      const params = new URLSearchParams({ mode });
+      if (year) params.append('year', String(year));
+      if (month) params.append('month', String(month));
+      const res = await api.get<{ data: AttendanceSummaryData }>(`/attendance/summary?${params.toString()}`);
+      return res.data.data;
+    }
+  });
+}
+
 export function usePunchIn() {
   const qc = useQueryClient();
   return useMutation<AttendanceRecord, Error, PunchPayload | void>({
@@ -44,9 +88,9 @@ export function usePunchIn() {
       const res = await api.post<{ data: AttendanceRecord }>('/attendance/punch-in', coords);
       return res.data.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       // Start background GPS tracking after successful punch-in
-      startTracking();
+      startTracking(data.id);
       qc.invalidateQueries({ queryKey: attendanceKeys.today });
       qc.invalidateQueries({ queryKey: attendanceKeys.history });
     }

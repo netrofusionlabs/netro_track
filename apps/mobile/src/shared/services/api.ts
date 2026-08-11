@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 import { storage } from '../utils/storage';
+import { useAuthStore } from '../../features/auth/stores/authStore';
+import { stopTracking } from './trackingService';
 
 // Android emulator: localhost = 10.0.2.2; iOS simulator: localhost
 export const BASE_URL =
@@ -28,3 +30,16 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Handle 401 Unauthorized / Expired Tokens -> Stop tracking & force redirect to Login
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      console.warn('[api] Session expired (401). Redirecting to login...');
+      void stopTracking();
+      useAuthStore.getState().clearCredentials();
+    }
+    return Promise.reject(error);
+  }
+);

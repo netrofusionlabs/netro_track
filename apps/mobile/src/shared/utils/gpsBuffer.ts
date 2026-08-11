@@ -6,15 +6,24 @@
 import { storage } from './storage';
 
 export interface GpsPoint {
+  /** Client-generated UUID — used by server for idempotent deduplication (BR-SY03). */
+  localId: string;
+  /** Active attendance session ID (resolved from store or server). */
+  attendanceId?: string;
   latitude: number;
   longitude: number;
   accuracy?: number;
   speed?: number;
   heading?: number;
-  battery?: number;
-  networkType?: string;
+  altitude?: number;
+  batteryLevel?: number;
+  batteryCharging?: boolean;
+  networkType?: 'wifi' | 'cellular' | 'none';
+  gpsProvider?: 'gps' | 'network' | 'fused';
+  isAccurate?: boolean;
   recordedAt: string; // ISO datetime string
 }
+
 
 const GPS_BUFFER_KEY = 'gps_buffer:points';
 const MAX_BUFFER_SIZE = 2000; // guard against unbounded growth when offline for days

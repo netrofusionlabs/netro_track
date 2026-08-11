@@ -1,6 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- Required on Android 13+ (API 33+) for foreground service notifications to appear -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
       android:name=".MainApplication"
@@ -23,5 +31,21 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+
+      <!-- Foreground Service for React Native Background Actions (android:stopWithTask=false ensures service keeps running when app is swiped away) -->
+      <service 
+        android:name="com.asterinet.reactnative.bgactions.RNBackgroundActionsTask" 
+        android:foregroundServiceType="location"
+        android:stopWithTask="false"
+        android:exported="false" />
+
+      <!-- Native LocationForegroundService — GPS capture that survives process kill/swipe from recents.
+           stopWithTask=false: keeps running when app is swiped from recents.
+           START_STICKY in onStartCommand ensures auto-restart if killed by OS under memory pressure. -->
+      <service
+        android:name=".LocationForegroundService"
+        android:foregroundServiceType="location"
+        android:stopWithTask="false"
+        android:exported="false" />
     </application>
 </manifest>

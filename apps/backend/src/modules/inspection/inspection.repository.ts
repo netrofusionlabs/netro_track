@@ -1,8 +1,13 @@
+/**
+ * InspectionRepository — data access for field inspection records.
+ * Supports idempotent create via localId (BR-SY03).
+ */
 import { prisma } from '../../shared/config/prisma';
 import { Inspection } from '@prisma/client';
 
 export class InspectionRepository {
   public async create(data: {
+    localId?: string | null;
     companyId: string;
     userId: string;
     siteName: string;
@@ -15,6 +20,7 @@ export class InspectionRepository {
   }): Promise<Inspection> {
     return prisma.inspection.create({
       data: {
+        localId: data.localId ?? null,
         companyId: data.companyId,
         userId: data.userId,
         siteName: data.siteName,
@@ -23,11 +29,21 @@ export class InspectionRepository {
         longitude: data.longitude,
         observation: data.observation,
         recommendation: data.recommendation ?? null,
-        imageUrls: data.imageUrls
+        imageUrls: data.imageUrls,
       },
       include: {
-        user: true
-      }
+        user: { select: { id: true, name: true, employeeId: true } },
+      },
+    });
+  }
+
+  /** Find an existing inspection by client-generated localId (for idempotency). */
+  public async findByLocalId(localId: string, companyId: string): Promise<Inspection | null> {
+    return prisma.inspection.findFirst({
+      where: { localId, companyId, deletedAt: null },
+      include: {
+        user: { select: { id: true, name: true, employeeId: true } },
+      },
     });
   }
 
@@ -40,12 +56,12 @@ export class InspectionRepository {
         companyId,
         deletedAt: null,
         ...(filter?.userId ? { userId: filter.userId } : {}),
-        ...(filter?.userIds ? { userId: { in: filter.userIds } } : {})
+        ...(filter?.userIds ? { userId: { in: filter.userIds } } : {}),
       },
       include: {
-        user: true
+        user: { select: { id: true, name: true, employeeId: true } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -60,12 +76,12 @@ export class InspectionRepository {
         companyId,
         userId,
         deletedAt: null,
-        createdAt: { gte: startOfDay, lte: endOfDay }
+        createdAt: { gte: startOfDay, lte: endOfDay },
       },
       include: {
-        user: true
+        user: { select: { id: true, name: true, employeeId: true } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -73,8 +89,8 @@ export class InspectionRepository {
     return prisma.inspection.findFirst({
       where: { id, companyId, deletedAt: null },
       include: {
-        user: true
-      }
+        user: { select: { id: true, name: true, employeeId: true } },
+      },
     });
   }
 }

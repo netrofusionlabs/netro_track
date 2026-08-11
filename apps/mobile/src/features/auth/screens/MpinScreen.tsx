@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import {
-  StyleSheet, View, Text, SafeAreaView, TouchableOpacity, ActivityIndicator, Alert
+  StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
+import { typography } from '../../../shared/theme/typography';
 import { useAuthStore } from '../stores/authStore';
 import { api } from '../../../shared/services/api';
 
@@ -11,6 +13,7 @@ export function MpinScreen({ navigation: _navigation }: any) {
   const [pin, setPin] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const setMpinVerified = useAuthStore((state) => state.setMpinVerified);
+  const clearCredentials = useAuthStore((state) => state.clearCredentials);
 
   const handleKeyPress = (num: string) => {
     if (loading || pin.length >= 4) return;
@@ -34,9 +37,23 @@ export function MpinScreen({ navigation: _navigation }: any) {
       setMpinVerified(true);
     } catch (err: any) {
       const message = err.response?.data?.message ?? 'Failed to set MPIN. Please try again.';
-      Alert.alert('MPIN Error', message, [
-        { text: 'Retry', onPress: () => setPin('') }
-      ]);
+      const isAuthError = err.response?.status === 401 || message.toLowerCase().includes('token');
+
+      if (isAuthError) {
+        Alert.alert('Session Expired', 'Your login session has expired. Please sign in again.', [
+          {
+            text: 'Sign In Again',
+            onPress: () => {
+              setPin('');
+              clearCredentials();
+            },
+          },
+        ]);
+      } else {
+        Alert.alert('MPIN Error', message, [
+          { text: 'Retry', onPress: () => setPin('') }
+        ]);
+      }
     } finally {
       setLoading(false);
     }
@@ -66,11 +83,11 @@ export function MpinScreen({ navigation: _navigation }: any) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.surface.background }]}>
       <View style={styles.content}>
-        <Text style={[styles.title, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
+        <Text style={[typography.headingLg, { color: theme.colors.text.primary, marginBottom: theme.spacing.sm }]}>
           Enter MPIN
         </Text>
-        <Text style={[styles.subtitle, { color: theme.colors.text.secondary, marginBottom: theme.spacing.xl }]}>
-          Enter your 4-digit daily passcode
+        <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginBottom: theme.spacing.xl }]}>
+          Set your 4-digit passcode to proceed
         </Text>
 
         <View style={[styles.dotContainer, { marginBottom: theme.spacing.xxxl }]}>
@@ -114,6 +131,16 @@ export function MpinScreen({ navigation: _navigation }: any) {
             </TouchableOpacity>
           </View>
         </View>
+
+        <TouchableOpacity
+          onPress={() => clearCredentials()}
+          style={styles.reloginBtn}
+          activeOpacity={0.7}
+        >
+          <Text style={[typography.buttonSm, { color: theme.colors.brand.primary }]}>
+            ← Sign in with password
+          </Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -122,8 +149,6 @@ export function MpinScreen({ navigation: _navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  title: { fontSize: 24, fontWeight: '700' },
-  subtitle: { fontSize: 16 },
   dotContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   dot: { width: 20, height: 20, borderRadius: 10, marginHorizontal: 12 },
   keypad: { width: '100%', paddingHorizontal: 20 },
@@ -135,5 +160,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4, shadowOffset: { width: 0, height: 2 }
   },
   keyText: { fontSize: 24, fontWeight: '600' },
-  keyEmpty: { width: 70, height: 70 }
+  keyEmpty: { width: 70, height: 70 },
+  reloginBtn: { marginTop: 24, padding: 12 },
 });

@@ -110,6 +110,10 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    implementation project(':react-native-community_geolocation')
+    implementation project(':react-native-community_netinfo')
+    implementation project(':react-native-maps')
+    implementation project(':react-native-vision-camera')
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

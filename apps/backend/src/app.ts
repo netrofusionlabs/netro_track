@@ -29,6 +29,8 @@ import { saleRouter } from './modules/sale/sale.routes';
 import { inspectionRouter } from './modules/inspection/inspection.routes';
 import { uploadRouter } from './modules/upload/upload.routes';
 import { trackingRouter } from './modules/tracking/tracking.routes';
+import { dashboardRouter } from './modules/dashboard/dashboard.routes';
+import { reportRouter } from './modules/report/report.routes';
 import path from 'path';
 
 // Static assets serving
@@ -46,6 +48,8 @@ app.use('/api/v1/product-sales', saleRouter);
 app.use('/api/v1/inspections', inspectionRouter);
 app.use('/api/v1/uploads', uploadRouter);
 app.use('/api/v1/tracking', trackingRouter);
+app.use('/api/v1/dashboard', dashboardRouter);
+app.use('/api/v1/reports', reportRouter);
 
 // Global Error Handler Middleware
 app.use(errorMiddleware);

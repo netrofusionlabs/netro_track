@@ -77,7 +77,8 @@ export class AttendanceRepository {
         companyId,
         userId,
         punchInTime: { gte: startOfDay, lte: endOfDay }
-      }
+      },
+      orderBy: { punchInTime: 'desc' }
     });
   }
 

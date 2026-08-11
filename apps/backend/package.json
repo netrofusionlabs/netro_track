@@ -13,6 +13,8 @@
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.967.0",
+    "@aws-sdk/s3-request-presigner": "^3.967.0",
     "@netrotrack/shared": "*",
     "@prisma/client": "^5.10.2",
     "@socket.io/redis-adapter": "^8.3.0",

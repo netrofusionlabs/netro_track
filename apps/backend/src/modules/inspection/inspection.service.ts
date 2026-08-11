@@ -1,3 +1,10 @@
+/**
+ * InspectionService — business logic for field inspections.
+ *
+ * Key enforcement:
+ * - BR-I05: Employee must be punched in to submit an inspection
+ * - BR-SY03: Idempotent create via localId
+ */
 import { InspectionRepository } from './inspection.repository';
 import { AppError } from '../../shared/errors/AppError';
 import { Inspection, Role } from '@prisma/client';
@@ -10,6 +17,7 @@ export class InspectionService {
     companyId: string,
     userId: string,
     data: {
+      localId: string;
       siteName: string;
       category?: string;
       latitude: number;
@@ -19,7 +27,25 @@ export class InspectionService {
       imageUrls: string[];
     }
   ): Promise<Inspection> {
+    // ── Idempotency: return existing record if localId already synced ──────────
+    const existing = await this.inspectionRepository.findByLocalId(data.localId, companyId);
+    if (existing) return existing;
+
+    // ── BR-I05: Employee must have an active punch-in ─────────────────────────
+    const activePunch = await prisma.attendance.findFirst({
+      where: { companyId, userId, punchOutTime: null },
+      select: { id: true },
+    });
+    if (!activePunch) {
+      throw new AppError(
+        'NOT_PUNCHED_IN',
+        'You must be punched in to submit an inspection (BR-I05)',
+        403
+      );
+    }
+
     return this.inspectionRepository.create({
+      localId: data.localId,
       companyId,
       userId,
       siteName: data.siteName,
@@ -28,7 +54,7 @@ export class InspectionService {
       longitude: data.longitude,
       observation: data.observation,
       recommendation: data.recommendation ?? null,
-      imageUrls: data.imageUrls
+      imageUrls: data.imageUrls,
     });
   }
 
@@ -40,7 +66,7 @@ export class InspectionService {
     if (role === Role.MANAGER) {
       const subordinates = await prisma.user.findMany({
         where: { companyId, managerId: userId, deletedAt: null },
-        select: { id: true }
+        select: { id: true },
       });
       const ids = [userId, ...subordinates.map((s) => s.id)];
       return this.inspectionRepository.findMany(companyId, { userIds: ids });

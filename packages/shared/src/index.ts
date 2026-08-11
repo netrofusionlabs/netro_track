@@ -7,4 +7,6 @@ export * from './schemas/visit.validator';
 export * from './schemas/sale.validator';
 export * from './schemas/inspection.validator';
 export * from './schemas/tracking.validator';
-
+export * from './schemas/upload.validator';
+export * from './schemas/dashboard.validator';
+export * from './schemas/report.validator';

@@ -16,6 +16,7 @@ router.post('/punch-in', controller.punchIn);
 router.post('/punch-out', controller.punchOut);
 router.get('/history', controller.getHistory);
 router.get('/monthly', controller.getMonthly);
+router.get('/summary', controller.getSummary);
 router.get('/team', requireRoles(Role.MANAGER, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.getTeam);
 router.get('/company', requireRoles(Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.getCompany);
 

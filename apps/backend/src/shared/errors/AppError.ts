@@ -8,6 +8,6 @@ export class AppError extends Error {
     this.code = code;
     this.statusCode = statusCode;
     this.details = details;
-    Object.setPrototypeOf(this, new.target.prototype);
+    Object.setPrototypeOf(this, AppError.prototype);
   }
 }

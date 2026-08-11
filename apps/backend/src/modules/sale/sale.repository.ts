@@ -3,6 +3,7 @@ import { Sale } from '@prisma/client';
 
 export class SaleRepository {
   public async create(data: {
+    localId?: string | null;
     companyId: string;
     userId: string;
     customerId: string;
@@ -13,6 +14,7 @@ export class SaleRepository {
     return prisma.$transaction(async (tx) => {
       const sale = await tx.sale.create({
         data: {
+          localId: data.localId ?? null,
           companyId: data.companyId,
           userId: data.userId,
           customerId: data.customerId,
@@ -28,16 +30,24 @@ export class SaleRepository {
           }
         },
         include: {
-          items: {
-            include: {
-              product: true
-            }
-          },
+          items: { include: { product: true } },
           customer: true,
-          user: true
+          user: { select: { id: true, name: true, employeeId: true } }
         }
       });
       return sale;
+    });
+  }
+
+  /** Find an existing sale by client-generated localId (for idempotency). */
+  public async findByLocalId(localId: string, companyId: string): Promise<Sale | null> {
+    return prisma.sale.findFirst({
+      where: { localId, companyId, deletedAt: null },
+      include: {
+        items: { include: { product: true } },
+        customer: true,
+        user: { select: { id: true, name: true, employeeId: true } }
+      }
     });
   }
 

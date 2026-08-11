@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, SafeAreaView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { StyleSheet, View, Text, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { Input } from '../../../shared/components/Input';
 import { Button } from '../../../shared/components/Button';
 import { useAuthStore } from '../stores/authStore';
 import axios from 'axios';
+import { loginSchema } from '@netrotrack/shared';
 
 // Fallback IP for Android emulator (localhost is 10.0.2.2)
 const API_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
@@ -20,20 +22,20 @@ export function LoginScreen({ navigation }: any) {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const handleLogin = async () => {
-    const newErrors: { [key: string]: string } = {};
-    if (!loginId) {
-      newErrors.loginId = 'Login ID or Email is required';
-    } else {
-      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginId);
-      const parts = loginId.split('-');
-      const isLoginId = parts.length >= 2 && parts[0].trim().length > 0 && parts[1].trim().length > 0;
-      if (!isEmail && !isLoginId) {
-        newErrors.loginId = 'Invalid format. Use COMPANY-EMPLOYEE or a valid email';
-      }
-    }
-    if (!password) newErrors.password = 'Password is required';
+    // 1. Frontend validation using shared Zod schema
+    const validationResult = loginSchema.safeParse({
+      loginId: loginId.trim(),
+      password,
+      deviceId: 'device-id-uuid-placeholder'
+    });
 
-    if (Object.keys(newErrors).length > 0) {
+    if (!validationResult.success) {
+      const newErrors: { [key: string]: string } = {};
+      validationResult.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          newErrors[err.path[0].toString()] = err.message;
+        }
+      });
       setErrors(newErrors);
       return;
     }
@@ -61,8 +63,18 @@ export function LoginScreen({ navigation }: any) {
         { text: 'OK', onPress: () => navigation.navigate('MpinSetup') }
       ]);
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Failed to authenticate';
-      Alert.alert('Login Failed', message);
+      if (error.response?.data?.error?.code === 'VALIDATION_ERROR' && error.response?.data?.error?.details) {
+        // Backend validation errors
+        const backendErrors: { [key: string]: string } = {};
+        error.response.data.error.details.forEach((err: any) => {
+          backendErrors[err.field] = err.message;
+        });
+        setErrors(backendErrors);
+      } else {
+        // General API errors (e.g. 401 Invalid credentials)
+        const message = error.response?.data?.message || 'Failed to authenticate';
+        setErrors({ general: message });
+      }
     } finally {
       setLoading(false);
     }
@@ -105,6 +117,14 @@ export function LoginScreen({ navigation }: any) {
             <Text style={[styles.cardTitle, { color: theme.colors.text.primary, marginBottom: theme.spacing.lg }]}>
               Sign In
             </Text>
+
+            {errors.general && (
+              <View style={[styles.errorBox, { backgroundColor: theme.colors.semantic.error + '20', borderColor: theme.colors.semantic.error }]}>
+                <Text style={[styles.errorText, { color: theme.colors.semantic.error }]}>
+                  {errors.general}
+                </Text>
+              </View>
+            )}
 
             <Input
               label="Login ID or Email"
@@ -240,5 +260,17 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     letterSpacing: -0.2
+  },
+  errorBox: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 16,
+    alignItems: 'center'
+  },
+  errorText: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center'
   }
 });

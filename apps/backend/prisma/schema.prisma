@@ -213,6 +213,8 @@ model Attendance {
 
 model Visit {
   id                String    @id @default(uuid()) @db.Uuid
+  /// Client-generated UUID for offline idempotency (BR-SY03)
+  localId           String?   @unique @map("local_id")
   companyId         String    @map("company_id") @db.Uuid
   userId            String    @map("user_id") @db.Uuid
   customerId        String    @map("customer_id") @db.Uuid
@@ -224,6 +226,7 @@ model Visit {
   productsDiscussed String?   @map("products_discussed")
   notes             String?
   imageUrl          String?   @map("image_url")
+  photoUrls         String[]  @default([]) @map("photo_urls")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
   deletedAt         DateTime? @map("deleted_at")
@@ -232,11 +235,14 @@ model Visit {
   user     User     @relation(fields: [userId], references: [id])
   customer Customer @relation(fields: [customerId], references: [id])
 
+  @@index([companyId, userId, checkInTime])
   @@map("visits")
 }
 
 model Sale {
   id          String     @id @default(uuid()) @db.Uuid
+  /// Client-generated UUID for offline idempotency (BR-SY03)
+  localId     String?    @unique @map("local_id")
   companyId   String     @map("company_id") @db.Uuid
   userId      String     @map("user_id") @db.Uuid
   customerId  String     @map("customer_id") @db.Uuid
@@ -251,11 +257,14 @@ model Sale {
   user     User     @relation(fields: [userId], references: [id])
   customer Customer @relation(fields: [customerId], references: [id])
 
+  @@index([companyId, userId, createdAt])
   @@map("sales")
 }
 
 model Inspection {
   id              String    @id @default(uuid()) @db.Uuid
+  /// Client-generated UUID for offline idempotency (BR-SY03)
+  localId         String?   @unique @map("local_id")
   companyId       String    @map("company_id") @db.Uuid
   userId          String    @map("user_id") @db.Uuid
   siteName        String    @map("site_name")
@@ -264,7 +273,7 @@ model Inspection {
   longitude       Decimal   @db.Decimal(10, 7)
   observation     String
   recommendation  String?
-  imageUrls       String[]  @map("image_urls")
+  imageUrls       String[]  @default([]) @map("image_urls")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   deletedAt       DateTime? @map("deleted_at")
@@ -272,6 +281,7 @@ model Inspection {
   company Company @relation(fields: [companyId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
 
+  @@index([companyId, userId, createdAt])
   @@map("inspections")
 }
 
@@ -290,24 +300,32 @@ model SaleItem {
 }
 
 model GpsLocation {
-  id            String   @id @default(uuid()) @db.Uuid
-  companyId     String   @map("company_id") @db.Uuid
-  userId        String   @map("user_id") @db.Uuid
-  attendanceId  String?  @map("attendance_id") @db.Uuid
-  latitude      Decimal  @db.Decimal(10, 7)
-  longitude     Decimal  @db.Decimal(10, 7)
-  accuracy      Decimal? @db.Decimal(8, 2)
-  speed         Decimal? @db.Decimal(8, 2)
-  heading       Decimal? @db.Decimal(6, 2)
-  battery       Int?
-  networkType   String?  @map("network_type")
-  recordedAt    DateTime @map("recorded_at")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id              String   @id @default(uuid()) @db.Uuid
+  /// Client-generated UUID for idempotent batch sync (BR-SY03, BR-G11)
+  localId         String?  @unique @map("local_id")
+  companyId       String   @map("company_id") @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  attendanceId    String?  @map("attendance_id") @db.Uuid
+  latitude        Decimal  @db.Decimal(10, 7)
+  longitude       Decimal  @db.Decimal(10, 7)
+  accuracy        Decimal? @db.Decimal(8, 2)
+  speed           Decimal? @db.Decimal(8, 2)
+  heading         Decimal? @db.Decimal(6, 2)
+  altitude        Decimal? @db.Decimal(10, 2)
+  batteryLevel    Int?     @map("battery_level")
+  batteryCharging Boolean? @map("battery_charging")
+  networkType     String?  @map("network_type")
+  gpsProvider     String?  @map("gps_provider")
+  /// True when accuracy is within 100 m threshold (BR-G08)
+  isAccurate      Boolean? @map("is_accurate")
+  recordedAt      DateTime @map("recorded_at")
+  createdAt       DateTime @default(now()) @map("created_at")
 
-  company    Company    @relation(fields: [companyId], references: [id])
-  user       User       @relation(fields: [userId], references: [id])
+  company    Company     @relation(fields: [companyId], references: [id])
+  user       User        @relation(fields: [userId], references: [id])
   attendance Attendance? @relation(fields: [attendanceId], references: [id])
 
   @@index([companyId, userId, recordedAt])
+  @@index([companyId, userId])
   @@map("gps_locations")
 }

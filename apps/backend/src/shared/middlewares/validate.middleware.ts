@@ -7,12 +7,12 @@ export function validate(schema: ZodSchema) {
     try {
       schema.parse(req.body);
       next();
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const details = error.errors.map((err) => ({
+    } catch (error: any) {
+      if (error instanceof ZodError || error?.name === 'ZodError') {
+        const details = error.errors ? error.errors.map((err: any) => ({
           field: err.path.join('.'),
           message: err.message
-        }));
+        })) : [];
         next(new AppError('VALIDATION_ERROR', 'Request validation failed', 400, details));
         return;
       }

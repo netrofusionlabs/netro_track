@@ -1,76 +1,100 @@
-import { Router, Request, Response, NextFunction } from 'express';
+/**
+ * Upload Routes — Cloudflare R2 pre-signed URL generation.
+ *
+ * Flow:
+ *  1. Mobile requests a pre-signed URL with { purpose, contentType, entityId }
+ *  2. Server generates an S3-compatible PUT pre-signed URL for R2
+ *  3. Mobile uploads the image binary directly to R2 using that URL
+ *  4. Mobile stores the returned fileKey in the form payload before submit
+ *
+ * Key rules (BR-IM):
+ * - Only image/jpeg accepted (BR-IM04)
+ * - Signed URL expires in 15 minutes (BR-IM06)
+ * - Path includes companyId for data isolation (BR-IM07)
+ * - Images never pass through this API as payloads (BR-IM01)
+ */
+import { Router, Response, NextFunction } from 'express';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { randomUUID } from 'crypto';
 import { authenticateToken } from '../../shared/middlewares/auth.middleware';
 import { AuthenticatedRequest } from '../../shared/types/request';
 import { AppError } from '../../shared/errors/AppError';
-import * as fs from 'fs';
-import * as path from 'path';
-import crypto from 'crypto';
+import { uploadSignRequestSchema } from '@netrotrack/shared';
 
 const router = Router();
 
-// Ensure public uploads directory exists inside workspace root or backend root
-const uploadsDir = path.join(__dirname, '../../../public/uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// ─── R2 client (S3-compatible) ────────────────────────────────────────────────
+function getR2Client(): S3Client {
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+
+  if (!accountId || !accessKeyId || !secretAccessKey) {
+    throw new AppError(
+      'R2_NOT_CONFIGURED',
+      'Object storage is not configured. Contact your system administrator.',
+      503
+    );
+  }
+
+  return new S3Client({
+    region: 'auto',
+    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    credentials: { accessKeyId, secretAccessKey },
+  });
 }
 
-// Generate a mock S3/R2 presigned upload URL
-router.post('/presigned-url', authenticateToken, async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const { fileName } = req.body;
-    if (!fileName) {
-      throw new AppError('BAD_REQUEST', 'fileName is required', 400);
-    }
+// ─── POST /api/v1/uploads/presigned-url ───────────────────────────────────────
+router.post(
+  '/presigned-url',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const companyId = req.user!.companyId;
 
-    const fileKey = `${crypto.randomUUID()}-${fileName}`;
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    
-    // Simulate presigned S3/R2 URL and final image resource URL
-    const uploadUrl = `${baseUrl}/api/v1/uploads/mock-file-upload?key=${fileKey}`;
-    const resourceUrl = `${baseUrl}/static/uploads/${fileKey}`;
+      const validated = uploadSignRequestSchema.parse(req.body);
 
-    res.status(200).json({
-      success: true,
-      message: 'Presigned URL generated successfully',
-      data: {
-        uploadUrl,
-        resourceUrl
-      },
-      meta: { timestamp: new Date().toISOString() }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
+      const bucket = process.env.R2_BUCKET_NAME;
+      if (!bucket) {
+        throw new AppError('R2_NOT_CONFIGURED', 'Storage bucket not configured', 503);
+      }
 
-// Mock file upload handler (receives binary stream and saves it to local disk)
-router.put('/mock-file-upload', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const fileKey = req.query.key as string;
-    if (!fileKey) {
-      throw new AppError('BAD_REQUEST', 'Missing key query parameter', 400);
-    }
+      // Build deterministic R2 key: companies/{companyId}/{purpose}/{entityId}/{uuid}.jpg
+      const fileKey = `companies/${companyId}/${validated.purpose}/${validated.entityId}/${randomUUID()}.jpg`;
 
-    const targetPath = path.join(uploadsDir, fileKey);
-    const writeStream = fs.createWriteStream(targetPath);
-    
-    req.pipe(writeStream);
+      const client = getR2Client();
 
-    req.on('end', () => {
+      const command = new PutObjectCommand({
+        Bucket: bucket,
+        Key: fileKey,
+        ContentType: validated.contentType,
+        // Tag for lifecycle management
+        Tagging: `company=${companyId}&purpose=${validated.purpose}`,
+      });
+
+      // Pre-signed URL expires in 15 minutes (BR-IM06)
+      const EXPIRY_SECONDS = 900;
+      const uploadUrl = await getSignedUrl(client, command, { expiresIn: EXPIRY_SECONDS });
+
+      const publicBaseUrl = process.env.R2_PUBLIC_URL ?? '';
+      const publicUrl = publicBaseUrl ? `${publicBaseUrl}/${fileKey}` : '';
+
       res.status(200).json({
         success: true,
-        message: 'Mock file uploaded successfully to local storage',
-        data: { key: fileKey }
+        message: 'Pre-signed upload URL generated',
+        data: {
+          uploadUrl,
+          fileKey,
+          publicUrl,
+          expiresAt: Math.floor(Date.now() / 1000) + EXPIRY_SECONDS,
+        },
+        meta: { timestamp: new Date().toISOString() },
       });
-    });
-
-    req.on('error', (err) => {
-      next(err);
-    });
-  } catch (error) {
-    next(error);
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 export { router as uploadRouter };
-export { uploadsDir };

@@ -105,6 +105,7 @@ export function AttendanceScreen() {
   const theme = useTheme();
   const navigation = useNavigation<StackNavigationProp<AttendanceStackParamList>>();
   const userId = useAuthStore((s) => s.user?.id);
+  const role = useAuthStore((s) => s.user?.role);
 
   const [filterMode, setFilterMode] = useState<FilterMode>('monthly');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -268,17 +269,31 @@ export function AttendanceScreen() {
             </View>
           </View>
 
-          {/* Punch Button */}
-          <Button
-            label={isPunchedIn ? 'Punch Out' : 'Punch In'}
-            onPress={handlePunch}
-            disabled={isMutating || isTodayLoading}
-            loading={isMutating}
-            variant={isPunchedIn ? 'danger' : 'primary'}
-            size="lg"
-            fullWidth
-            icon={isPunchedIn ? 'logout' : 'attendance'}
-          />
+          {/* Punch Button or Master Super Admin Notice */}
+          {role === 'MASTER_SUPER_ADMIN' ? (
+            <View style={[styles.masterNoticeBox, { backgroundColor: theme.colors.brand.primaryLight, borderColor: theme.colors.brand.primary }]}>
+              <AppIcon name="shield" color={theme.colors.brand.primary} size={20} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={[typography.bodySm, { color: theme.colors.brand.primary, fontWeight: '700' }]}>
+                  Master Super Admin Account
+                </Text>
+                <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+                  Shift attendance marking is not required for Master Super Admin.
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <Button
+              label={isPunchedIn ? 'Punch Out' : 'Punch In'}
+              onPress={handlePunch}
+              disabled={isMutating || isTodayLoading}
+              loading={isMutating}
+              variant={isPunchedIn ? 'danger' : 'primary'}
+              size="lg"
+              fullWidth
+              icon={isPunchedIn ? 'logout' : 'attendance'}
+            />
+          )}
         </Card>
 
         {/* Section Header & Segmented Filter Control */}
@@ -695,5 +710,13 @@ const styles = StyleSheet.create({
   },
   gpsTextGroup: {
     flex: 1,
+  },
+  masterNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 8,
   },
 });

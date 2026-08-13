@@ -9,8 +9,8 @@ import { Role } from '@prisma/client';
 const router = Router();
 const controller = new ProductController();
 
-router.get('/', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.MANAGER, Role.FIELD_EMPLOYEE), controller.getProducts);
-router.get('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.MANAGER, Role.FIELD_EMPLOYEE), controller.getProduct);
+router.get('/', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.MANAGER, Role.EMPLOYEE), controller.getProducts);
+router.get('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.MANAGER, Role.EMPLOYEE), controller.getProduct);
 
 router.post('/', authMiddleware, requireRoles(Role.COMPANY_ADMIN), validate(createProductSchema), controller.createProduct);
 router.put('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN), validate(updateProductSchema), controller.updateProduct);

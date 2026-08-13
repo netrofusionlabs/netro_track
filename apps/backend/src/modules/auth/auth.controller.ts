@@ -75,6 +75,26 @@ export class AuthController {
   };
 
   /**
+   * GET /auth/me  (authenticated)
+   * Returns the authenticated user's profile including their assigned manager.
+   */
+  public getMe = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const profile = await this.authService.getMe(userId);
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile fetched successfully',
+        data: profile,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * POST /auth/mpin  (public)
    * Full MPIN login — resolves user by loginId, checks MPIN, returns tokens.
    */

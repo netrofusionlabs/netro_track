@@ -17,7 +17,7 @@ export class CompanyService {
     return company;
   }
 
-  public async createCompany(data: { name: string; code: string }): Promise<Company> {
+  public async createCompany(data: { name: string; code: string; isGpsEnabled?: boolean }): Promise<Company> {
     const existing = await this.companyRepository.findByCode(data.code);
     if (existing) {
       throw new AppError('COMPANY_CODE_ALREADY_EXISTS', 'Company code already registered', 409);
@@ -25,7 +25,7 @@ export class CompanyService {
     return this.companyRepository.create(data);
   }
 
-  public async updateCompany(id: string, data: { name?: string; code?: string }): Promise<Company> {
+  public async updateCompany(id: string, data: { name?: string; code?: string; isGpsEnabled?: boolean }): Promise<Company> {
     await this.getCompanyById(id);
 
     if (data.code) {
@@ -39,7 +39,14 @@ export class CompanyService {
   }
 
   public async deleteCompany(id: string): Promise<Company> {
-    await this.getCompanyById(id);
+    const company = await this.getCompanyById(id);
+    if (company.code.toUpperCase() === 'NETRO' || company.name.toLowerCase().includes('netrotrack')) {
+      throw new AppError(
+        'CANNOT_DELETE_MASTER_COMPANY',
+        'The master platform company (NetroTrack) cannot be deleted',
+        400
+      );
+    }
     return this.companyRepository.softDelete(id);
   }
 }

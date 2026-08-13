@@ -35,8 +35,8 @@ export class CompanyController {
 
   public createCompany = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { name, code } = req.body;
-      const company = await this.companyService.createCompany({ name, code });
+      const { name, code, isGpsEnabled } = req.body;
+      const company = await this.companyService.createCompany({ name, code, isGpsEnabled });
       res.status(201).json({
         success: true,
         message: 'Company created successfully',
@@ -50,8 +50,8 @@ export class CompanyController {
 
   public updateCompany = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { name, code } = req.body;
-      const company = await this.companyService.updateCompany(req.params.id, { name, code });
+      const { name, code, isGpsEnabled } = req.body;
+      const company = await this.companyService.updateCompany(req.params.id, { name, code, isGpsEnabled });
       res.status(200).json({
         success: true,
         message: 'Company updated successfully',

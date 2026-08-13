@@ -22,6 +22,15 @@ export class AttendanceService {
     userId: string,
     data: { latitude: number; longitude: number }
   ): Promise<Attendance> {
+    const user = await prisma.user.findFirst({
+      where: { id: userId },
+      select: { role: true, managerId: true },
+    });
+
+    if (user?.role === 'MASTER_SUPER_ADMIN') {
+      throw new AppError('ATTENDANCE_NOT_APPLICABLE', 'Attendance marking is not required for Master Super Admin accounts', 400);
+    }
+
     // 1. Guard: no active (un-closed) punch
     const active = await this.attendanceRepository.findActivePunch(companyId, userId);
     if (active) {
@@ -37,10 +46,6 @@ export class AttendanceService {
     });
 
     // Broadcast WORKING status to manager's team room
-    const user = await prisma.user.findFirst({
-      where: { id: userId },
-      select: { managerId: true },
-    });
     broadcastEmployeeStatus(user?.managerId, companyId, userId, 'WORKING');
 
     return record;

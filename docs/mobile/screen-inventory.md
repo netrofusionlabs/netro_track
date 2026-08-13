@@ -44,14 +44,18 @@
 | ReportsScreen | Report selection | Report type cards with date range picker |
 | ReportDetailScreen | Generated report | Table/chart data, export button |
 
-## Admin Screens
+## Admin & Manager Screens
 
-| Screen | Purpose | Key Elements |
-|--------|---------|-------------|
+| Screen / Component | Purpose | Key Elements |
+|-------------------|---------|-------------|
 | AdminDashboard | Company overview | Employee count, attendance summary, activity |
-| EmployeeListScreen | All company employees | Search, filter, employee cards |
-| CreateEmployeeScreen | Onboard employee | Multi-step form: personal, branch, department, manager |
-| EditEmployeeScreen | Update employee | Pre-filled form, suspend/activate |
+| UserManagementScreen | Workforce management | Tabbed list (All, Managers, Unassigned), search, role chips |
+| AddUserScreen | Onboard new user | Mandatory work email, primary phone with country code, emergency contact, single designation input, role picker, supervisor selector |
+| EditUserScreen | Update user profile & role | Designation change, mandatory contact validation, country code selector, promotion toggle (`isPromotion`), supervisor re-assignment |
+| UserDetailSheet | Quick user action sheet | Avatar, designation title, access role badge, emergency contact, supervisor info, quick actions |
+| EmployeeDetailScreen | Individual employee view | Today's route, visits, sales, attendance, communication info, Professional Timeline audit trail |
+| ProfessionalTimeline | Career audit component | Chronological milestone timeline, transition badges (`Previous → New`), formatted effective dates, static author snapshot |
+| PhoneInput | Country code selector | Flag dropdown modal (🇮🇳 `+91`, 🇺🇸 `+1`, 🇬🇧 `+44`, 🇦🇪 `+971`, etc.), 10-digit number input |
 | CompanyScreen | Company profile | Logo, name, contact info |
 | BranchesScreen | Branch management | Branch list, create/edit |
 | DepartmentsScreen | Department management | Department list, create/edit |

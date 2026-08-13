@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
 import { useAuthStore } from '../../auth/stores/authStore';
@@ -14,22 +13,42 @@ import {
   Button,
   StatusBadge,
   BrandLogo,
+  ProfessionalTimeline,
 } from '../../../shared/components';
 import { TermsModal } from '../../auth/components/TermsModal';
 import { PrivacyModal } from '../../auth/components/PrivacyModal';
+import { useProfile } from '../hooks/useProfile';
+import { useUsers, useUserTimeline } from '../../employees/hooks/useUserManagement';
+import { ROLE_DISPLAY_LABELS, UserRole } from '@netrotrack/shared';
 
 export function ProfileScreen() {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
   const clearCredentials = useAuthStore((s) => s.clearCredentials);
   const consentState = useConsentStore();
+  const { data: profile } = useProfile();
+  const { data: timelineEvents = [] } = useUserTimeline(user?.id || '');
 
   const [termsVisible, setTermsVisible] = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
 
+  const canManageOrg =
+    user?.role === 'COMPANY_ADMIN' ||
+    user?.role === 'SUPER_ADMIN' ||
+    user?.role === 'MASTER_SUPER_ADMIN';
+
+  // Fetch users created in company for Company Admin / Admins
+  const { data: usersData } = useUsers({ page: 1, pageSize: 50 });
+  const createdUsers = (usersData?.items || []).filter((u) => u.id !== user?.id);
+
+  // Use live profile data when available
+  const managerName = profile?.managerName ?? user?.managerName;
+  const managerId = profile?.managerId ?? user?.managerId;
+  const userDesignation = (user as any)?.designation?.name || (profile as any)?.designation?.name || (user as any)?.designationName || 'Team Member';
+
   const formatRole = (role?: string) => {
     if (!role) return 'Employee';
-    return role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    return ROLE_DISPLAY_LABELS[role as UserRole] || role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
   };
 
   return (
@@ -38,7 +57,7 @@ export function ProfileScreen() {
         {/* Header */}
         <Text style={[typography.displaySm, { color: theme.colors.text.primary }]}>Profile</Text>
         <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginTop: 2 }]}>
-          Account details & system settings
+          Account details & professional history
         </Text>
 
         {/* User Card */}
@@ -47,8 +66,11 @@ export function ProfileScreen() {
           <Text style={[typography.headingLg, { color: theme.colors.text.primary, marginTop: 12 }]}>
             {user?.name ?? 'User'}
           </Text>
+          <Text style={[typography.bodyMd, { color: theme.colors.brand.primary, fontWeight: '700', marginTop: 4 }]}>
+            💼 {userDesignation}
+          </Text>
           <Badge
-            label={formatRole(user?.role)}
+            label={`Role: ${formatRole(user?.role)}`}
             variant="info"
             size="md"
             style={{ marginTop: 8 }}
@@ -64,12 +86,34 @@ export function ProfileScreen() {
                 {user?.employeeId ?? '—'}
               </Text>
             </View>
-            <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: theme.colors.surface.divider }]}>
-              <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>User ID</Text>
-              <Text style={[typography.headingSm, { color: theme.colors.text.primary }]} numberOfLines={1}>
-                {user?.id ?? '—'}
-              </Text>
-            </View>
+
+            {!!user?.email && (
+              <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: theme.colors.surface.divider }]}>
+                <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>Email Address</Text>
+                <Text style={[typography.headingSm, { color: theme.colors.text.primary }]} numberOfLines={1}>
+                  {user.email}
+                </Text>
+              </View>
+            )}
+
+            {!!user?.phone && (
+              <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: theme.colors.surface.divider }]}>
+                <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>Phone Number</Text>
+                <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+                  📱 {user.phone}
+                </Text>
+              </View>
+            )}
+
+            {!!(user?.emergencyContactPhone || user?.emergencyContactName) && (
+              <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: theme.colors.surface.divider }]}>
+                <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>Emergency Contact</Text>
+                <Text style={[typography.headingSm, { color: theme.colors.semantic.error, fontWeight: '700' }]}>
+                  🆘 {user.emergencyContactName ? `${user.emergencyContactName} (` : ''}{user.emergencyContactPhone || ''}{user.emergencyContactName ? ')' : ''}
+                </Text>
+              </View>
+            )}
+
             <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: theme.colors.surface.divider }]}>
               <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>Consent Status</Text>
               <StatusBadge
@@ -77,8 +121,81 @@ export function ProfileScreen() {
                 label={consentState.acceptedVersion ? `Accepted (v${consentState.acceptedVersion})` : 'Not Accepted'}
               />
             </View>
+
+            {!!user?.bloodGroup && (
+              <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: theme.colors.surface.divider }]}>
+                <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>Blood Group</Text>
+                <Text style={[typography.headingSm, { color: theme.colors.brand.primary, fontWeight: '700' }]}>
+                  🩸 {user.bloodGroup}
+                </Text>
+              </View>
+            )}
+
+            {!!(managerId || managerName) && (
+              <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: theme.colors.surface.divider }]}>
+                <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>Reporting To</Text>
+                <Text style={[typography.headingSm, { color: theme.colors.brand.primary, fontWeight: '700' }]}>
+                  {managerName ?? 'Supervisor'}
+                </Text>
+              </View>
+            )}
           </Card>
         </Section>
+
+        {/* Professional Timeline */}
+        <Section title={`Professional Timeline (${timelineEvents.length})`}>
+          <ProfessionalTimeline events={timelineEvents} />
+        </Section>
+
+        {/* Created Users & Contact Directory (For Company Admin / Admins) */}
+        {canManageOrg && (
+          <Section title={`Created Users & Contact Directory (${createdUsers.length})`}>
+            {createdUsers.length === 0 ? (
+              <Card>
+                <Text style={[typography.bodySm, { color: theme.colors.text.secondary, textAlign: 'center' }]}>
+                  No users created under this company yet.
+                </Text>
+              </Card>
+            ) : (
+              createdUsers.map((u) => (
+                <Card key={u.id} style={{ marginBottom: 10, padding: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+                      <Avatar name={u.name} size="sm" />
+                      <View style={{ marginLeft: 10, flex: 1 }}>
+                        <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+                          {u.name}
+                        </Text>
+                        <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>
+                          {u.employeeId} {u.email ? `· ${u.email}` : ''}
+                        </Text>
+                      </View>
+                    </View>
+                    <Badge label={ROLE_DISPLAY_LABELS[u.role as UserRole] || u.role} variant="info" size="sm" />
+                  </View>
+
+                  <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.colors.surface.divider }}>
+                    {!!u.phone && (
+                      <Text style={[typography.caption, { color: theme.colors.text.primary, marginBottom: 2 }]}>
+                        📱 Phone: <Text style={{ fontWeight: '600' }}>{u.phone}</Text>
+                      </Text>
+                    )}
+                    {!!u.emergencyContactPhone && (
+                      <Text style={[typography.caption, { color: theme.colors.semantic.error, fontWeight: '600', marginBottom: 2 }]}>
+                        🆘 Emergency: {u.emergencyContactName ? `${u.emergencyContactName} (` : ''}{u.emergencyContactPhone}{u.emergencyContactName ? ')' : ''}
+                      </Text>
+                    )}
+                    {u.manager?.name && (
+                      <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>
+                        Reporting to: <Text style={{ color: theme.colors.brand.primary, fontWeight: '600' }}>{u.manager.name}</Text>
+                      </Text>
+                    )}
+                  </View>
+                </Card>
+              ))
+            )}
+          </Section>
+        )}
 
         {/* Legal Section */}
         <Section title="Legal & Privacy">

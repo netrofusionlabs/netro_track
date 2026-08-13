@@ -7,19 +7,19 @@ import { Role } from '@prisma/client';
 const router = Router();
 const controller = new EmployeeController();
 
-// Admins and Managers can list employees (Managers are team-filtered in controller)
-router.get('/', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.MANAGER), controller.getEmployees);
+// Admins, HR and Managers can list employees (Managers are team-filtered in controller)
+router.get('/', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR, Role.MANAGER), controller.getEmployees);
 
-// Admins, Managers (only team), and Self can read employee profile
-router.get('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.MANAGER, Role.FIELD_EMPLOYEE), controller.getEmployee);
+// Admins, HR, Managers (only team), and Self can read employee profile
+router.get('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR, Role.MANAGER, Role.EMPLOYEE), controller.getEmployee);
 
-// Only Admins can create employees
-router.post('/', authMiddleware, requireRoles(Role.COMPANY_ADMIN), controller.createEmployee);
+// Admins and HR can create employees
+router.post('/', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR), controller.createEmployee);
 
-// Admins and Self can update employee profiles
-router.put('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.MANAGER, Role.FIELD_EMPLOYEE), controller.updateEmployee);
+// Admins, HR and Self can update employee profiles
+router.put('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR, Role.MANAGER, Role.EMPLOYEE), controller.updateEmployee);
 
-// Only Admins can delete employees
-router.delete('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN), controller.deleteEmployee);
+// Admins and HR can delete employees
+router.delete('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR), controller.deleteEmployee);
 
 export { router as employeeRouter };

@@ -69,11 +69,14 @@ Biometric prompt (Touch ID / Face ID)
     OS verifies biometric → returns stored credential
         │
         ▼
-    Send stored auth token to server
-        │
-        ▼
     Validate → Issue JWT tokens → Dashboard
 ```
+
+#### Quick Demo Test Accounts (Login Screen Shortcuts)
+
+| Role | Employee / Login ID | Password | Scope |
+|------|---------------------|----------|-------|
+| `MASTER_SUPER_ADMIN` | `NETRO-MASTER` | `Password123!` | System Owner (Global) |
 
 ---
 
@@ -214,26 +217,31 @@ Controller
 ### Route Protection Pattern
 
 ```typescript
-// Only Client Users can punch in
+// Employees can punch in
 router.post('/attendance/punch-in',
   authMiddleware,
-  tenantMiddleware,
-  roleMiddleware(['CLIENT_USER']),
   attendanceController.punchIn
 );
 
-// Managers and Admins can view team attendance
+// Managers, HR, Company Admins and Super Admins can view team attendance
 router.get('/attendance/team',
   authMiddleware,
-  tenantMiddleware,
-  roleMiddleware(['CLIENT_MANAGER', 'CLIENT_ADMIN']),
-  attendanceController.getTeamAttendance
+  requireRoles(Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN),
+  attendanceController.getTeam
+);
+
+// HR, Company Admin and Super Admin can create users (Rank 2+ authority)
+router.post('/user-management',
+  authMiddleware,
+  requireRoles(Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN),
+  validate(createUserSchema),
+  userManagementController.createUser
 );
 
 // Super Admin only
 router.post('/companies',
   authMiddleware,
-  roleMiddleware(['SUPER_ADMIN']),
+  requireRoles(Role.SUPER_ADMIN),
   companyController.create
 );
 ```

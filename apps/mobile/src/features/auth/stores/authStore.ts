@@ -9,6 +9,19 @@ export interface UserProfile {
   employeeId: string;
   name: string;
   role: string;
+  isMasterAdmin?: boolean;
+  isGpsEnabled?: boolean;
+  isGpsTracked?: boolean;
+  hasMpin?: boolean;
+  email?: string | null;
+  phone?: string | null;
+  personalEmail?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  bloodGroup?: string | null;
+  designation?: string | null;
+  managerId?: string | null;
+  managerName?: string | null;
 }
 
 interface AuthState {
@@ -37,7 +50,15 @@ export const useAuthStore = create<AuthState>()(
       isMpinVerified: false,
       hasMpin: false,
       setCredentials: ({ user, accessToken, refreshToken, loginId }) =>
-        set({ user, accessToken, refreshToken, isAuthenticated: true, lastLoginId: loginId }),
+        set({
+          user,
+          accessToken,
+          refreshToken,
+          isAuthenticated: true,
+          lastLoginId: loginId,
+          hasMpin: user.hasMpin ?? false,
+          isMpinVerified: false,
+        }),
       clearCredentials: () =>
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, isMpinVerified: false }),
       setMpinVerified: (verified) => set({ isMpinVerified: verified }),

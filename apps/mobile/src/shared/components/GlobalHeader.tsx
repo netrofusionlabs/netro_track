@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
 import { AppIcon } from './AppIcon';
@@ -35,7 +36,7 @@ export function GlobalHeader({
   useEffect(() => {
     if (user?.companyId && !user?.companyName) {
       api
-        .get(`/company/${user.companyId}`)
+        .get(`/companies/${user.companyId}`)
         .then((res) => {
           const compName = res.data?.data?.name;
           if (compName && user) {
@@ -50,14 +51,19 @@ export function GlobalHeader({
     }
   }, [user?.companyId, user?.companyName]);
 
-  // Display logged user's company name or subBrand. No hardcoded fallback string.
+  // Display logged user's company name or subBrand.
   const companyDisplayName = user?.companyName || subBrand;
+
+  const nav = useNavigation<any>();
 
   const handleProfilePress = () => {
     if (onProfilePress) {
       onProfilePress();
-    } else if (navigation) {
-      navigation.navigate('Profile');
+    } else {
+      const activeNav = navigation || nav;
+      if (activeNav) {
+        activeNav.navigate('Main', { screen: 'Profile' });
+      }
     }
   };
 
@@ -88,7 +94,7 @@ export function GlobalHeader({
       ]}
     >
       <View style={styles.headerInner}>
-        {/* LEFT SIDE: NetroTrack Brand + Optional Splitter & Co-branding */}
+        {/* LEFT SIDE: NetroTrack Brand + Splitter + Client Company Name */}
         <View style={styles.leftSection}>
           <BrandLogo
             variant="banner"
@@ -96,18 +102,15 @@ export function GlobalHeader({
             style={styles.brandLogo}
           />
 
-          {/* Show Splitter & Powered-by ONLY when companyDisplayName is available */}
+          {/* Show Splitter & Client Company Name ONLY when companyDisplayName is available */}
           {!!companyDisplayName && (
             <>
               {/* CRISP VISIBLE VERTICAL SPLITTER */}
               <View style={[styles.verticalSplitter, { backgroundColor: theme.colors.surface.divider }]} />
 
-              {/* Powered by Logged User Company Branding */}
+              {/* Client Company Name */}
               <View style={styles.coBrandGroup}>
-                <Text style={[styles.poweredByText, { color: theme.colors.text.tertiary }]}>
-                  powered by
-                </Text>
-                <Text style={styles.subBrandText} numberOfLines={1}>
+                <Text style={styles.subBrandText} numberOfLines={2}>
                   {companyDisplayName}
                 </Text>
               </View>
@@ -186,7 +189,7 @@ const styles = StyleSheet.create({
   },
   verticalSplitter: {
     width: 1.5,
-    height: 22,
+    height: 26,
     marginHorizontal: 10,
     borderRadius: 1,
     opacity: 0.9,
@@ -195,18 +198,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 1,
   },
-  poweredByText: {
-    fontSize: 8,
-    fontWeight: '500',
-    lineHeight: 10,
-    textTransform: 'lowercase',
-  },
   subBrandText: {
     fontSize: 11,
     fontWeight: '700',
     color: '#0284C7',
     letterSpacing: -0.2,
-    lineHeight: 13,
+    lineHeight: 14,
   },
   rightSection: {
     flexDirection: 'row',

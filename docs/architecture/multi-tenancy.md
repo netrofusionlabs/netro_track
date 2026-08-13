@@ -23,6 +23,11 @@ NetroTrack uses a **Shared Database, Shared Schema** multi-tenancy model with ro
 - **Scales to 10,000+ tenants:** No per-tenant infrastructure.
 - **Prisma compatible:** Works naturally with Prisma's query builder.
 
+### Master Company Protection Rule
+
+- The **Master System Company (`NetroTrack` / `NETRO`)** serves as the root system owner tenant hosting the Master Super Admin account.
+- **Deletability Constraint:** `NetroTrack` cannot be soft-deleted, hard-deleted, or suspended under any circumstances by any user (enforced both at the API service layer `company.service.ts` and UI layer `CompanyManagementScreen.tsx`).
+
 ---
 
 ## 2. Data Isolation Strategy

@@ -5,32 +5,50 @@ export class CompanyRepository {
   public async findMany(): Promise<Company[]> {
     return prisma.company.findMany({
       where: { deletedAt: null },
-      orderBy: { createdAt: 'desc' }
+      include: {
+        _count: {
+          select: {
+            users: { where: { deletedAt: null } },
+            branches: { where: { deletedAt: null } },
+            departments: { where: { deletedAt: null } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   public async findById(id: string): Promise<Company | null> {
     return prisma.company.findFirst({
-      where: { id, deletedAt: null }
+      where: { id, deletedAt: null },
+      include: {
+        _count: {
+          select: {
+            users: { where: { deletedAt: null } },
+            branches: { where: { deletedAt: null } },
+            departments: { where: { deletedAt: null } },
+          },
+        },
+      },
     });
   }
 
   public async findByCode(code: string): Promise<Company | null> {
     return prisma.company.findFirst({
-      where: { code: { equals: code, mode: 'insensitive' }, deletedAt: null }
+      where: { code: { equals: code, mode: 'insensitive' }, deletedAt: null },
     });
   }
 
-  public async create(data: { name: string; code: string }): Promise<Company> {
+  public async create(data: { name: string; code: string; isGpsEnabled?: boolean }): Promise<Company> {
     return prisma.company.create({
-      data
+      data,
     });
   }
 
-  public async update(id: string, data: { name?: string; code?: string }): Promise<Company> {
+  public async update(id: string, data: { name?: string; code?: string; isGpsEnabled?: boolean }): Promise<Company> {
     return prisma.company.update({
       where: { id },
-      data
+      data,
     });
   }
 

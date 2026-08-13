@@ -90,6 +90,59 @@ class AuditService {
 
 ---
 
+## 3. Professional Timeline Audit Engine (`user_timeline_events`)
+
+In addition to general system audit logs, NetroTrack features a specialized, transactional **Professional Timeline Audit Engine** that records an immutable history of every employee's career progression and organizational milestones.
+
+### Event Types (`TimelineEventType`)
+
+| Event Type | Category | Description | Trigger |
+|------------|----------|-------------|---------|
+| `ONBOARDING` | Milestone | Initial employee joining & profile creation | `createUser` API |
+| `DESIGNATION_ASSIGNED` | HR | Initial job title assignment | `createUser` API |
+| `DESIGNATION_CHANGED` | HR | Job title modification (standard transfer/update) | `updateUser` API |
+| `PROMOTION` | HR / Career | Official career advancement / title upgrade | `updateUser` API (`isPromotion = true`) |
+| `ACCESS_ROLE_ASSIGNED` | Security | Initial system access role assignment | `createUser` API |
+| `ACCESS_ROLE_CHANGED` | Security | Permission tier escalation or adjustment | `updateUser` API |
+| `MANAGER_ASSIGNED` | Hierarchy | Initial reporting supervisor assignment | `createUser` API |
+| `MANAGER_CHANGED` | Hierarchy | Supervisor reassignment or team transfer | `updateUser` API |
+| `EMPLOYMENT_TYPE_CHANGED` | HR | Full-time / Part-time / Contract status change | `updateUser` API |
+| `LOCATION_CHANGED` | Operations | Primary work location / branch transfer | `updateUser` API |
+| `DEPARTMENT_CHANGED` | Operations | Department reassignment | `updateUser` API |
+| `COMPANY_CHANGED` | Corporate | Inter-company corporate transfer | Admin migration |
+
+### Transactional Engine Pattern
+
+User entity mutations and timeline event creations execute atomically inside a single `prisma.$transaction`:
+
+```typescript
+await prisma.$transaction(async (tx) => {
+  // 1. Mutate User record
+  const updatedUser = await tx.user.update({ where: { id: targetId }, data: updates });
+
+  // 2. Record immutable timeline audit event
+  if (isDesignationChanged) {
+    await timelineRepo.createTimelineEventInTx(tx, {
+      userId: targetId,
+      companyId: actor.companyId,
+      eventType: input.isPromotion ? 'PROMOTION' : 'DESIGNATION_CHANGED',
+      title: input.isPromotion ? 'Promoted' : 'Designation Updated',
+      previousValue: target.designation?.name,
+      newValue: input.designationName,
+      changedByUserId: actor.id,
+      changedByName: actor.name,
+      effectiveDate: new Date(),
+    });
+  }
+});
+```
+
+### Static Author Snapshots
+
+Timeline records store `changedByUserId` and `changedByName` as static snapshots at creation time so audit logs remain accurate even if the editing HR user later leaves the company or changes names.
+
+---
+
 ## 4. Retention
 
 | Data | Retention | Rationale |

@@ -100,6 +100,33 @@ export function MpinScreen({ mode }: Props) {
       setMpinVerified(true);
     } catch (err: any) {
       const message = err.response?.data?.message ?? 'Incorrect MPIN. Please try again.';
+      const errCode = err.response?.data?.error?.code;
+
+      if (errCode === 'MPIN_NOT_SET' || message.toLowerCase().includes('not configured')) {
+        Alert.alert(
+          'MPIN Not Configured',
+          'MPIN has not been set up for this account yet. Would you like to configure your MPIN now?',
+          [
+            {
+              text: 'Sign in with Password',
+              onPress: () => {
+                setPin('');
+                clearCredentials();
+              },
+            },
+            {
+              text: 'Configure MPIN Now',
+              style: 'default',
+              onPress: () => {
+                setPin('');
+                setHasMpin(false);
+              },
+            },
+          ]
+        );
+        return;
+      }
+
       const isAuthError = err.response?.status === 401 && message.toLowerCase().includes('token');
       if (isAuthError) {
         Alert.alert('Session Expired', 'Your login session expired. Please sign in again.', [

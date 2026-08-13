@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../shared/services/api';
 import { startTracking, stopTracking, getCurrentCoords } from '../../../shared/services/trackingService';
+import { useAuthStore } from '../../auth/stores/authStore';
 import type { AttendanceRecord, PunchPayload } from '../types';
 
 // ── Query keys ──────────────────────────────────────────────────────────────
@@ -80,17 +81,26 @@ export function usePunchIn() {
   const qc = useQueryClient();
   return useMutation<AttendanceRecord, Error, PunchPayload | void>({
     mutationFn: async (payload) => {
-      // Resolve real GPS coordinates; fall back to 0,0 if unavailable
-      const coords = (payload && 'latitude' in payload && payload.latitude !== 0)
-        ? payload
-        : (await getCurrentCoords()) ?? { latitude: 0, longitude: 0 };
+      const user = useAuthStore.getState().user;
+      const isGpsTracked = user?.isGpsTracked !== false && user?.isGpsEnabled !== false;
+
+      // Only attempt real GPS resolution if GPS tracking is enabled for user & company
+      let coords = { latitude: 0, longitude: 0 };
+      if (isGpsTracked) {
+        coords = (payload && 'latitude' in payload && payload.latitude !== 0)
+          ? payload
+          : (await getCurrentCoords()) ?? { latitude: 0, longitude: 0 };
+      }
 
       const res = await api.post<{ data: AttendanceRecord }>('/attendance/punch-in', coords);
       return res.data.data;
     },
     onSuccess: (data) => {
-      // Start background GPS tracking after successful punch-in
-      startTracking(data.id);
+      const user = useAuthStore.getState().user;
+      const isGpsTracked = user?.isGpsTracked !== false && user?.isGpsEnabled !== false;
+      if (isGpsTracked) {
+        startTracking(data.id);
+      }
       qc.invalidateQueries({ queryKey: attendanceKeys.today });
       qc.invalidateQueries({ queryKey: attendanceKeys.history });
     }
@@ -101,17 +111,25 @@ export function usePunchOut() {
   const qc = useQueryClient();
   return useMutation<AttendanceRecord, Error, PunchPayload | void>({
     mutationFn: async (payload) => {
-      // Resolve real GPS coordinates; fall back to 0,0 if unavailable
-      const coords = (payload && 'latitude' in payload && payload.latitude !== 0)
-        ? payload
-        : (await getCurrentCoords()) ?? { latitude: 0, longitude: 0 };
+      const user = useAuthStore.getState().user;
+      const isGpsTracked = user?.isGpsTracked !== false && user?.isGpsEnabled !== false;
+
+      let coords = { latitude: 0, longitude: 0 };
+      if (isGpsTracked) {
+        coords = (payload && 'latitude' in payload && payload.latitude !== 0)
+          ? payload
+          : (await getCurrentCoords()) ?? { latitude: 0, longitude: 0 };
+      }
 
       const res = await api.post<{ data: AttendanceRecord }>('/attendance/punch-out', coords);
       return res.data.data;
     },
     onSuccess: async () => {
-      // Stop background GPS tracking after successful punch-out (triggers final sync)
-      await stopTracking();
+      const user = useAuthStore.getState().user;
+      const isGpsTracked = user?.isGpsTracked !== false && user?.isGpsEnabled !== false;
+      if (isGpsTracked) {
+        await stopTracking();
+      }
       qc.invalidateQueries({ queryKey: attendanceKeys.today });
       qc.invalidateQueries({ queryKey: attendanceKeys.history });
     }

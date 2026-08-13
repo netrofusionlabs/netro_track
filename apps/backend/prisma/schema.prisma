@@ -8,17 +8,25 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
 enum Role {
+  MASTER_SUPER_ADMIN
   SUPER_ADMIN
   COMPANY_ADMIN
+  HR
   MANAGER
-  FIELD_EMPLOYEE
+  EMPLOYEE
 }
 
 model Company {
   id           String        @id @default(uuid()) @db.Uuid
   name         String
   code         String        @unique
+  isGpsEnabled Boolean       @default(true) @map("is_gps_enabled")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
   deletedAt    DateTime?     @map("deleted_at")
@@ -31,6 +39,7 @@ model Company {
   sales        Sale[]
   inspections  Inspection[]
   gpsLocations GpsLocation[]
+  timelineEvents UserTimelineEvent[]
 
   @@map("companies")
 }
@@ -39,18 +48,28 @@ model User {
   id            String    @id @default(uuid()) @db.Uuid
   companyId     String    @map("company_id") @db.Uuid
   employeeId    String    @map("employee_id")
-  name          String
-  email         String?   @unique
-  passwordHash  String    @map("password_hash")
-  mpinHash      String?   @map("mpin_hash")
-  role          Role
-  managerId     String?   @map("manager_id") @db.Uuid
-  branchId      String?   @map("branch_id") @db.Uuid
-  departmentId  String?   @map("department_id") @db.Uuid
-  designationId String?   @map("designation_id") @db.Uuid
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
-  deletedAt     DateTime? @map("deleted_at")
+  name                  String
+  email                 String?   @unique
+  personalEmail         String?   @map("personal_email")
+  phone                 String?   @map("phone")
+  secondaryPhone        String?   @map("secondary_phone")
+  emergencyContactName  String?   @map("emergency_contact_name")
+  emergencyContactPhone String?   @map("emergency_contact_phone")
+  linkedinUrl           String?   @map("linkedin_url")
+  twitterUrl            String?   @map("twitter_url")
+  bloodGroup            String?   @map("blood_group")
+  passwordHash          String    @map("password_hash")
+  mpinHash              String?   @map("mpin_hash")
+  role                  Role
+  status                UserStatus @default(ACTIVE)
+  isGpsTracked          Boolean    @default(true) @map("is_gps_tracked")
+  managerId             String?    @map("manager_id") @db.Uuid
+  branchId              String?    @map("branch_id") @db.Uuid
+  departmentId          String?    @map("department_id") @db.Uuid
+  designationId         String?    @map("designation_id") @db.Uuid
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @updatedAt @map("updated_at")
+  deletedAt             DateTime?  @map("deleted_at")
 
   company          Company      @relation(fields: [companyId], references: [id])
   manager          User?        @relation("ManagerSubordinates", fields: [managerId], references: [id])
@@ -64,8 +83,10 @@ model User {
   attendances      Attendance[]
   visits           Visit[]
   sales            Sale[]
-  inspections      Inspection[]
-  gpsLocations     GpsLocation[]
+  inspections         Inspection[]
+  gpsLocations        GpsLocation[]
+  timelineEvents      UserTimelineEvent[] @relation("UserTimelineEvents")
+  actedTimelineEvents UserTimelineEvent[] @relation("ActorTimelineEvents")
 
   @@unique([companyId, employeeId])
   @@map("users")
@@ -328,4 +349,60 @@ model GpsLocation {
   @@index([companyId, userId, recordedAt])
   @@index([companyId, userId])
   @@map("gps_locations")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  companyId  String?  @map("company_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  oldValues  Json?    @map("old_values")
+  newValues  Json?    @map("new_values")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+
+enum TimelineEventType {
+  ONBOARDING
+  DESIGNATION_ASSIGNED
+  DESIGNATION_CHANGED
+  PROMOTION
+  ACCESS_ROLE_ASSIGNED
+  ACCESS_ROLE_CHANGED
+  MANAGER_ASSIGNED
+  MANAGER_CHANGED
+  EMPLOYMENT_TYPE_CHANGED
+  LOCATION_CHANGED
+  DEPARTMENT_CHANGED
+  COMPANY_CHANGED
+}
+
+model UserTimelineEvent {
+  id              String            @id @default(uuid()) @db.Uuid
+  userId          String            @map("user_id") @db.Uuid
+  companyId       String            @map("company_id") @db.Uuid
+  eventType       TimelineEventType @map("event_type")
+  title           String
+  description     String?
+  previousValue   String?           @map("previous_value")
+  newValue        String?           @map("new_value")
+  changedByUserId String?           @map("changed_by_user_id") @db.Uuid
+  changedByName   String?           @map("changed_by_name")
+  effectiveDate   DateTime          @default(now()) @map("effective_date")
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  user      User    @relation("UserTimelineEvents", fields: [userId], references: [id], onDelete: Cascade)
+  changedBy User?   @relation("ActorTimelineEvents", fields: [changedByUserId], references: [id], onDelete: SetNull)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([userId, effectiveDate])
+  @@map("user_timeline_events")
 }

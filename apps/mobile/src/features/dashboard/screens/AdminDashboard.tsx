@@ -28,44 +28,86 @@ export function AdminDashboard({ navigation }: { navigation: any }) {
     void r2();
   }, [r1, r2]));
 
+  const portalHeader = React.useMemo(() => {
+    switch (user?.role) {
+      case 'HR':
+        return {
+          title: 'HR Executive Portal',
+          subtitle: 'Workforce & Attendance Governance',
+          badge: 'HR EXECUTIVE',
+          variant: 'info' as const,
+        };
+      case 'COMPANY_ADMIN':
+        return {
+          title: 'Company Admin Portal',
+          subtitle: 'Enterprise Operations & Governance',
+          badge: 'COMPANY ADMIN',
+          variant: 'error' as const,
+        };
+      case 'SUPER_ADMIN':
+        return {
+          title: 'Super Admin Portal',
+          subtitle: 'Platform Operations & Governance',
+          badge: 'SUPER ADMIN',
+          variant: 'error' as const,
+        };
+      case 'MASTER_SUPER_ADMIN':
+        return {
+          title: 'Master Super Admin Portal',
+          subtitle: 'Master System Operations & Governance',
+          badge: 'MASTER SUPER ADMIN',
+          variant: 'error' as const,
+        };
+      default:
+        return {
+          title: 'Admin Portal',
+          subtitle: 'Enterprise Operations & Governance',
+          badge: user?.role || 'ADMIN',
+          variant: 'error' as const,
+        };
+    }
+  }, [user?.role]);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface.background }]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Top Header */}
         <View style={styles.topHeader}>
-          <View style={styles.greetingGroup}>
-            <Avatar name={user?.name} size="md" />
-            <View style={{ marginLeft: 10 }}>
+          <Avatar name={user?.name} size="md" />
+          <View style={styles.titleGroup}>
+            <View style={styles.titleHeaderRow}>
               <Text style={[typography.headingLg, { color: theme.colors.text.primary }]}>
-                Admin Portal
+                {portalHeader.title}
               </Text>
-              <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 1 }]}>
-                Enterprise Operations & Governance
-              </Text>
+              <Badge label={portalHeader.badge} variant={portalHeader.variant} size="sm" />
             </View>
+            <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+              {portalHeader.subtitle}
+            </Text>
           </View>
-          <Badge label="ADMIN" variant="error" size="sm" />
         </View>
 
-        {/* System Health Card */}
-        <Section title="System Status">
-          <Card variant="elevated" style={styles.systemCard}>
-            <View style={styles.systemRow}>
-              <View style={[styles.systemIconBox, { backgroundColor: theme.colors.semantic.successBg }]}>
-                <AppIcon name="success" color={theme.colors.semantic.success} size={20} />
+        {/* System Health Card (Super Admin & Master Super Admin only) */}
+        {(user?.role === 'SUPER_ADMIN' || user?.role === 'MASTER_SUPER_ADMIN') && (
+          <Section title="System Status">
+            <Card variant="elevated" style={styles.systemCard}>
+              <View style={styles.systemRow}>
+                <View style={[styles.systemIconBox, { backgroundColor: theme.colors.semantic.successBg }]}>
+                  <AppIcon name="success" color={theme.colors.semantic.success} size={20} />
+                </View>
+                <View style={styles.systemTextGroup}>
+                  <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+                    All Microservices Operational
+                  </Text>
+                  <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+                    PostgreSQL, Redis, Socket.IO & R2 online
+                  </Text>
+                </View>
+                <StatusBadge status="active" label="Healthy" />
               </View>
-              <View style={styles.systemTextGroup}>
-                <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
-                  All Microservices Operational
-                </Text>
-                <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
-                  PostgreSQL, Redis, Socket.IO & R2 online
-                </Text>
-              </View>
-              <StatusBadge status="active" label="Healthy" />
-            </View>
-          </Card>
-        </Section>
+            </Card>
+          </Section>
+        )}
 
         {/* Organization KPIs */}
         <Section title="Organization Overview">
@@ -84,9 +126,9 @@ export function AdminDashboard({ navigation }: { navigation: any }) {
             />
             <StatCard
               icon="teamMap"
-              value="Live"
+              value={user?.isGpsEnabled !== false ? 'Enabled' : 'Disabled'}
               label="GPS Tracking"
-              valueColor={theme.colors.brand.secondary}
+              valueColor={user?.isGpsEnabled !== false ? theme.colors.semantic.success : theme.colors.semantic.error}
             />
           </View>
         </Section>
@@ -152,13 +194,18 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
   topHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 16,
   },
-  greetingGroup: {
+  titleGroup: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  titleHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   systemCard: {
     padding: 14,

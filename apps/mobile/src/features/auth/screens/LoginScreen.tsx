@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  TouchableOpacity,
   View,
   Text,
   StyleSheet,
@@ -126,6 +127,41 @@ export function LoginScreen({ navigation }: { navigation: any }) {
             />
           </Card>
 
+          {/* Quick Demo Test Accounts (Tap to Autofill) */}
+          <View style={styles.demoSection}>
+            <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 8, textAlign: 'center', fontWeight: '600' }]}>
+              Quick Demo Accounts (Tap to Autofill)
+            </Text>
+            <View style={styles.demoChipsRow}>
+              {[
+                { label: 'Company Admin (Infobell)', loginId: 'IB-CA01', password: 'Password123!' },
+                { label: 'Super Admin (NetroTrack)', loginId: 'NETRO-EMP001', password: 'Password123!' },
+                { label: 'Master Super Admin', loginId: 'NETRO-MASTER', password: 'Password123!' },
+              ].map((acc) => (
+                <TouchableOpacity
+                  key={acc.loginId}
+                  style={[
+                    styles.demoChip,
+                    { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.brand.primary },
+                  ]}
+                  onPress={() => {
+                    setLoginId(acc.loginId);
+                    setPassword(acc.password);
+                    setErrors({});
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[typography.bodySm, { color: theme.colors.brand.primary, fontWeight: '700' }]}>
+                    {acc.label}
+                  </Text>
+                  <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+                    {acc.loginId} · Password123!
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
           {/* Footer */}
           <Text style={[typography.caption, { color: theme.colors.text.tertiary, textAlign: 'center', marginTop: 24 }]}>
             Powered by NetroFusion Labs
@@ -155,5 +191,20 @@ const styles = StyleSheet.create({
   },
   loginCard: {
     padding: 20,
+  },
+  demoSection: {
+    marginTop: 20,
+  },
+  demoChipsRow: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  demoChip: {
+    width: '100%',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
   },
 });

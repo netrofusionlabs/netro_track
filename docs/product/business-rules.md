@@ -177,11 +177,24 @@
 | # | Rule | Enforcement |
 |---|------|------------|
 | BR-SY01 | Offline actions sync automatically when connectivity returns | Sync engine |
-| BR-SY02 | User should never manually trigger sync | Automatic detection |
-| BR-SY03 | Sync items include local UUID to prevent duplicates | Idempotent processing |
-| BR-SY04 | Conflict resolution: last-write-wins with server timestamp | Server authoritative |
-| BR-SY05 | Sync failures are retried with exponential backoff | Retry logic |
 | BR-SY06 | Sync queue persists across app restarts | MMKV persistence |
+
+---
+
+## 11. User Profile & Employment History Rules
+
+| # | Rule | Enforcement |
+|---|------|------------|
+| BR-U01 | `name`, `employeeId`, `email` (Work Email), `phone` (Primary Mobile), `emergencyContactName`, `emergencyContactPhone`, and `designationName` are strictly mandatory when creating a user | Validation schema & DB constraint |
+| BR-U02 | All mobile contact numbers (`phone`, `secondaryPhone`, `emergencyContactPhone`) MUST specify an international country code prefix (e.g. 🇮🇳 `+91`, 🇺🇸 `+1`) | `PhoneInput` component & validation schema |
+| BR-U03 | System Access Role (`role`) is strictly separated from Designation / Job Title (`designationName`) | Service & database separation |
+| BR-U04 | Users CANNOT alter their own Access Role via API (`403 FORBIDDEN_SELF_ROLE_EDIT`) | Server-side authorization check |
+| BR-U05 | Access Role modifications require actor rank >= 2 (HR Executive or Admin) | Server-side authorization check |
+| BR-U06 | Changing a user's Designation can be flagged as `isPromotion` to log an official career advancement on their timeline | User management service & UI toggle |
+| BR-U07 | User onboarding, designation changes, promotions, access role updates, and manager reassignments MUST create atomic timeline events in `user_timeline_events` | `prisma.$transaction` engine |
+| BR-U08 | Professional timeline audit logs are append-only and immutable — no user or admin can update or delete timeline events | Read-only API surface |
+| BR-U09 | Generic personal edits (phone, blood group, links) do NOT clutter the professional timeline; only HR milestones generate events | Timeline filter logic |
+| BR-U10 | Form UI must present a single, deduplicated Designation / Job Title field | Single input UI pattern |
 
 ---
 

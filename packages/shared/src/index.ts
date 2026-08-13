@@ -10,3 +10,4 @@ export * from './schemas/tracking.validator';
 export * from './schemas/upload.validator';
 export * from './schemas/dashboard.validator';
 export * from './schemas/report.validator';
+export * from './schemas/user-management.validator';

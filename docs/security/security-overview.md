@@ -11,7 +11,7 @@
 |-------|-----------|
 | **Transport** | HTTPS/TLS 1.3 only, HSTS headers |
 | **Authentication** | JWT with short-lived access tokens (15 min) |
-| **Authorization** | RBAC (4 roles) + tenant isolation |
+| **Authorization** | RBAC (6 roles: MASTER_SUPER_ADMIN, SUPER_ADMIN, COMPANY_ADMIN, HR, MANAGER, EMPLOYEE) + tenant isolation. See [Role Hierarchy](role-hierarchy.md) |
 | **Data** | Argon2 hashing (passwords, MPINs), encrypted MMKV storage |
 | **API** | Rate limiting, request validation (Zod), Helmet.js headers |
 | **Storage** | Signed URLs with 15 min expiry for R2 |

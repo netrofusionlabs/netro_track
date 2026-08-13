@@ -9,12 +9,12 @@ import { Role } from '@prisma/client';
 const router = Router();
 const controller = new CustomerController();
 
-router.get('/', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.MANAGER, Role.FIELD_EMPLOYEE), controller.getCustomers);
-router.get('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.MANAGER, Role.FIELD_EMPLOYEE), controller.getCustomer);
+router.get('/', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR, Role.MANAGER, Role.EMPLOYEE), controller.getCustomers);
+router.get('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR, Role.MANAGER, Role.EMPLOYEE), controller.getCustomer);
 
-router.post('/', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.MANAGER, Role.FIELD_EMPLOYEE), validate(createCustomerSchema), controller.createCustomer);
-router.put('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.MANAGER, Role.FIELD_EMPLOYEE), validate(updateCustomerSchema), controller.updateCustomer);
+router.post('/', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR, Role.MANAGER, Role.EMPLOYEE), validate(createCustomerSchema), controller.createCustomer);
+router.put('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR, Role.MANAGER, Role.EMPLOYEE), validate(updateCustomerSchema), controller.updateCustomer);
 
-router.delete('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN), controller.deleteCustomer);
+router.delete('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR), controller.deleteCustomer);
 
 export { router as customerRouter };

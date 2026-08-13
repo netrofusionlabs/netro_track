@@ -60,11 +60,11 @@ export function EmployeeDashboard({ navigation }: { navigation: any }) {
               Good Morning, {user?.name?.split(' ')[0] ?? 'Agent'}
             </Text>
             <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 1 }]}>
-              {formatDate(new Date())} · Field Employee
+              {formatDate(new Date())} · {user?.designation?.name || 'Employee'}
             </Text>
           </View>
           <Badge
-            label={user?.role?.replace(/_/g, ' ') ?? 'FIELD EMPLOYEE'}
+            label={user?.designation?.name || 'Employee'}
             variant="info"
             size="sm"
           />

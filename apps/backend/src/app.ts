@@ -31,6 +31,7 @@ import { uploadRouter } from './modules/upload/upload.routes';
 import { trackingRouter } from './modules/tracking/tracking.routes';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes';
 import { reportRouter } from './modules/report/report.routes';
+import { userManagementRouter } from './modules/user-management/user-management.routes';
 import path from 'path';
 
 // Static assets serving
@@ -38,6 +39,7 @@ app.use('/static/uploads', express.static(path.join(__dirname, '../public/upload
 
 // Register routes
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/user-management', userManagementRouter);
 app.use('/api/v1/companies', companyRouter);
 app.use('/api/v1/employees', employeeRouter);
 app.use('/api/v1/customers', customerRouter);

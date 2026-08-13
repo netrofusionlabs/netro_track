@@ -165,6 +165,24 @@
 | `user_agent` | TEXT | NULLABLE | Client user agent |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | |
 
+### user_timeline_events
+
+| Column | Type | Constraints | Description |
+|--------|------|------------|-------------|
+| `id` | UUID | PK | Primary key |
+| `user_id` | UUID | FK → users.id, NOT NULL | Target user whose timeline this belongs to |
+| `company_id` | UUID | FK → companies.id, NOT NULL | Tenant isolation key |
+| `event_type` | ENUM (`TimelineEventType`) | NOT NULL | ONBOARDING, PROMOTION, DESIGNATION_CHANGED, ACCESS_ROLE_CHANGED, etc. |
+| `title` | VARCHAR(255) | NOT NULL | Human readable milestone title |
+| `description` | TEXT | NULLABLE | Detailed description of event |
+| `previous_value` | VARCHAR(255) | NULLABLE | Previous role / designation snapshot |
+| `new_value` | VARCHAR(255) | NULLABLE | New role / designation snapshot |
+| `changed_by_user_id` | UUID | FK → users.id, NULLABLE | User ID of the editor/HR who authorized change |
+| `changed_by_name` | VARCHAR(255) | NULLABLE | Static snapshot of author name |
+| `effective_date` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Effective date of milestone |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Record creation time |
+| `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Record modification time |
+
 ### company_settings
 
 | Column | Type | Constraints | Description |
@@ -209,15 +227,38 @@
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | |
 | `updated_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | |
 
+### audit_logs
+
+| Column | Type | Constraints | Description |
+|--------|------|------------|-------------|
+| `id` | UUID | PK | Primary key |
+| `company_id` | UUID | FK → companies.id, NULLABLE | Company scope |
+| `user_id` | UUID | FK → users.id, NOT NULL | Actor performing action |
+| `action` | VARCHAR(100) | NOT NULL | Action string (e.g. MANAGER_REMOVED) |
+| `entity_type` | VARCHAR(100) | NOT NULL | Target entity type (e.g. User) |
+| `entity_id` | UUID | NULLABLE | Target entity primary key |
+| `old_values` | JSONB | NULLABLE | Snapshot of values before modification |
+| `new_values` | JSONB | NULLABLE | Snapshot of values after modification |
+| `metadata` | JSONB | NULLABLE | Contextual metadata |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() | Action timestamp |
+
 ---
 
 ## Enum Types
 
 ```sql
-CREATE TYPE user_role AS ENUM ('SUPER_ADMIN', 'CLIENT_ADMIN', 'CLIENT_MANAGER', 'CLIENT_USER');
-CREATE TYPE user_status AS ENUM ('ACTIVE', 'SUSPENDED', 'INACTIVE');
-CREATE TYPE company_status AS ENUM ('ACTIVE', 'SUSPENDED', 'TRIAL', 'EXPIRED');
+CREATE TYPE user_role AS ENUM ('MASTER_SUPER_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER', 'EMPLOYEE');
+CREATE TYPE user_status AS ENUM ('ACTIVE', 'INACTIVE');
 CREATE TYPE attendance_status AS ENUM ('WORKING', 'COMPLETED');
 CREATE TYPE device_platform AS ENUM ('IOS', 'ANDROID');
 CREATE TYPE visit_image_type AS ENUM ('SELFIE', 'CUSTOMER_PHOTO', 'PRODUCT_PHOTO');
 ```
+
+---
+
+## Connection Pooling & Database Singleton
+
+NetroTrack connects to PostgreSQL on Neon using connection pooling:
+
+- **Prisma Client Singleton:** Prevents connection pool leaks during dev hot-reloading by attaching the `PrismaClient` instance to `globalThis.prisma`.
+- **Neon Pool Connection Parameters:** `DATABASE_URL` configures `connection_limit=30`, `connect_timeout=30`, and `pool_timeout=30` to prevent connection pool exhaustion timeouts (`P2024`) during high concurrency.

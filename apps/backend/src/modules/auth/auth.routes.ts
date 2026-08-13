@@ -15,6 +15,9 @@ router.post('/mpin', validate(mpinLoginSchema), controller.mpinLogin);
 
 // ── Authenticated ─────────────────────────────────────────────────────────────
 
+// Get current user's profile (including manager info)
+router.get('/me', authenticateToken, controller.getMe);
+
 // Set or update MPIN (called after first password login on new device)
 router.post('/mpin/setup', authenticateToken, validate(setupMpinSchema), controller.setupMpin);
 

@@ -41,6 +41,7 @@
 | [Reports](features/reports.md) | All report types by role |
 | [Notifications](features/notifications.md) | Push notification types |
 | [Dashboards](features/dashboards.md) | Dashboard specs per role |
+| [User Management](features/user-management.md) | User creation, Access Roles, Designation Titles, Timeline Audit Engine |
 
 ### Backend
 | Document | Purpose |

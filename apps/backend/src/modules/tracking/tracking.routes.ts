@@ -15,10 +15,10 @@ router.post('/sync', controller.syncBatch);
 // Own route query (employees) or any user route (managers/admins)
 router.get('/route', controller.getRoute);
 
-// Live team locations — managers and admins only
+// Live team locations — managers, HR, and admins
 router.get(
   '/live',
-  requireRoles(Role.MANAGER, Role.COMPANY_ADMIN, Role.SUPER_ADMIN),
+  requireRoles(Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN),
   controller.getLiveLocations
 );
 

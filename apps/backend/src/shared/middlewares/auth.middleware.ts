@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { Role } from '@prisma/client';
 import { AppError } from '../errors/AppError';
 import { TenantRequest } from './tenant.middleware';
 import { AuthenticatedRequest as SharedAuthenticatedRequest } from '../types/request';
@@ -24,10 +25,13 @@ export function authMiddleware(
       id: string;
       companyId: string;
       employeeId: string;
-      role: string;
+      role: Role;
     };
 
-    req.user = payload;
+    req.user = {
+      ...payload,
+      isMasterAdmin: payload.role === Role.MASTER_SUPER_ADMIN
+    };
     req.companyId = payload.companyId; // Ensure tenant injection matches token
 
     next();

@@ -19,7 +19,7 @@ export class ReportController {
 
       // Field employees can only see their own reports
       const effectiveUserId =
-        role === 'FIELD_EMPLOYEE' ? req.user!.id : userId;
+        role === 'EMPLOYEE' ? req.user!.id : userId;
 
       const report = await this.reportService.getAttendanceReport(
         companyId,
@@ -47,7 +47,7 @@ export class ReportController {
       const { startDate, endDate, userId, customerId } = visitsReportQuerySchema.parse(req.query);
 
       const effectiveUserId =
-        role === 'FIELD_EMPLOYEE' ? req.user!.id : userId;
+        role === 'EMPLOYEE' ? req.user!.id : userId;
 
       const report = await this.reportService.getVisitsReport(
         companyId,
@@ -76,7 +76,7 @@ export class ReportController {
       const { startDate, endDate, userId, customerId } = salesReportQuerySchema.parse(req.query);
 
       const effectiveUserId =
-        role === 'FIELD_EMPLOYEE' ? req.user!.id : userId;
+        role === 'EMPLOYEE' ? req.user!.id : userId;
 
       const report = await this.reportService.getSalesReport(
         companyId,

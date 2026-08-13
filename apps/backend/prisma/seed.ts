@@ -1,251 +1,212 @@
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient, Role, UserStatus, TimelineEventType } from '@prisma/client';
+import { ROLE_DISPLAY_LABELS, UserRole } from '@netrotrack/shared';
 import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
 
-async function main() {
+export interface SeedConfig {
+  companies: {
+    name: string;
+    code: string;
+    isGpsEnabled?: boolean;
+  }[];
+  users: {
+    employeeId: string;
+    name: string;
+    email: string;
+    role: Role;
+    companyCode: string;
+    designationName: string;
+    phone?: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+  }[];
+}
+
+/** Default Seed Configuration: 2 Companies, 3 Accounts */
+export const DEFAULT_SEED_CONFIG: SeedConfig = {
+  companies: [
+    {
+      name: 'NetroTrack',
+      code: 'NETRO',
+      isGpsEnabled: true,
+    },
+    {
+      name: 'Infobell IT Solutions Pvt Ltd',
+      code: 'IB',
+      isGpsEnabled: true,
+    },
+  ],
+  users: [
+    {
+      employeeId: 'NETRO-MASTER',
+      name: 'Master System Admin',
+      email: 'mastersuperadmin@netrotrack.in',
+      role: Role.MASTER_SUPER_ADMIN,
+      companyCode: 'NETRO',
+      designationName: 'Master System Administrator',
+      phone: '+91 9876543210',
+    },
+    {
+      employeeId: 'NETRO-EMP001',
+      name: 'Super Admin',
+      email: 'superadmin@netrotrack.in',
+      role: Role.SUPER_ADMIN,
+      companyCode: 'NETRO',
+      designationName: 'Platform Lead & Super Admin',
+      phone: '+91 8317513201',
+      emergencyContactName: 'Super Admin',
+      emergencyContactPhone: '+91 8317513201',
+    },
+    {
+      employeeId: 'IB-CA01',
+      name: 'Company Admin',
+      email: 'admin@infobellit.com',
+      role: Role.COMPANY_ADMIN,
+      companyCode: 'IB',
+      designationName: 'HR & Administration Manager',
+      phone: '+91 9786534265',
+      emergencyContactName: 'Leela Krishna',
+      emergencyContactPhone: '+91 9786534265',
+    },
+  ],
+};
+
+export async function seedDatabase(config: SeedConfig = DEFAULT_SEED_CONFIG) {
   console.log('🌱 Seeding NetroTrack Multi-Tenant Database...');
 
   const passwordHash = await argon2.hash('Password123!');
-  const mpinHash = await argon2.hash('1234');
+  const mpinHash = await argon2.hash('9999');
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // COMPANY 1: NetroFusion Technologies (Code: NETRO)
-  // ───────────────────────────────────────────────────────────────────────────
-  const company1 = await prisma.company.upsert({
-    where: { code: 'NETRO' },
-    update: { name: 'NetroFusion Technologies' },
-    create: {
-      name: 'NetroFusion Technologies',
-      code: 'NETRO',
-    },
-  });
-  console.log(`✓ Company seeded: ${company1.name} [NETRO]`);
+  const companyMap = new Map<string, string>();
 
-  const branch1 = await prisma.branch.upsert({
-    where: { id: '345e4567-e89b-12d3-a456-426614174001' },
-    update: {},
-    create: {
-      id: '345e4567-e89b-12d3-a456-426614174001',
-      companyId: company1.id,
-      name: 'Bangalore HQ Branch',
-      address: '100 Innovation Way, Indiranagar, Bangalore',
-    },
-  });
+  // 1. Seed Companies
+  for (const comp of config.companies) {
+    const seededCompany = await prisma.company.upsert({
+      where: { code: comp.code },
+      update: { name: comp.name, isGpsEnabled: comp.isGpsEnabled ?? true },
+      create: {
+        name: comp.name,
+        code: comp.code,
+        isGpsEnabled: comp.isGpsEnabled ?? true,
+      },
+    });
+    companyMap.set(comp.code, seededCompany.id);
+    console.log(`✓ Company seeded: ${seededCompany.name} [${seededCompany.code}]`);
+  }
 
-  const dept1 = await prisma.department.upsert({
-    where: { id: '456e4567-e89b-12d3-a456-426614174001' },
-    update: {},
-    create: {
-      id: '456e4567-e89b-12d3-a456-426614174001',
-      companyId: company1.id,
-      branchId: branch1.id,
-      name: 'Field Operations & Sales',
-    },
-  });
+  // 2. Seed Users & Idempotent Timeline Events
+  for (const usr of config.users) {
+    const companyId = companyMap.get(usr.companyCode);
+    if (!companyId) {
+      throw new Error(`Company code '${usr.companyCode}' not found for user '${usr.employeeId}'`);
+    }
 
-  const desig1 = await prisma.designation.upsert({
-    where: { id: '567e4567-e89b-12d3-a456-426614174001' },
-    update: {},
-    create: {
-      id: '567e4567-e89b-12d3-a456-426614174001',
-      companyId: company1.id,
-      name: 'Senior Field Executive',
-    },
-  });
+    // Ensure designation exists
+    let existingDesig = await prisma.designation.findFirst({
+      where: { companyId, name: { equals: usr.designationName, mode: 'insensitive' } },
+    });
+    if (!existingDesig) {
+      existingDesig = await prisma.designation.create({
+        data: { companyId, name: usr.designationName },
+      });
+    }
 
-  // 1. SUPER_ADMIN
-  const superAdmin = await prisma.user.upsert({
-    where: { email: 'superadmin@netro.com' },
-    update: { passwordHash, mpinHash, companyId: company1.id },
-    create: {
-      companyId: company1.id,
-      employeeId: 'SUPER001',
-      name: 'System Super Admin',
-      email: 'superadmin@netro.com',
-      passwordHash,
-      mpinHash,
-      role: Role.SUPER_ADMIN,
-    },
-  });
-  console.log(`  └ User [SUPER_ADMIN]: ${superAdmin.name} (${superAdmin.email})`);
+    const seededUser = await prisma.user.upsert({
+      where: { email: usr.email },
+      update: {
+        employeeId: usr.employeeId,
+        name: usr.name,
+        passwordHash,
+        mpinHash,
+        companyId,
+        role: usr.role,
+        designationId: existingDesig.id,
+        status: UserStatus.ACTIVE,
+        phone: usr.phone || null,
+        emergencyContactName: usr.emergencyContactName || null,
+        emergencyContactPhone: usr.emergencyContactPhone || null,
+      },
+      create: {
+        employeeId: usr.employeeId,
+        name: usr.name,
+        email: usr.email,
+        passwordHash,
+        mpinHash,
+        companyId,
+        role: usr.role,
+        designationId: existingDesig.id,
+        status: UserStatus.ACTIVE,
+        phone: usr.phone || null,
+        emergencyContactName: usr.emergencyContactName || null,
+        emergencyContactPhone: usr.emergencyContactPhone || null,
+      },
+    });
+    console.log(`  └ User [${seededUser.role}]: ${seededUser.name} (${seededUser.employeeId} / ${seededUser.email})`);
 
-  // 2. COMPANY_ADMIN
-  const companyAdmin1 = await prisma.user.upsert({
-    where: { email: 'admin@netro.com' },
-    update: { passwordHash, mpinHash, companyId: company1.id },
-    create: {
-      companyId: company1.id,
-      employeeId: 'ADM001',
-      name: 'Sarah Connor',
-      email: 'admin@netro.com',
-      passwordHash,
-      mpinHash,
-      role: Role.COMPANY_ADMIN,
-      branchId: branch1.id,
-      departmentId: dept1.id,
-    },
-  });
-  console.log(`  └ User [COMPANY_ADMIN]: ${companyAdmin1.name} (${companyAdmin1.email})`);
+    // Idempotently create onboarding timeline events if not already present
+    const existingTimeline = await prisma.userTimelineEvent.findFirst({
+      where: { userId: seededUser.id, eventType: TimelineEventType.ONBOARDING },
+    });
 
-  // 3. MANAGER
-  const manager1 = await prisma.user.upsert({
-    where: { email: 'manager@netro.com' },
-    update: { passwordHash, mpinHash, companyId: company1.id },
-    create: {
-      companyId: company1.id,
-      employeeId: 'MGR001',
-      name: 'Alex Vance',
-      email: 'manager@netro.com',
-      passwordHash,
-      mpinHash,
-      role: Role.MANAGER,
-      branchId: branch1.id,
-      departmentId: dept1.id,
-    },
-  });
-  console.log(`  └ User [MANAGER]: ${manager1.name} (${manager1.email})`);
+    if (!existingTimeline) {
+      const effectiveDate = new Date();
+      await prisma.userTimelineEvent.createMany({
+        data: [
+          {
+            userId: seededUser.id,
+            companyId,
+            eventType: TimelineEventType.ONBOARDING,
+            title: 'Onboarding',
+            description: 'Employee onboarded to platform',
+            newValue: 'Joined Organization',
+            changedByName: 'System Setup',
+            effectiveDate,
+          },
+          {
+            userId: seededUser.id,
+            companyId,
+            eventType: TimelineEventType.DESIGNATION_ASSIGNED,
+            title: 'Designation Assigned',
+            previousValue: 'None',
+            newValue: usr.designationName,
+            changedByName: 'System Setup',
+            effectiveDate,
+          },
+          {
+            userId: seededUser.id,
+            companyId,
+            eventType: TimelineEventType.ACCESS_ROLE_ASSIGNED,
+            title: 'Access Role Assigned',
+            previousValue: 'None',
+            newValue: ROLE_DISPLAY_LABELS[usr.role as unknown as UserRole] || usr.role,
+            changedByName: 'System Setup',
+            effectiveDate,
+          },
+        ],
+      });
+      console.log(`    └ Timeline initialized for ${seededUser.employeeId}`);
+    }
+  }
 
-  // 4. FIELD_EMPLOYEE
-  const employee1 = await prisma.user.upsert({
-    where: { email: 'employee@netro.com' },
-    update: { passwordHash, mpinHash, companyId: company1.id, managerId: manager1.id },
-    create: {
-      companyId: company1.id,
-      employeeId: 'EMP001',
-      name: 'John Doe',
-      email: 'employee@netro.com',
-      passwordHash,
-      mpinHash,
-      role: Role.FIELD_EMPLOYEE,
-      managerId: manager1.id,
-      branchId: branch1.id,
-      departmentId: dept1.id,
-      designationId: desig1.id,
-    },
-  });
-  console.log(`  └ User [FIELD_EMPLOYEE]: ${employee1.name} (${employee1.email})`);
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // COMPANY 2: Acme Field Systems (Code: ACME)
-  // ───────────────────────────────────────────────────────────────────────────
-  const company2 = await prisma.company.upsert({
-    where: { code: 'ACME' },
-    update: { name: 'Acme Field Systems' },
-    create: {
-      name: 'Acme Field Systems',
-      code: 'ACME',
-    },
-  });
-  console.log(`✓ Company seeded: ${company2.name} [ACME]`);
-
-  const companyAdmin2 = await prisma.user.upsert({
-    where: { email: 'admin@acme.com' },
-    update: { passwordHash, mpinHash, companyId: company2.id },
-    create: {
-      companyId: company2.id,
-      employeeId: 'ADM002',
-      name: 'Robert Ford',
-      email: 'admin@acme.com',
-      passwordHash,
-      mpinHash,
-      role: Role.COMPANY_ADMIN,
-    },
-  });
-  console.log(`  └ User [COMPANY_ADMIN]: ${companyAdmin2.name} (${companyAdmin2.email})`);
-
-  const manager2 = await prisma.user.upsert({
-    where: { email: 'manager@acme.com' },
-    update: { passwordHash, mpinHash, companyId: company2.id },
-    create: {
-      companyId: company2.id,
-      employeeId: 'MGR002',
-      name: 'Bernard Lowe',
-      email: 'manager@acme.com',
-      passwordHash,
-      mpinHash,
-      role: Role.MANAGER,
-    },
-  });
-  console.log(`  └ User [MANAGER]: ${manager2.name} (${manager2.email})`);
-
-  const employee2 = await prisma.user.upsert({
-    where: { email: 'employee@acme.com' },
-    update: { passwordHash, mpinHash, companyId: company2.id, managerId: manager2.id },
-    create: {
-      companyId: company2.id,
-      employeeId: 'EMP002',
-      name: 'Teddy Flood',
-      email: 'employee@acme.com',
-      passwordHash,
-      mpinHash,
-      role: Role.FIELD_EMPLOYEE,
-      managerId: manager2.id,
-    },
-  });
-  console.log(`  └ User [FIELD_EMPLOYEE]: ${employee2.name} (${employee2.email})`);
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // COMPANY 3: AgriTech Global Services (Code: AGRI)
-  // ───────────────────────────────────────────────────────────────────────────
-  const company3 = await prisma.company.upsert({
-    where: { code: 'AGRI' },
-    update: { name: 'AgriTech Global Services' },
-    create: {
-      name: 'AgriTech Global Services',
-      code: 'AGRI',
-    },
-  });
-  console.log(`✓ Company seeded: ${company3.name} [AGRI]`);
-
-  const companyAdmin3 = await prisma.user.upsert({
-    where: { email: 'admin@agritech.com' },
-    update: { passwordHash, mpinHash, companyId: company3.id },
-    create: {
-      companyId: company3.id,
-      employeeId: 'ADM003',
-      name: 'Marcus Wright',
-      email: 'admin@agritech.com',
-      passwordHash,
-      mpinHash,
-      role: Role.COMPANY_ADMIN,
-    },
-  });
-  console.log(`  └ User [COMPANY_ADMIN]: ${companyAdmin3.name} (${companyAdmin3.email})`);
-
-  const employee3 = await prisma.user.upsert({
-    where: { email: 'employee@agritech.com' },
-    update: { passwordHash, mpinHash, companyId: company3.id },
-    create: {
-      companyId: company3.id,
-      employeeId: 'EMP003',
-      name: 'David Miller',
-      email: 'employee@agritech.com',
-      passwordHash,
-      mpinHash,
-      role: Role.FIELD_EMPLOYEE,
-    },
-  });
-  console.log(`  └ User [FIELD_EMPLOYEE]: ${employee3.name} (${employee3.email})`);
-
-  console.log('\n✅ Multi-tenant database seed completed successfully!');
-  console.log('\n🔑 Default Logins (Password: Password123! | MPIN: 1234):');
-  console.log('  1. Super Admin    : superadmin@netro.com');
-  console.log('  2. Netro Admin    : admin@netro.com        (NETRO-ADM001)');
-  console.log('  3. Netro Manager  : manager@netro.com      (NETRO-MGR001)');
-  console.log('  4. Netro Employee : employee@netro.com     (NETRO-EMP001)');
-  console.log('  5. Acme Admin     : admin@acme.com         (ACME-ADM002)');
-  console.log('  6. Acme Manager   : manager@acme.com       (ACME-MGR002)');
-  console.log('  7. Acme Employee  : employee@acme.com      (ACME-EMP002)');
-  console.log('  8. Agri Admin     : admin@agritech.com     (AGRI-ADM003)');
-  console.log('  9. Agri Employee  : employee@agritech.com    (AGRI-EMP003)');
+  console.log('\n✅ Database seed completed successfully!');
+  console.log('\n🔑 Quick Demo Accounts (Password: Password123! | MPIN: 9999):');
+  console.log('  1. NetroTrack Master Super Admin : NETRO-MASTER (mastersuperadmin@netrotrack.in)');
+  console.log('  2. NetroTrack Super Admin        : NETRO-EMP001 (superadmin@netrotrack.in)');
+  console.log('  3. Infobell Company Admin        : IB-CA01      (admin@infobellit.com)');
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Seeding error:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+async function main() {
+  await seedDatabase(DEFAULT_SEED_CONFIG);
+}
+
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error('❌ Seeding error:', e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

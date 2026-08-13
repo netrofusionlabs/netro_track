@@ -9,17 +9,19 @@
 ## 1. Role Hierarchy
 
 ```
-Super Admin
+Master Super Admin (Rank 5)
     │
-    ├── Client Admin (per company)
+    ├── Super Admin (Rank 4)
     │       │
-    │       ├── Client Manager (per team)
+    │       ├── Company Admin (Rank 3 - Peer Authority)
     │       │       │
-    │       │       └── Client User (field employee)
-    │       │
-    │       └── Client User (unassigned)
-    │
-    └── Platform Operations
+    │       │       ├── HR Executive (Rank 2 - Single Company Scope)
+    │       │       │       │
+    │       │       │       ├── Manager (Rank 1 - Team Scope)
+    │       │       │       │       │
+    │       │       │       │       └── Employee (Rank 0 - Assigned Team)
+    │       │       │       │
+    │       │       │       └── Employee (Rank 0 - Unassigned Company Pool)
 ```
 
 ---
@@ -124,20 +126,20 @@ Super Admin
 
 ### Core Permissions
 
-| Permission | Super Admin | Client Admin | Client Manager | Client User |
-|-----------|:-----------:|:------------:|:--------------:|:-----------:|
+| Permission | Master Super Admin | Super Admin | Company Admin | HR Executive | Manager | Field Employee |
+|-----------|:------------------:|:-----------:|:-------------:|:------------:|:-------:|:--------------:|
 | **Companies** |
-| Create Company | ✅ | ❌ | ❌ | ❌ |
-| Edit Company | ✅ | ✅ (own) | ❌ | ❌ |
-| Suspend Company | ✅ | ❌ | ❌ | ❌ |
-| View All Companies | ✅ | ❌ | ❌ | ❌ |
+| Create Company | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Edit Company | ✅ | ✅ | ✅ (own) | ❌ | ❌ | ❌ |
+| Suspend Company | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| View All Companies | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Users** |
-| Create Admin | ✅ | ❌ | ❌ | ❌ |
-| Create Manager | ✅ | ✅ (own) | ❌ | ❌ |
-| Create Employee | ✅ | ✅ (own) | ❌ | ❌ |
-| Edit Employee | ✅ | ✅ (own) | ❌ | ❌ |
-| Reset MPIN | ✅ | ✅ (own) | ❌ | ❌ |
-| View Employees | ✅ | ✅ (own) | ✅ (team) | ❌ |
+| Create Admin | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Create HR | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Create Manager | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Create Employee | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Reset Credentials (Default) | ✅ | ✅ | ✅ (< Rank 3) | ✅ (< Rank 2) | ✅ (Team) | ❌ |
+| View Employees | ✅ | ✅ | ✅ (Company) | ✅ (Company) | ✅ (Team) | ❌ |
 | **Attendance** |
 | Punch In/Out | ❌ | ❌ | ❌ | ✅ |
 | View Own Attendance | ❌ | ❌ | ❌ | ✅ |
@@ -228,10 +230,30 @@ The RBAC system should be designed to accommodate additional roles without schem
 
 ---
 
+---
+
+## 7. Access Role vs. Designation / Job Title
+
+| Dimension | System Access Role | Designation / Job Title |
+|-----------|-------------------|------------------------|
+| **Purpose** | System-level security & authorization tier | HR job title / professional position |
+| **Examples** | `MASTER_SUPER_ADMIN`, `SUPER_ADMIN`, `COMPANY_ADMIN`, `HR`, `MANAGER`, `EMPLOYEE` | `HR Manager`, `Senior Software Engineer`, `Sales Specialist` |
+| **Visibility** | HR Executives & Admins only (hidden from regular employees) | Publicly visible on employee profile cards |
+| **Editable By** | HR Executives (Rank >= 2) & Admins only | HR Executives (Rank >= 2) & Admins |
+| **Self Edit** | 🚫 Strictly forbidden (`403 FORBIDDEN_SELF_ROLE_EDIT`) | Allowed only via HR approval |
+| **Audit Engine** | Logged as `ACCESS_ROLE_CHANGED` on timeline | Logged as `DESIGNATION_CHANGED` or `PROMOTION` on timeline |
+
+### Key Authorization Rules for Role Modifications
+1. **Self-Role Edit Lock:** A user CANNOT alter their own Access Role via API (`403 FORBIDDEN_SELF_ROLE_EDIT`).
+2. **Rank Hierarchy Requirement:** To change another user's Access Role, the actor's Access Role rank must be **Rank 2 (HR)** or higher, AND greater than the target user's current rank.
+3. **Timeline Immutability:** Any change to Access Role or Designation MUST generate an atomic audit record in `user_timeline_events`.
+
+---
+
 ## Best Practices
 
 - Always verify both authentication AND authorization on every API endpoint.
 - Never trust client-side role claims — validate from the JWT/database.
 - Log all permission violations for security auditing.
-- Test every API endpoint with all four roles to verify access control.
+- Test every API endpoint with all role ranks to verify access control.
 - Design the permission system to be extensible for future roles.

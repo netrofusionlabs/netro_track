@@ -28,10 +28,17 @@ export class AuthService {
       }
 
       user = await this.authRepository.findUserByEmployeeId(company.id, employeeId);
+      if (!user) {
+        user = await this.authRepository.findUserByEmployeeId(company.id, input.loginId);
+      }
     }
 
     if (!user) {
       throw new AppError('AUTHENTICATION_FAILED', 'Invalid credentials', 401);
+    }
+
+    if (user.status === 'INACTIVE') {
+      throw new AppError('ACCOUNT_DEACTIVATED', 'Your account has been deactivated. Please contact your administrator.', 403);
     }
 
     // 1. Password Verification
@@ -53,12 +60,13 @@ export class AuthService {
     }
 
     // 3. Token Generation
+    const normalizedRole = user.role;
     const accessToken = jwt.sign(
       {
         id: user.id,
         companyId: user.companyId,
         employeeId: user.employeeId,
-        role: user.role
+        role: normalizedRole
       },
       process.env.JWT_ACCESS_SECRET || 'default_access_secret',
       { expiresIn: '15m' }
@@ -84,7 +92,19 @@ export class AuthService {
         companyName: user.company?.name || 'NetroFusion Technologies',
         employeeId: user.employeeId,
         name: user.name,
-        role: user.role
+        role: normalizedRole,
+        isMasterAdmin: user.role === 'MASTER_SUPER_ADMIN',
+        isGpsEnabled: user.company?.isGpsEnabled ?? true,
+        isGpsTracked: user.isGpsTracked ?? true,
+        hasMpin: !!user.mpinHash,
+        managerId: user.manager?.id ?? null,
+        managerName: user.manager?.name ?? null,
+        email: user.email ?? null,
+        phone: user.phone ?? null,
+        personalEmail: user.personalEmail ?? null,
+        emergencyContactName: user.emergencyContactName ?? null,
+        emergencyContactPhone: user.emergencyContactPhone ?? null,
+        bloodGroup: user.bloodGroup ?? null,
       }
     };
   }
@@ -112,6 +132,33 @@ export class AuthService {
   /**
    * Set or update the MPIN for an already-authenticated user.
    */
+  public async getMe(userId: string) {
+    const user = await this.authRepository.findUserById(userId);
+    if (!user) {
+      throw new AppError('USER_NOT_FOUND', 'User not found', 404);
+    }
+    const normalizedRole = user.role;
+    return {
+      id: user.id,
+      companyId: user.companyId,
+      companyName: user.company?.name ?? null,
+      employeeId: user.employeeId,
+      name: user.name,
+      email: user.email ?? null,
+      phone: user.phone ?? null,
+      personalEmail: user.personalEmail ?? null,
+      emergencyContactName: user.emergencyContactName ?? null,
+      emergencyContactPhone: user.emergencyContactPhone ?? null,
+      role: normalizedRole,
+      managerId: user.manager?.id ?? null,
+      managerName: user.manager?.name ?? null,
+      managerEmployeeId: user.manager?.employeeId ?? null,
+      isGpsTracked: user.isGpsTracked,
+      hasMpin: !!user.mpinHash,
+      bloodGroup: user.bloodGroup ?? null,
+    };
+  }
+
   public async setupMpin(userId: string, mpin: string): Promise<void> {
     const user = await this.authRepository.findUserById(userId);
     if (!user) {
@@ -148,17 +195,22 @@ export class AuthService {
       throw new AppError('AUTHENTICATION_FAILED', 'MPIN not configured for this user', 401);
     }
 
+    if (user.status === 'INACTIVE') {
+      throw new AppError('ACCOUNT_DEACTIVATED', 'Your account has been deactivated. Please contact your administrator.', 403);
+    }
+
     const isMpinValid = await argon2.verify(user.mpinHash, input.mpin);
     if (!isMpinValid) {
       throw new AppError('AUTHENTICATION_FAILED', 'Invalid MPIN', 401);
     }
 
+    const normalizedRole = user.role;
     const accessToken = jwt.sign(
       {
         id: user.id,
         companyId: user.companyId,
         employeeId: user.employeeId,
-        role: user.role
+        role: normalizedRole
       },
       process.env.JWT_ACCESS_SECRET || 'default_access_secret',
       { expiresIn: '15m' }
@@ -183,7 +235,13 @@ export class AuthService {
         companyName: user.company?.name || 'NetroFusion Technologies',
         employeeId: user.employeeId,
         name: user.name,
-        role: user.role
+        role: normalizedRole,
+        isMasterAdmin: normalizedRole === 'MASTER_SUPER_ADMIN',
+        isGpsEnabled: user.company?.isGpsEnabled ?? true,
+        isGpsTracked: user.isGpsTracked ?? true,
+        hasMpin: !!user.mpinHash,
+        managerId: user.manager?.id ?? null,
+        managerName: user.manager?.name ?? null,
       }
     };
   }

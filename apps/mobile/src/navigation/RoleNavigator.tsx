@@ -20,6 +20,10 @@ import { NewSaleScreen } from '../features/sales/NewSaleScreen';
 import { InspectionsScreen } from '../features/inspections/InspectionsScreen';
 import { NewInspectionScreen } from '../features/inspections/NewInspectionScreen';
 import { CustomerListScreen } from '../features/customers/CustomerListScreen';
+import { UserManagementScreen } from '../features/employees/screens/UserManagementScreen';
+import { AddUserScreen } from '../features/employees/screens/AddUserScreen';
+import { EditUserScreen } from '../features/employees/screens/EditUserScreen';
+import { CompanyManagementScreen } from '../features/companies/screens/CompanyManagementScreen';
 import { EmployeeListScreen } from '../features/employees/EmployeeListScreen';
 import { EmployeeDetailScreen } from '../features/employees/EmployeeDetailScreen';
 import { TeamMapScreen } from '../features/tracking/TeamMapScreen';
@@ -40,7 +44,7 @@ const VisitsStack = createStackNavigator();
 const SalesStack = createStackNavigator();
 const InspectionsStack = createStackNavigator();
 
-type AppRole = 'FIELD_EMPLOYEE' | 'MANAGER' | 'COMPANY_ADMIN' | 'SUPER_ADMIN';
+type AppRole = 'EMPLOYEE' | 'MANAGER' | 'HR' | 'COMPANY_ADMIN' | 'SUPER_ADMIN' | 'MASTER_SUPER_ADMIN';
 
 /** Maps navigation route names to semantic AppIcon names */
 const ROUTE_ICON_MAP: Record<string, AppIconName> = {
@@ -63,12 +67,14 @@ function normalizeRole(role?: string | null): AppRole | null {
   if (!role) return null;
   const normalized = role.trim().toUpperCase();
   if (
-    normalized === 'FIELD_EMPLOYEE' ||
+    normalized === 'EMPLOYEE' ||
     normalized === 'MANAGER' ||
+    normalized === 'HR' ||
     normalized === 'COMPANY_ADMIN' ||
-    normalized === 'SUPER_ADMIN'
+    normalized === 'SUPER_ADMIN' ||
+    normalized === 'MASTER_SUPER_ADMIN'
   ) {
-    return normalized;
+    return normalized as AppRole;
   }
   return null;
 }
@@ -84,6 +90,26 @@ function EmployeesStackScreen() {
         headerTitleStyle: { fontWeight: '600' },
       }}
     >
+      <EmployeesStack.Screen
+        name="UserManagement"
+        component={UserManagementScreen}
+        options={{ headerShown: false }}
+      />
+      <EmployeesStack.Screen
+        name="AddUser"
+        component={AddUserScreen}
+        options={{ headerShown: false }}
+      />
+      <EmployeesStack.Screen
+        name="EditUser"
+        component={EditUserScreen}
+        options={{ headerShown: false }}
+      />
+      <EmployeesStack.Screen
+        name="CompanyManagement"
+        component={CompanyManagementScreen}
+        options={{ headerShown: false }}
+      />
       <EmployeesStack.Screen
         name="EmployeeList"
         component={EmployeeListScreen}
@@ -397,11 +423,11 @@ export function RoleNavigator({ navigation }: any) {
   const role = normalizeRole(user?.role);
 
   let tabs: React.ReactNode;
-  if (role === 'FIELD_EMPLOYEE') {
+  if (role === 'EMPLOYEE') {
     tabs = <FieldEmployeeTabs />;
   } else if (role === 'MANAGER') {
     tabs = <ManagerTabs />;
-  } else if (role === 'COMPANY_ADMIN' || role === 'SUPER_ADMIN') {
+  } else if (role === 'HR' || role === 'COMPANY_ADMIN' || role === 'SUPER_ADMIN' || role === 'MASTER_SUPER_ADMIN') {
     tabs = <AdminTabs />;
   } else {
     tabs = <UnsupportedRoleScreen />;

@@ -1,7 +1,10 @@
 import { prisma } from '../../shared/config/prisma';
 import { User, Device, Session, Company } from '@prisma/client';
 
-export type UserWithCompany = User & { company?: Company | null };
+export type UserWithCompany = User & {
+  company?: Company | null;
+  manager?: { id: string; name: string; employeeId: string } | null;
+};
 
 export class AuthRepository {
   public async findCompanyByCode(code: string): Promise<Company | null> {
@@ -19,15 +22,13 @@ export class AuthRepository {
   public async findUserByEmail(email: string): Promise<UserWithCompany | null> {
     return prisma.user.findFirst({
       where: {
-        email: {
-          equals: email,
-          mode: 'insensitive'
-        },
-        deletedAt: null
+        email: { equals: email, mode: 'insensitive' },
+        deletedAt: null,
       },
       include: {
-        company: true
-      }
+        company: true,
+        manager: { select: { id: true, name: true, employeeId: true } },
+      },
     });
   }
 
@@ -35,22 +36,23 @@ export class AuthRepository {
     return prisma.user.findFirst({
       where: {
         companyId,
-        employeeId: {
-          equals: employeeId,
-          mode: 'insensitive'
-        },
-        deletedAt: null
+        employeeId: { equals: employeeId, mode: 'insensitive' },
+        deletedAt: null,
       },
       include: {
-        company: true
-      }
+        company: true,
+        manager: { select: { id: true, name: true, employeeId: true } },
+      },
     });
   }
 
   public async findUserById(id: string): Promise<UserWithCompany | null> {
     return prisma.user.findFirst({
       where: { id, deletedAt: null },
-      include: { company: true }
+      include: {
+        company: true,
+        manager: { select: { id: true, name: true, employeeId: true } },
+      },
     });
   }
 

@@ -35,6 +35,24 @@
 
 ---
 
+## User Management & Hierarchy
+
+| Method | Endpoint | Minimum Role | Description |
+|--------|----------|--------------|-------------|
+| GET | `/api/v1/user-management` | Manager | List users in company scope (Supports `page`, `pageSize`, `search`, `tab`, `status` params; Paginated response) |
+| GET | `/api/v1/user-management/managers` | CompanyAdmin | List active managers (for selection dropdowns) |
+| GET | `/api/v1/user-management/unassigned` | CompanyAdmin | List unassigned employees (`managerId = null`) |
+| GET | `/api/v1/user-management/:id` | Manager | Get user profile by ID |
+| POST | `/api/v1/user-management` | Manager | Create user (role-aware; Manager auto-assigns to self) |
+| PUT | `/api/v1/user-management/:id` | CompanyAdmin | Update user details & role |
+| POST | `/api/v1/user-management/:id/deactivate` | HR / Admin | Deactivate user account (`status = INACTIVE`) |
+| POST | `/api/v1/user-management/:id/activate` | HR / Admin | Reactivate user account (`status = ACTIVE`) |
+| POST | `/api/v1/user-management/:id/reset-credentials` | Manager / HR / Admin | Reset target user's password to `Password123!` & clear MPIN (`actorRank > targetRank`) |
+| POST | `/api/v1/user-management/:id/remove-manager` | HR / Admin | Atomic manager removal workflow with employee reassignment |
+| GET | `/api/v1/user-management/:id/timeline` | All (Scoped) | Get user's professional timeline & career audit events |
+
+---
+
 ## Employees
 
 | Method | Endpoint | Roles | Description |

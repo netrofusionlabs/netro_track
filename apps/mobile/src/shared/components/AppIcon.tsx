@@ -25,6 +25,7 @@ import {
   Filter,
   Camera,
   Plus,
+  UserPlus,
   LogOut,
   X,
   RotateCw,
@@ -91,6 +92,8 @@ export type AppIconName =
   | 'filter'
   | 'camera'
   | 'plus'
+  | 'add'
+  | 'addUser'
   | 'logout'
   | 'close'
   | 'refresh'
@@ -162,6 +165,8 @@ const ICON_MAP: Record<string, React.ComponentType<LucideProps>> = {
   filter: Filter,
   camera: Camera,
   plus: Plus,
+  add: Plus,
+  addUser: UserPlus,
   logout: LogOut,
   close: X,
   refresh: RotateCw,

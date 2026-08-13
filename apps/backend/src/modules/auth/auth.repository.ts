@@ -4,6 +4,7 @@ import { User, Device, Session, Company } from '@prisma/client';
 export type UserWithCompany = User & {
   company?: Company | null;
   manager?: { id: string; name: string; employeeId: string } | null;
+  designation?: { id: string; name: string } | null;
 };
 
 export class AuthRepository {
@@ -28,6 +29,7 @@ export class AuthRepository {
       include: {
         company: true,
         manager: { select: { id: true, name: true, employeeId: true } },
+        designation: { select: { id: true, name: true } },
       },
     });
   }
@@ -42,6 +44,7 @@ export class AuthRepository {
       include: {
         company: true,
         manager: { select: { id: true, name: true, employeeId: true } },
+        designation: { select: { id: true, name: true } },
       },
     });
   }
@@ -52,6 +55,7 @@ export class AuthRepository {
       include: {
         company: true,
         manager: { select: { id: true, name: true, employeeId: true } },
+        designation: { select: { id: true, name: true } },
       },
     });
   }

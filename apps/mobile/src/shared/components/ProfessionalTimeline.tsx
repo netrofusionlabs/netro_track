@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
 import { typography } from '../theme/typography';
-import { Badge } from './Badge';
 import { Card } from './Card';
 import { TimelineEventType, TIMELINE_EVENT_LABELS } from '@netrotrack/shared';
 
@@ -79,7 +78,7 @@ export function ProfessionalTimeline({ events, emptyMessage }: ProfessionalTimel
   }
 
   return (
-    <View style={styles.container}>
+    <Card variant="outlined" style={[styles.unifiedCard, { backgroundColor: theme.colors.surface.card }] as any}>
       {events.map((event, index) => {
         const isLast = index === events.length - 1;
         const icon = getEventIcon(event.eventType);
@@ -87,179 +86,155 @@ export function ProfessionalTimeline({ events, emptyMessage }: ProfessionalTimel
           TIMELINE_EVENT_LABELS[event.eventType as TimelineEventType] || event.title || 'Event';
         const isPromotion = event.eventType === TimelineEventType.PROMOTION;
 
+        const hasPrevious = Boolean(
+          event.previousValue &&
+          event.previousValue.trim() !== '' &&
+          event.previousValue !== 'None' &&
+          event.previousValue !== 'null'
+        );
+
         return (
-          <View key={event.id || index} style={styles.timelineRow}>
-            {/* Left Column: Icon & Vertical Line */}
-            <View style={styles.leftCol}>
+          <View key={event.id || index} style={styles.stepRow}>
+            {/* Left Node & Connector Line */}
+            <View style={styles.nodeColumn}>
               <View
                 style={[
-                  styles.iconCircle,
+                  styles.nodeBadge,
                   {
                     backgroundColor: isPromotion
                       ? theme.colors.brand.primary + '18'
-                      : theme.colors.surface.card,
+                      : theme.colors.surface.background,
                     borderColor: isPromotion
                       ? theme.colors.brand.primary
-                      : theme.colors.surface.divider,
+                      : theme.colors.surface.border,
                   },
                 ]}
               >
-                <Text style={{ fontSize: 14 }}>{icon}</Text>
+                <Text style={{ fontSize: 11 }}>{icon}</Text>
               </View>
               {!isLast && (
                 <View
                   style={[
-                    styles.verticalLine,
-                    { backgroundColor: theme.colors.surface.divider },
+                    styles.connectorLine,
+                    { backgroundColor: theme.colors.surface.border },
                   ]}
                 />
               )}
             </View>
 
-            {/* Right Column: Event Content Card */}
-            <View style={styles.rightCol}>
-              <View
-                style={[
-                  styles.eventCard,
-                  {
-                    backgroundColor: theme.colors.surface.card,
-                    borderColor: isPromotion
-                      ? theme.colors.brand.primary + '50'
-                      : theme.colors.surface.divider,
-                  },
-                ]}
-              >
-                <View style={styles.headerRow}>
-                  <Text style={[typography.headingSm, { color: theme.colors.text.primary, flex: 1 }]}>
-                    {eventLabel}
-                  </Text>
-                  <Text style={[typography.caption, { color: theme.colors.text.tertiary }]}>
+            {/* Right Content */}
+            <View style={[styles.contentColumn, !isLast && { paddingBottom: 14 }]}>
+              <View style={styles.topHeader}>
+                <Text style={[typography.bodyMd, { color: theme.colors.text.primary, fontWeight: '700', flex: 1 }]}>
+                  {eventLabel}
+                </Text>
+                <View style={[styles.dateBadge, { backgroundColor: theme.colors.surface.background }]}>
+                  <Text style={[typography.caption, { color: theme.colors.text.tertiary, fontSize: 11 }]}>
                     {formatDate(event.effectiveDate)}
                   </Text>
                 </View>
+              </View>
 
-                {/* Transition Value snippet */}
-                {(event.previousValue || event.newValue) && (
-                  <View style={styles.transitionContainer}>
-                    {event.previousValue && event.previousValue !== 'None' ? (
-                      <View style={styles.valPill}>
-                        <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>
-                          {event.previousValue}
-                        </Text>
-                      </View>
-                    ) : (
-                      <View style={styles.valPill}>
-                        <Text style={[typography.caption, { color: theme.colors.text.tertiary }]}>
-                          None
-                        </Text>
-                      </View>
-                    )}
-
-                    <Text style={[typography.bodySm, { color: theme.colors.brand.primary, marginHorizontal: 6, fontWeight: '700' }]}>
-                      →
-                    </Text>
-
-                    <View
+              {/* Value Snippet */}
+              {(event.previousValue || event.newValue) && (
+                <View style={styles.valueRow}>
+                  {hasPrevious && (
+                    <>
+                      <Text style={[typography.caption, { color: theme.colors.text.secondary, fontWeight: '500' }]}>
+                        {event.previousValue}
+                      </Text>
+                      <Text style={[typography.caption, { color: theme.colors.brand.primary, marginHorizontal: 5, fontWeight: '700' }]}>
+                        →
+                      </Text>
+                    </>
+                  )}
+                  {event.newValue ? (
+                    <Text
                       style={[
-                        styles.valPill,
+                        typography.caption,
                         {
+                          color: isPromotion
+                            ? theme.colors.brand.primary
+                            : theme.colors.text.primary,
+                          fontWeight: '700',
                           backgroundColor: isPromotion
                             ? theme.colors.brand.primary + '15'
                             : theme.colors.surface.background,
-                          borderColor: isPromotion
-                            ? theme.colors.brand.primary
-                            : theme.colors.surface.divider,
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 4,
+                          overflow: 'hidden',
                         },
                       ]}
                     >
-                      <Text
-                        style={[
-                          typography.caption,
-                          {
-                            color: isPromotion
-                              ? theme.colors.brand.primary
-                              : theme.colors.text.primary,
-                            fontWeight: '600',
-                          },
-                        ]}
-                      >
-                        {event.newValue || '—'}
-                      </Text>
-                    </View>
-                  </View>
-                )}
+                      {event.newValue}
+                    </Text>
+                  ) : null}
+                </View>
+              )}
 
-                {/* Editor snapshot */}
-                {!!event.changedByName && (
-                  <Text style={[typography.caption, { color: theme.colors.text.tertiary, marginTop: 6 }]}>
-                    Recorded by <Text style={{ color: theme.colors.text.secondary, fontWeight: '600' }}>{event.changedByName}</Text>
-                  </Text>
-                )}
-              </View>
+              {/* Editor Subtitle */}
+              {!!event.changedByName && (
+                <Text style={[typography.caption, { color: theme.colors.text.tertiary, fontSize: 11, marginTop: 3 }]}>
+                  Recorded by <Text style={{ color: theme.colors.text.secondary, fontWeight: '600' }}>{event.changedByName}</Text>
+                </Text>
+              )}
             </View>
           </View>
         );
       })}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingVertical: 4,
+  unifiedCard: {
+    padding: 14,
+    borderRadius: 12,
   },
   emptyCard: {
     padding: 16,
     alignItems: 'center',
   },
-  timelineRow: {
+  stepRow: {
     flexDirection: 'row',
-    marginBottom: 4,
   },
-  leftCol: {
-    width: 32,
+  nodeColumn: {
+    width: 26,
     alignItems: 'center',
   },
-  iconCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  nodeBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
   },
-  verticalLine: {
+  connectorLine: {
     width: 2,
     flex: 1,
     marginVertical: 2,
   },
-  rightCol: {
+  contentColumn: {
     flex: 1,
     marginLeft: 10,
-    paddingBottom: 12,
   },
-  eventCard: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  headerRow: {
+  topHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  transitionContainer: {
+  dateBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  valueRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
     flexWrap: 'wrap',
-  },
-  valPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
 });

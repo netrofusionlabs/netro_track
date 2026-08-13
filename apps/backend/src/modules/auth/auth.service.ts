@@ -105,6 +105,8 @@ export class AuthService {
         emergencyContactName: user.emergencyContactName ?? null,
         emergencyContactPhone: user.emergencyContactPhone ?? null,
         bloodGroup: user.bloodGroup ?? null,
+        designationName: (user as any).designation?.name ?? null,
+        designation: (user as any).designation ?? null,
       }
     };
   }

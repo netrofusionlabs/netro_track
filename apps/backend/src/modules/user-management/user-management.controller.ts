@@ -33,6 +33,51 @@ export class UserManagementController {
     }
   };
 
+  public getOrgChartRoots = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const forceRefresh = req.query.refresh === 'true';
+      const roots = await this.service.getOrgChartRoots(req.user!, forceRefresh);
+      res.status(200).json({
+        success: true,
+        message: 'Organization chart roots retrieved successfully',
+        data: roots,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public getOrgChartSubordinates = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const forceRefresh = req.query.refresh === 'true';
+      const subordinates = await this.service.getOrgChartSubordinates(req.user!, req.params.managerId, forceRefresh);
+      res.status(200).json({
+        success: true,
+        message: 'Manager subordinates retrieved successfully',
+        data: subordinates,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public searchOrgChart = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const query = (req.query.q as string) || '';
+      const results = await this.service.searchOrgChart(req.user!, query);
+      res.status(200).json({
+        success: true,
+        message: 'Org chart search results retrieved successfully',
+        data: results,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   public getUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = await this.service.getUserById(req.user!, req.params.id);

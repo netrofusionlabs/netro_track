@@ -164,6 +164,7 @@ export function AdminDashboard({ navigation }: { navigation: any }) {
           <View style={styles.actionsGrid}>
             {[
               { label: 'Workforce', icon: 'employees', screen: 'Employees' },
+              { label: 'Org Chart', icon: 'employees', screen: 'OrgChart' },
               { label: 'Clients', icon: 'customers', screen: 'Customers' },
               { label: 'Products', icon: 'products', screen: 'Products' },
               { label: 'Visits', icon: 'visits', screen: 'Visits' },
@@ -175,9 +176,9 @@ export function AdminDashboard({ navigation }: { navigation: any }) {
                 style={styles.actionChip}
               >
                 <View style={[styles.actionIconBox, { backgroundColor: theme.colors.brand.primaryLight }]}>
-                  <AppIcon name={act.icon} color={theme.colors.brand.primary} size={18} />
+                  <AppIcon name={act.icon} color={theme.colors.brand.primary} size={20} />
                 </View>
-                <Text style={[typography.buttonSm, { color: theme.colors.text.primary, marginTop: 6 }]} numberOfLines={1}>
+                <Text style={[typography.buttonSm, { color: theme.colors.text.primary, marginTop: 8, fontWeight: '600', textAlign: 'center' }]}>
                   {act.label}
                 </Text>
               </Card>
@@ -251,19 +252,21 @@ const styles = StyleSheet.create({
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 12,
   },
   actionChip: {
-    width: '48%',
+    width: '30%',
+    minWidth: 96,
     alignItems: 'center',
     paddingVertical: 14,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     marginBottom: 0,
   },
   actionIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },

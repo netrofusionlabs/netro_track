@@ -5,6 +5,7 @@ import { AuditService } from '../../shared/services/audit.service';
 import { AppError } from '../../shared/errors/AppError';
 import { Role, UserStatus, User, TimelineEventType } from '@prisma/client';
 import { prisma } from '../../shared/config/prisma';
+import { getCachedOrgChartData, cacheOrgChartData, invalidateOrgChartCache } from '../../shared/config/redis';
 import argon2 from 'argon2';
 import { CreateUserInput, UpdateUserInput, RemoveManagerInput, ROLE_DISPLAY_LABELS, UserRole } from '@netrotrack/shared';
 
@@ -45,6 +46,210 @@ export class UserManagementService {
     }
 
     return this.userRepo.findUsersByCompany(companyId, mergedFilters);
+  }
+
+  /**
+   * Get root leadership nodes for org chart (with 1-Hour Redis cache & DB fallback).
+   */
+  public async getOrgChartRoots(actor: JwtPayload, forceRefresh = false): Promise<any[]> {
+    let companyId = actor.companyId;
+    if ((this.authService.isMasterSuperAdmin(actor.role) || actor.role === Role.SUPER_ADMIN) && !companyId) {
+      const netroComp = await prisma.company.findFirst({ where: { code: 'NETRO' } });
+      companyId = netroComp?.id || '';
+    }
+
+    const cacheKey = `orgchart:roots:${companyId}`;
+    if (!forceRefresh) {
+      const cached = await getCachedOrgChartData<any[]>(cacheKey);
+      if (cached) {
+        console.log('⚡ [REDIS CACHE HIT] OrgChart roots retrieved from online Redis:', cacheKey);
+        return cached;
+      }
+    } else {
+      console.log('🔄 [HARD REFRESH] Flushing all tenant OrgChart keys from online Redis Cloud:', companyId);
+      await invalidateOrgChartCache(companyId);
+    }
+    console.log('🐢 [REDIS CACHE MISS / HARD REFRESH] OrgChart roots fetched from PostgreSQL Neon DB:', cacheKey);
+
+    const rootUsers = await prisma.user.findMany({
+      where: {
+        companyId,
+        deletedAt: null,
+        managerId: null,
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        managerId: true,
+        designation: { select: { name: true } },
+        department: { select: { name: true } },
+        _count: { select: { subordinates: { where: { deletedAt: null } } } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const result = rootUsers.map((u) => ({
+      id: u.id,
+      employeeId: u.employeeId,
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      role: u.role,
+      roleLabel: ROLE_DISPLAY_LABELS[u.role as unknown as UserRole] || u.role,
+      status: u.status,
+      designationName: u.designation?.name || null,
+      departmentName: u.department?.name || null,
+      managerId: u.managerId,
+      managerName: null,
+      subordinatesCount: u._count.subordinates,
+    }));
+
+    await cacheOrgChartData(cacheKey, result);
+    return result;
+  }
+
+  /**
+   * Get on-demand direct subordinates of a specific manager (with 1-Hour Redis cache & DB fallback).
+   */
+  public async getOrgChartSubordinates(actor: JwtPayload, managerId: string, forceRefresh = false): Promise<any[]> {
+    let companyId = actor.companyId;
+    if ((this.authService.isMasterSuperAdmin(actor.role) || actor.role === Role.SUPER_ADMIN) && !companyId) {
+      const netroComp = await prisma.company.findFirst({ where: { code: 'NETRO' } });
+      companyId = netroComp?.id || '';
+    }
+
+    const cacheKey = `orgchart:subordinates:${companyId}:${managerId}`;
+    if (!forceRefresh) {
+      const cached = await getCachedOrgChartData<any[]>(cacheKey);
+      if (cached) {
+        console.log('⚡ [REDIS CACHE HIT] OrgChart subordinates retrieved from online Redis:', cacheKey);
+        return cached;
+      }
+    } else {
+      console.log('🔄 [HARD REFRESH] Flushing Redis cache & fetching fresh from DB:', cacheKey);
+    }
+    console.log('🐢 [REDIS CACHE MISS] OrgChart subordinates fetched from PostgreSQL Neon DB:', cacheKey);
+
+    const manager = await prisma.user.findUnique({
+      where: { id: managerId },
+      select: { name: true },
+    });
+
+    const subs = await prisma.user.findMany({
+      where: {
+        companyId,
+        managerId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        managerId: true,
+        designation: { select: { name: true } },
+        department: { select: { name: true } },
+        _count: { select: { subordinates: { where: { deletedAt: null } } } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const result = subs.map((u) => ({
+      id: u.id,
+      employeeId: u.employeeId,
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      role: u.role,
+      roleLabel: ROLE_DISPLAY_LABELS[u.role as unknown as UserRole] || u.role,
+      status: u.status,
+      designationName: u.designation?.name || null,
+      departmentName: u.department?.name || null,
+      managerId: u.managerId,
+      managerName: manager?.name || null,
+      subordinatesCount: u._count.subordinates,
+    }));
+
+    await cacheOrgChartData(cacheKey, result);
+    return result;
+  }
+
+  /**
+   * Search org chart members across the entire tenant on the server side (with Redis caching).
+   */
+  public async searchOrgChart(actor: JwtPayload, query: string): Promise<any[]> {
+    let companyId = actor.companyId;
+    if ((this.authService.isMasterSuperAdmin(actor.role) || actor.role === Role.SUPER_ADMIN) && !companyId) {
+      const netroComp = await prisma.company.findFirst({ where: { code: 'NETRO' } });
+      companyId = netroComp?.id || '';
+    }
+
+    if (!query || !query.trim()) return [];
+    const q = query.trim().toLowerCase();
+
+    const cacheKey = `orgchart:search:${companyId}:${q}`;
+    const cached = await getCachedOrgChartData<any[]>(cacheKey);
+    if (cached) {
+      console.log('⚡ [REDIS CACHE HIT] OrgChart search results retrieved from online Redis:', cacheKey);
+      return cached;
+    }
+    console.log('🐢 [REDIS CACHE MISS] OrgChart search executed on PostgreSQL Neon DB:', cacheKey);
+
+    const matches = await prisma.user.findMany({
+      where: {
+        companyId,
+        deletedAt: null,
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { employeeId: { contains: q, mode: 'insensitive' } },
+          { email: { contains: q, mode: 'insensitive' } },
+          { designation: { name: { contains: q, mode: 'insensitive' } } },
+        ],
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        managerId: true,
+        manager: { select: { name: true } },
+        designation: { select: { name: true } },
+        department: { select: { name: true } },
+        _count: { select: { subordinates: { where: { deletedAt: null } } } },
+      },
+      take: 20,
+      orderBy: { name: 'asc' },
+    });
+
+    const result = matches.map((u) => ({
+      id: u.id,
+      employeeId: u.employeeId,
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      role: u.role,
+      roleLabel: ROLE_DISPLAY_LABELS[u.role as unknown as UserRole] || u.role,
+      status: u.status,
+      designationName: u.designation?.name || null,
+      departmentName: u.department?.name || null,
+      managerId: u.managerId,
+      managerName: u.manager?.name || null,
+      subordinatesCount: u._count.subordinates,
+    }));
+
+    await cacheOrgChartData(cacheKey, result);
+    return result;
   }
 
   /**
@@ -260,7 +465,7 @@ export class UserManagementService {
           companyId: resolvedCompanyId,
           eventType: TimelineEventType.DESIGNATION_ASSIGNED,
           title: 'Designation Assigned',
-          previousValue: 'None',
+          previousValue: null,
           newValue: desigName,
           changedByUserId: actor.id || null,
           changedByName: actorName,
@@ -275,7 +480,7 @@ export class UserManagementService {
         companyId: resolvedCompanyId,
         eventType: TimelineEventType.ACCESS_ROLE_ASSIGNED,
         title: 'Access Role Assigned',
-        previousValue: 'None',
+        previousValue: null,
         newValue: roleLabel,
         changedByUserId: actor.id || null,
         changedByName: actorName,
@@ -291,7 +496,7 @@ export class UserManagementService {
             companyId: resolvedCompanyId,
             eventType: TimelineEventType.MANAGER_ASSIGNED,
             title: 'Reporting Manager Assigned',
-            previousValue: 'None',
+            previousValue: null,
             newValue: mgr.name,
             changedByUserId: actor.id || null,
             changedByName: actorName,
@@ -457,7 +662,7 @@ export class UserManagementService {
           companyId: target.companyId,
           eventType: isPromotion ? TimelineEventType.PROMOTION : TimelineEventType.DESIGNATION_CHANGED,
           title: isPromotion ? 'Promotion' : 'Designation Changed',
-          previousValue: oldDesignationName || 'None',
+          previousValue: oldDesignationName || null,
           newValue: newDesignationName,
           changedByUserId: actor.id,
           changedByName: actorName,
@@ -491,8 +696,8 @@ export class UserManagementService {
           companyId: target.companyId,
           eventType: target.managerId ? TimelineEventType.MANAGER_CHANGED : TimelineEventType.MANAGER_ASSIGNED,
           title: target.managerId ? 'Reporting Manager Changed' : 'Reporting Manager Assigned',
-          previousValue: oldMgr?.name || 'None',
-          newValue: newMgr?.name || 'None',
+          previousValue: oldMgr?.name || null,
+          newValue: newMgr?.name || null,
           changedByUserId: actor.id,
           changedByName: actorName,
           effectiveDate,

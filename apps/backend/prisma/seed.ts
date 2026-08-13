@@ -92,7 +92,22 @@ export async function seedDatabase(config: SeedConfig = DEFAULT_SEED_CONFIG) {
       },
     });
     companyMap.set(comp.code, seededCompany.id);
-    console.log(`✓ Company seeded: ${seededCompany.name} [${seededCompany.code}]`);
+
+    // Seed default Headquarter Branch with GPS for geofence validation
+    const hqBranch = await prisma.branch.upsert({
+      where: { id: `00000000-0000-4000-8000-${comp.code === 'NETRO' ? '000000000001' : '000000000002'}` },
+      update: { name: `${comp.name} HQ`, latitude: 12.9716, longitude: 77.5946 },
+      create: {
+        id: `00000000-0000-4000-8000-${comp.code === 'NETRO' ? '000000000001' : '000000000002'}`,
+        companyId: seededCompany.id,
+        name: `${comp.name} HQ`,
+        address: 'MG Road, Bengaluru, Karnataka',
+        latitude: 12.9716,
+        longitude: 77.5946,
+      },
+    });
+
+    console.log(`✓ Company seeded: ${seededCompany.name} [${seededCompany.code}] (HQ Branch: ${hqBranch.name})`);
   }
 
   // 2. Seed Users & Idempotent Timeline Events
@@ -112,6 +127,8 @@ export async function seedDatabase(config: SeedConfig = DEFAULT_SEED_CONFIG) {
       });
     }
 
+    const hqBranchId = `00000000-0000-4000-8000-${usr.companyCode === 'NETRO' ? '000000000001' : '000000000002'}`;
+
     const seededUser = await prisma.user.upsert({
       where: { email: usr.email },
       update: {
@@ -120,6 +137,7 @@ export async function seedDatabase(config: SeedConfig = DEFAULT_SEED_CONFIG) {
         passwordHash,
         mpinHash,
         companyId,
+        branchId: hqBranchId,
         role: usr.role,
         designationId: existingDesig.id,
         status: UserStatus.ACTIVE,
@@ -134,6 +152,7 @@ export async function seedDatabase(config: SeedConfig = DEFAULT_SEED_CONFIG) {
         passwordHash,
         mpinHash,
         companyId,
+        branchId: hqBranchId,
         role: usr.role,
         designationId: existingDesig.id,
         status: UserStatus.ACTIVE,
@@ -168,7 +187,7 @@ export async function seedDatabase(config: SeedConfig = DEFAULT_SEED_CONFIG) {
             companyId,
             eventType: TimelineEventType.DESIGNATION_ASSIGNED,
             title: 'Designation Assigned',
-            previousValue: 'None',
+            previousValue: null,
             newValue: usr.designationName,
             changedByName: 'System Setup',
             effectiveDate,
@@ -178,7 +197,7 @@ export async function seedDatabase(config: SeedConfig = DEFAULT_SEED_CONFIG) {
             companyId,
             eventType: TimelineEventType.ACCESS_ROLE_ASSIGNED,
             title: 'Access Role Assigned',
-            previousValue: 'None',
+            previousValue: null,
             newValue: ROLE_DISPLAY_LABELS[usr.role as unknown as UserRole] || usr.role,
             changedByName: 'System Setup',
             effectiveDate,

@@ -130,11 +130,6 @@ export function EmployeeDetailScreen({ route, navigation }: Props) {
           </View>
         </Card>
 
-        {/* ── Professional Timeline Audit Log ── */}
-        <Section title={`Professional Timeline (${timelineEvents.length})`}>
-          <ProfessionalTimeline events={timelineEvents} />
-        </Section>
-
         {/* ── Contact & Communication Profile Section ── */}
         <Section title="Communication & Contact Details">
           <Card variant="outlined" style={{ padding: 14 }}>
@@ -356,6 +351,11 @@ export function EmployeeDetailScreen({ route, navigation }: Props) {
               </Card>
             ))
           )}
+        </Section>
+
+        {/* ── Professional Timeline Audit Log ── */}
+        <Section title={`Professional Timeline (${timelineEvents.length})`}>
+          <ProfessionalTimeline events={timelineEvents} />
         </Section>
 
       </ScrollView>

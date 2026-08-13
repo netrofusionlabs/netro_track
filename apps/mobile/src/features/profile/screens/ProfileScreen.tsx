@@ -14,37 +14,33 @@ import {
   StatusBadge,
   BrandLogo,
   ProfessionalTimeline,
+  AppIcon,
 } from '../../../shared/components';
 import { TermsModal } from '../../auth/components/TermsModal';
 import { PrivacyModal } from '../../auth/components/PrivacyModal';
 import { useProfile } from '../hooks/useProfile';
-import { useUsers, useUserTimeline } from '../../employees/hooks/useUserManagement';
+import { useUsers, useUserTimeline, useOrgChartRoots } from '../../employees/hooks/useUserManagement';
 import { ROLE_DISPLAY_LABELS, UserRole } from '@netrotrack/shared';
 
-export function ProfileScreen() {
+export function ProfileScreen({ navigation }: any) {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
   const clearCredentials = useAuthStore((s) => s.clearCredentials);
   const consentState = useConsentStore();
   const { data: profile } = useProfile();
   const { data: timelineEvents = [] } = useUserTimeline(user?.id || '');
+  const { data: orgChartData = [] } = useOrgChartRoots();
 
   const [termsVisible, setTermsVisible] = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
 
-  const canManageOrg =
-    user?.role === 'COMPANY_ADMIN' ||
-    user?.role === 'SUPER_ADMIN' ||
-    user?.role === 'MASTER_SUPER_ADMIN';
-
-  // Fetch users created in company for Company Admin / Admins
-  const { data: usersData } = useUsers({ page: 1, pageSize: 50 });
-  const createdUsers = (usersData?.items || []).filter((u) => u.id !== user?.id);
+  // Filter org chart for other members in company
+  const companyOrgMembers = orgChartData.filter((u: any) => u.id !== user?.id);
 
   // Use live profile data when available
   const managerName = profile?.managerName ?? user?.managerName;
   const managerId = profile?.managerId ?? user?.managerId;
-  const userDesignation = (user as any)?.designation?.name || (profile as any)?.designation?.name || (user as any)?.designationName || 'Team Member';
+  const userDesignation = (user as any)?.designation?.name || (user as any)?.designationName || (profile as any)?.designation?.name || (profile as any)?.designationName || 'Team Member';
 
   const formatRole = (role?: string) => {
     if (!role) return 'Employee';
@@ -142,60 +138,33 @@ export function ProfileScreen() {
           </Card>
         </Section>
 
+        {/* Organization Hierarchy Link */}
+        <Section title="Company Organization">
+          <Card
+            onPress={() => (navigation as any).navigate('OrgChart')}
+            style={{ padding: 14 }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.colors.brand.primaryLight, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <AppIcon name="employees" color={theme.colors.brand.primary} size={22} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+                  Interactive Organization Chart
+                </Text>
+                <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+                  View reporting hierarchy tree, team structure & direct reports
+                </Text>
+              </View>
+              <AppIcon name="chevronRight" color={theme.colors.text.tertiary} size={18} />
+            </View>
+          </Card>
+        </Section>
+
         {/* Professional Timeline */}
         <Section title={`Professional Timeline (${timelineEvents.length})`}>
           <ProfessionalTimeline events={timelineEvents} />
         </Section>
-
-        {/* Created Users & Contact Directory (For Company Admin / Admins) */}
-        {canManageOrg && (
-          <Section title={`Created Users & Contact Directory (${createdUsers.length})`}>
-            {createdUsers.length === 0 ? (
-              <Card>
-                <Text style={[typography.bodySm, { color: theme.colors.text.secondary, textAlign: 'center' }]}>
-                  No users created under this company yet.
-                </Text>
-              </Card>
-            ) : (
-              createdUsers.map((u) => (
-                <Card key={u.id} style={{ marginBottom: 10, padding: 12 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
-                      <Avatar name={u.name} size="sm" />
-                      <View style={{ marginLeft: 10, flex: 1 }}>
-                        <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
-                          {u.name}
-                        </Text>
-                        <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>
-                          {u.employeeId} {u.email ? `· ${u.email}` : ''}
-                        </Text>
-                      </View>
-                    </View>
-                    <Badge label={ROLE_DISPLAY_LABELS[u.role as UserRole] || u.role} variant="info" size="sm" />
-                  </View>
-
-                  <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.colors.surface.divider }}>
-                    {!!u.phone && (
-                      <Text style={[typography.caption, { color: theme.colors.text.primary, marginBottom: 2 }]}>
-                        📱 Phone: <Text style={{ fontWeight: '600' }}>{u.phone}</Text>
-                      </Text>
-                    )}
-                    {!!u.emergencyContactPhone && (
-                      <Text style={[typography.caption, { color: theme.colors.semantic.error, fontWeight: '600', marginBottom: 2 }]}>
-                        🆘 Emergency: {u.emergencyContactName ? `${u.emergencyContactName} (` : ''}{u.emergencyContactPhone}{u.emergencyContactName ? ')' : ''}
-                      </Text>
-                    )}
-                    {u.manager?.name && (
-                      <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>
-                        Reporting to: <Text style={{ color: theme.colors.brand.primary, fontWeight: '600' }}>{u.manager.name}</Text>
-                      </Text>
-                    )}
-                  </View>
-                </Card>
-              ))
-            )}
-          </Section>
-        )}
 
         {/* Legal Section */}
         <Section title="Legal & Privacy">

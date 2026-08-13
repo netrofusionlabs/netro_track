@@ -145,9 +145,10 @@ export function ManagerDashboard({ navigation }: { navigation: any }) {
 
         {/* Quick Management Actions */}
         <Section title="Team Actions">
-          <View style={styles.actionsRow}>
+          <View style={styles.actionsGrid}>
             {[
               { label: 'Agents', icon: 'employees', screen: 'Employees' },
+              { label: 'Org Chart', icon: 'employees', screen: 'OrgChart' },
               { label: 'Visits', icon: 'visits', screen: 'Visits' },
               { label: 'Sales', icon: 'sales', screen: 'Sales' },
               { label: 'Inspections', icon: 'inspect', screen: 'Inspections' },
@@ -158,9 +159,9 @@ export function ManagerDashboard({ navigation }: { navigation: any }) {
                 style={styles.actionChip}
               >
                 <View style={[styles.actionIconBox, { backgroundColor: theme.colors.brand.primaryLight }]}>
-                  <AppIcon name={act.icon} color={theme.colors.brand.primary} size={18} />
+                  <AppIcon name={act.icon} color={theme.colors.brand.primary} size={20} />
                 </View>
-                <Text style={[typography.buttonSm, { color: theme.colors.text.primary, marginTop: 6 }]} numberOfLines={1}>
+                <Text style={[typography.buttonSm, { color: theme.colors.text.primary, marginTop: 8, fontWeight: '600', textAlign: 'center' }]}>
                   {act.label}
                 </Text>
               </Card>
@@ -191,14 +192,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   mapIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   mapTextGroup: {
     flex: 1,
+  },
+  grid: {
+    flexDirection: 'row',
+    gap: 8,
   },
   statsRow: {
     flexDirection: 'row',
@@ -212,21 +217,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
-  actionsRow: {
+  actionsGrid: {
     flexDirection: 'row',
-    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 12,
   },
   actionChip: {
-    flex: 1,
+    width: '30%',
+    minWidth: 96,
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 6,
     marginBottom: 0,
   },
   actionIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },

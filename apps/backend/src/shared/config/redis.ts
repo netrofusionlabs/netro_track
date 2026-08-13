@@ -115,3 +115,44 @@ export async function getCachedGpsPoint(userId: string): Promise<CachedGpsPoint 
     return null;
   }
 }
+
+// ─── OrgChart 1-Hour Redis Cache Helpers ─────────────────────────────────────
+
+const ORG_CHART_CACHE_TTL_SECONDS = 3600; // 1 Hour
+
+export async function cacheOrgChartData(key: string, data: any): Promise<void> {
+  try {
+    const redis = getRedis();
+    if (redis) {
+      await redis.set(key, JSON.stringify(data), { EX: ORG_CHART_CACHE_TTL_SECONDS });
+    }
+  } catch (err) {
+    logger.warn({ err, key }, 'Failed to write OrgChart Redis cache');
+  }
+}
+
+export async function getCachedOrgChartData<T = any>(key: string): Promise<T | null> {
+  try {
+    const redis = getRedis();
+    if (!redis) return null;
+    const raw = await redis.get(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+export async function invalidateOrgChartCache(companyId: string): Promise<void> {
+  try {
+    const redis = getRedis();
+    if (!redis) return;
+    const keys = await redis.keys(`orgchart:*:${companyId}*`);
+    if (keys.length > 0) {
+      await redis.del(keys);
+      logger.info({ companyId, count: keys.length }, 'Flushed all OrgChart Redis keys for tenant');
+    }
+  } catch (err) {
+    logger.warn({ err, companyId }, 'Failed to invalidate OrgChart cache');
+  }
+}

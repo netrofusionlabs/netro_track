@@ -127,13 +127,22 @@ export function LoginScreen({ navigation }: { navigation: any }) {
             />
           </Card>
 
-          {/* Quick Demo Test Accounts (Tap to Autofill) */}
+          {/* Quick Demo Test Accounts (Scrollable Container) */}
           <View style={styles.demoSection}>
             <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 8, textAlign: 'center', fontWeight: '600' }]}>
               Quick Demo Accounts (Tap to Autofill)
             </Text>
-            <View style={styles.demoChipsRow}>
+            <ScrollView
+              style={styles.demoScrollContainer}
+              nestedScrollEnabled={true}
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={styles.demoChipsRow}
+            >
               {[
+                { label: 'Sai Teja (Software Engineer - Infobell)', loginId: 'saiteja@infobellit.com', password: 'Password123!' },
+                { label: 'Gopinath (Employee - Infobell)', loginId: 'gopi@infobellit.com', password: 'Password123!' },
+                { label: 'Ranga (Manager - Infobell)', loginId: 'ranga.bhashaym.g@infobellit.com', password: 'Password123!' },
+                { label: 'Balaji (HR Executive Lead - Infobell)', loginId: 'balaji@infobellit.com', password: 'Password123!' },
                 { label: 'Company Admin (Infobell)', loginId: 'IB-CA01', password: 'Password123!' },
                 { label: 'Super Admin (NetroTrack)', loginId: 'NETRO-EMP001', password: 'Password123!' },
                 { label: 'Master Super Admin', loginId: 'NETRO-MASTER', password: 'Password123!' },
@@ -159,7 +168,7 @@ export function LoginScreen({ navigation }: { navigation: any }) {
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
           </View>
 
           {/* Footer */}
@@ -195,9 +204,13 @@ const styles = StyleSheet.create({
   demoSection: {
     marginTop: 20,
   },
+  demoScrollContainer: {
+    maxHeight: 220,
+  },
   demoChipsRow: {
     alignItems: 'center',
     gap: 8,
+    paddingBottom: 4,
   },
   demoChip: {
     width: '100%',

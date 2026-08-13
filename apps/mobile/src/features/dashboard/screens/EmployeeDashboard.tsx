@@ -60,11 +60,11 @@ export function EmployeeDashboard({ navigation }: { navigation: any }) {
               Good Morning, {user?.name?.split(' ')[0] ?? 'Agent'}
             </Text>
             <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 1 }]}>
-              {formatDate(new Date())} · {user?.designation?.name || 'Employee'}
+              {formatDate(new Date())} · {(user as any)?.designation?.name || (user as any)?.designationName || (user as any)?.designation || 'Employee'}
             </Text>
           </View>
           <Badge
-            label={user?.designation?.name || 'Employee'}
+            label={(user as any)?.designation?.name || (user as any)?.designationName || (user as any)?.designation || 'Employee'}
             variant="info"
             size="sm"
           />
@@ -158,11 +158,12 @@ export function EmployeeDashboard({ navigation }: { navigation: any }) {
 
         {/* 4. Quick Actions */}
         <Section title="Quick Actions">
-          <View style={styles.actionsRow}>
+          <View style={styles.actionsGrid}>
             {[
               { label: 'Log Visit', icon: 'visits', screen: 'Visits' },
               { label: 'Record Sale', icon: 'sales', screen: 'Sales' },
               { label: 'Inspection', icon: 'inspect', screen: 'Inspections' },
+              { label: 'Org Chart', icon: 'employees', screen: 'OrgChart' },
               { label: 'History', icon: 'history', screen: 'AttendanceHistory' },
             ].map((act) => (
               <Card
@@ -171,9 +172,9 @@ export function EmployeeDashboard({ navigation }: { navigation: any }) {
                 style={styles.actionChip}
               >
                 <View style={[styles.actionIconBox, { backgroundColor: theme.colors.brand.primaryLight }]}>
-                  <AppIcon name={act.icon} color={theme.colors.brand.primary} size={18} />
+                  <AppIcon name={act.icon} color={theme.colors.brand.primary} size={20} />
                 </View>
-                <Text style={[typography.buttonSm, { color: theme.colors.text.primary, marginTop: 6 }]} numberOfLines={1}>
+                <Text style={[typography.buttonSm, { color: theme.colors.text.primary, marginTop: 8, fontWeight: '600', textAlign: 'center' }]}>
                   {act.label}
                 </Text>
               </Card>
@@ -277,21 +278,24 @@ const styles = StyleSheet.create({
   gpsTextGroup: {
     flex: 1,
   },
-  actionsRow: {
+  actionsGrid: {
     flexDirection: 'row',
-    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 12,
   },
   actionChip: {
-    flex: 1,
+    width: '30%',
+    minWidth: 96,
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 6,
     marginBottom: 0,
   },
   actionIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },

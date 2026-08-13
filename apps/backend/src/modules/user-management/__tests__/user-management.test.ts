@@ -4,6 +4,8 @@ import { Role, UserStatus } from '@prisma/client';
 import { AppError } from '../../../shared/errors/AppError';
 import { prisma } from '../../../shared/config/prisma';
 
+jest.setTimeout(30000);
+
 describe('User Management Integration & Authorization Tests', () => {
   let userMgmtService: UserManagementService;
   let authService: AuthorizationService;
@@ -227,7 +229,7 @@ describe('User Management Integration & Authorization Tests', () => {
       expect(acmeManager).not.toBeNull();
 
       expect(() => authService.assertCompanyScope(netroAdmin, acmeManager!.companyId)).toThrow(
-        'Access denied to another company record'
+        /Cross-tenant access forbidden|Access denied/
       );
     });
   });

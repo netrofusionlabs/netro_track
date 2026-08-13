@@ -203,6 +203,7 @@ export function UserManagementScreen({ navigation }: { navigation: any }) {
         title="User Management"
         subtitle="Manage company directory, credentials & role hierarchy"
         actionLabel={permissions.canCreateUsers ? "Add User" : undefined}
+        actionIcon={permissions.canCreateUsers ? "addUser" : undefined}
         onAction={permissions.canCreateUsers ? () => navigation.navigate('AddUser') : undefined}
       />
 
@@ -314,8 +315,8 @@ export function UserManagementScreen({ navigation }: { navigation: any }) {
                   variant="outlined"
                   style={[
                     styles.userCard,
-                    isInactive && { opacity: 0.65, backgroundColor: theme.colors.surface.background },
-                  ]}
+                    isInactive ? { opacity: 0.65, backgroundColor: theme.colors.surface.background } : {},
+                  ] as any}
                 >
                   <TouchableOpacity
                     style={styles.userCardInner}

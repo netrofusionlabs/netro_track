@@ -34,7 +34,7 @@ export function AddCompanyModal({ visible, onClose, onSuccess }: Props) {
         name: name.trim(),
         code: code.trim().toUpperCase(),
         isGpsEnabled,
-      });
+      } as any);
       setName('');
       setCode('');
       setIsGpsEnabled(true);

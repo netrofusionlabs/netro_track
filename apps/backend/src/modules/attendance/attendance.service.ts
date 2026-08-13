@@ -10,6 +10,8 @@ import { Attendance } from '@prisma/client';
 import { prisma } from '../../shared/config/prisma';
 import { broadcastEmployeeStatus } from '../../shared/config/socket';
 
+import { calculateHaversineDistance } from '../../shared/utils/distance';
+
 export class AttendanceService {
   private attendanceRepository = new AttendanceRepository();
 
@@ -24,17 +26,33 @@ export class AttendanceService {
   ): Promise<Attendance> {
     const user = await prisma.user.findFirst({
       where: { id: userId },
-      select: { role: true, managerId: true },
+      select: { role: true, managerId: true, branchId: true, branch: true },
     });
 
-    if (user?.role === 'MASTER_SUPER_ADMIN') {
-      throw new AppError('ATTENDANCE_NOT_APPLICABLE', 'Attendance marking is not required for Master Super Admin accounts', 400);
+    if (user?.role === 'MASTER_SUPER_ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'COMPANY_ADMIN') {
+      throw new AppError('ATTENDANCE_NOT_APPLICABLE', 'Attendance tracking is not applicable for Company Admin and Super Admin accounts. Punch in/out is required for HR and below.', 400);
     }
 
     // 1. Guard: no active (un-closed) punch
     const active = await this.attendanceRepository.findActivePunch(companyId, userId);
     if (active) {
       throw new AppError('ALREADY_PUNCHED_IN', 'You are already punched in', 400);
+    }
+
+    // 2. Compute branch geofence distance if user has an assigned branch with GPS
+    let geofenceDistance: number | null = null;
+    let isGeofenceValid: boolean | null = null;
+    if (user?.branch?.latitude != null && user?.branch?.longitude != null) {
+      const branchLat = Number(user.branch.latitude);
+      const branchLng = Number(user.branch.longitude);
+      geofenceDistance = calculateHaversineDistance(
+        data.latitude,
+        data.longitude,
+        branchLat,
+        branchLng
+      );
+      // Valid if within 200 meters of assigned branch location
+      isGeofenceValid = geofenceDistance <= 200;
     }
 
     const record = await this.attendanceRepository.createPunchIn({
@@ -48,7 +66,11 @@ export class AttendanceService {
     // Broadcast WORKING status to manager's team room
     broadcastEmployeeStatus(user?.managerId, companyId, userId, 'WORKING');
 
-    return record;
+    // Attach computed geofence info to response object
+    return {
+      ...record,
+      ...(geofenceDistance !== null ? { geofenceDistance, isGeofenceValid } : {}),
+    } as Attendance;
   }
 
   public async punchOut(

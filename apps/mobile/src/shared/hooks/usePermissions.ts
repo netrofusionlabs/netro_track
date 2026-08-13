@@ -32,7 +32,7 @@ export function usePermissions() {
     if (isMasterSuperAdmin) return true;
 
     if (userRole === UserRole.SUPER_ADMIN) {
-      return targetEnum !== UserRole.SUPER_ADMIN && targetEnum !== UserRole.MASTER_SUPER_ADMIN;
+      return targetEnum !== UserRole.SUPER_ADMIN && (targetEnum as string) !== (UserRole.MASTER_SUPER_ADMIN as string);
     }
 
     if (userRole === UserRole.COMPANY_ADMIN) {

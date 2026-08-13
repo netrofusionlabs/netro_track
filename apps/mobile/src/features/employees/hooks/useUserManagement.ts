@@ -17,6 +17,29 @@ export function useUserDetail(id: string) {
   });
 }
 
+export function useOrgChartRoots() {
+  return useQuery({
+    queryKey: ['org-chart-roots'],
+    queryFn: () => userManagementService.getOrgChartRoots(),
+  });
+}
+
+export function useOrgChartSubordinates(managerId: string) {
+  return useQuery({
+    queryKey: ['org-chart-subordinates', managerId],
+    queryFn: () => userManagementService.getOrgChartSubordinates(managerId),
+    enabled: !!managerId,
+  });
+}
+
+export function useOrgChartSearch(query: string) {
+  return useQuery({
+    queryKey: ['org-chart-search', query],
+    queryFn: () => userManagementService.searchOrgChart(query),
+    enabled: query.trim().length >= 2,
+  });
+}
+
 export function useCompanyManagers() {
   return useQuery({
     queryKey: ['company-managers'],

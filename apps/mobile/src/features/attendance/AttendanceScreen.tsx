@@ -269,16 +269,16 @@ export function AttendanceScreen() {
             </View>
           </View>
 
-          {/* Punch Button or Master Super Admin Notice */}
-          {role === 'MASTER_SUPER_ADMIN' ? (
+          {/* Punch Button or Executive Admin Notice */}
+          {(role === 'MASTER_SUPER_ADMIN' || role === 'SUPER_ADMIN' || role === 'COMPANY_ADMIN') ? (
             <View style={[styles.masterNoticeBox, { backgroundColor: theme.colors.brand.primaryLight, borderColor: theme.colors.brand.primary }]}>
               <AppIcon name="shield" color={theme.colors.brand.primary} size={20} />
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={[typography.bodySm, { color: theme.colors.brand.primary, fontWeight: '700' }]}>
-                  Master Super Admin Account
+                  Executive Admin Account
                 </Text>
                 <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
-                  Shift attendance marking is not required for Master Super Admin.
+                  Shift attendance punch in/out is not required for Admin roles. Attendance punch is mandatory for HR, Managers, and Employees.
                 </Text>
               </View>
             </View>

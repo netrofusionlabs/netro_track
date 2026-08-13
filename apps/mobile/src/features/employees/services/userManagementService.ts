@@ -44,6 +44,21 @@ export const userManagementService = {
     return res.data.data;
   },
 
+  getOrgChartRoots: async (refresh = false): Promise<any[]> => {
+    const res = await api.get(`/user-management/org-chart/roots${refresh ? '?refresh=true' : ''}`);
+    return res.data.data;
+  },
+
+  getOrgChartSubordinates: async (managerId: string, refresh = false): Promise<any[]> => {
+    const res = await api.get(`/user-management/org-chart/subordinates/${managerId}${refresh ? '?refresh=true' : ''}`);
+    return res.data.data;
+  },
+
+  searchOrgChart: async (query: string): Promise<any[]> => {
+    const res = await api.get(`/user-management/org-chart/search?q=${encodeURIComponent(query)}`);
+    return res.data.data;
+  },
+
   createUser: async (payload: any): Promise<EmployeeRecord> => {
     const res = await api.post('/user-management', payload);
     return res.data.data;

@@ -29,6 +29,7 @@ import { EmployeeDetailScreen } from '../features/employees/EmployeeDetailScreen
 import { TeamMapScreen } from '../features/tracking/TeamMapScreen';
 import { RoutePlaybackScreen } from '../features/tracking/RoutePlaybackScreen';
 import { ProfileScreen } from '../features/profile/screens/ProfileScreen';
+import { OrgChartScreen } from '../features/employees/screens/OrgChartScreen';
 
 // ── Dashboards ────────────────────────────────────────────────────────────────
 import { EmployeeDashboard } from '../features/dashboard/screens/EmployeeDashboard';
@@ -129,6 +130,11 @@ function EmployeesStackScreen() {
         name="RoutePlayback"
         component={RoutePlaybackScreen}
         options={{ title: 'Route Playback', headerShown: false }}
+      />
+      <EmployeesStack.Screen
+        name="OrgChart"
+        component={OrgChartScreen}
+        options={{ headerShown: false }}
       />
     </EmployeesStack.Navigator>
   );
@@ -316,6 +322,11 @@ function FieldEmployeeTabs() {
         component={RoutePlaybackScreen}
         options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Route' }}
       />
+      <Tab.Screen
+        name="OrgChart"
+        component={OrgChartScreen}
+        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Org Chart' }}
+      />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
@@ -348,6 +359,11 @@ function ManagerTabs() {
         name="Inspections"
         component={InspectionsScreen}
         options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Inspections' }}
+      />
+      <Tab.Screen
+        name="OrgChart"
+        component={OrgChartScreen}
+        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Org Chart' }}
       />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
@@ -382,6 +398,11 @@ function AdminTabs() {
         name="RoutePlayback"
         component={RoutePlaybackScreen}
         options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Route' }}
+      />
+      <Tab.Screen
+        name="OrgChart"
+        component={OrgChartScreen}
+        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Org Chart' }}
       />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>

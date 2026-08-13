@@ -26,6 +26,7 @@ export function ScreenHeader({
   const theme = useTheme();
 
   const isSection = variant === 'section';
+  const effectiveIcon = actionIcon || (actionLabel ? 'plus' : undefined);
 
   return (
     <View style={[styles.container, isSection ? styles.sectionContainer : styles.pageContainer, style]}>
@@ -55,9 +56,9 @@ export function ScreenHeader({
           style={isSection ? styles.textActionBtn : [styles.actionBtn, { backgroundColor: theme.colors.brand.primary }]}
           activeOpacity={0.7}
         >
-          {actionIcon && (
+          {effectiveIcon && (
             <AppIcon
-              name={actionIcon}
+              name={effectiveIcon}
               color={isSection ? theme.colors.brand.primary : '#FFFFFF'}
               size={isSection ? 12 : 14}
             />
@@ -84,10 +85,12 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   pageContainer: {
-    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    marginBottom: 12,
   },
   sectionContainer: {
     marginTop: 12,
@@ -100,10 +103,11 @@ const styles = StyleSheet.create({
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    borderRadius: 20,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     gap: 6,
+    flexShrink: 0,
   },
   textActionBtn: {
     flexDirection: 'row',
@@ -111,5 +115,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 6,
     gap: 4,
+    flexShrink: 0,
   },
 });

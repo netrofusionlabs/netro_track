@@ -18,6 +18,15 @@ router.use(authenticateToken);
 // List users (accessible to Manager, HR, Company Admin, Super Admin, Master Super Admin)
 router.get('/', requireRoles(Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.getUsers);
 
+// Get tenant organization chart roots (1-Hour Redis cached)
+router.get('/org-chart/roots', requireRoles(Role.EMPLOYEE, Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.getOrgChartRoots);
+
+// Get on-demand direct subordinates of a manager (1-Hour Redis cached)
+router.get('/org-chart/subordinates/:managerId', requireRoles(Role.EMPLOYEE, Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.getOrgChartSubordinates);
+
+// Server-side tenant org chart search (1-Hour Redis cached)
+router.get('/org-chart/search', requireRoles(Role.EMPLOYEE, Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.searchOrgChart);
+
 // Get list of active managers (for selection dropdowns)
 router.get('/managers', requireRoles(Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.getCompanyManagers);
 

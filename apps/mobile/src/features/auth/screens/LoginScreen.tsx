@@ -139,10 +139,6 @@ export function LoginScreen({ navigation }: { navigation: any }) {
               contentContainerStyle={styles.demoChipsRow}
             >
               {[
-                { label: 'Sai Teja (Software Engineer - Infobell)', loginId: 'saiteja@infobellit.com', password: 'Password123!' },
-                { label: 'Gopinath (Employee - Infobell)', loginId: 'gopi@infobellit.com', password: 'Password123!' },
-                { label: 'Ranga (Manager - Infobell)', loginId: 'ranga.bhashaym.g@infobellit.com', password: 'Password123!' },
-                { label: 'Balaji (HR Executive Lead - Infobell)', loginId: 'balaji@infobellit.com', password: 'Password123!' },
                 { label: 'Company Admin (Infobell)', loginId: 'IB-CA01', password: 'Password123!' },
                 { label: 'Super Admin (NetroTrack)', loginId: 'NETRO-EMP001', password: 'Password123!' },
                 { label: 'Master Super Admin', loginId: 'NETRO-MASTER', password: 'Password123!' },

@@ -83,6 +83,8 @@ export class AuthService {
     expiresAt.setDate(expiresAt.getDate() + 7);
     await this.authRepository.createSession(user.id, refreshToken, expiresAt);
 
+    const storageService = (await import('../../shared/services/storage.service')).StorageService.getInstance();
+    
     return {
       accessToken,
       refreshToken,
@@ -90,6 +92,7 @@ export class AuthService {
         id: user.id,
         companyId: user.companyId,
         companyName: user.company?.name || 'NetroFusion Technologies',
+        companyLogoUrl: (user.company as any)?.logoFile?.objectKey ? storageService.getPublicUrl((user.company as any).logoFile.objectKey) : null,
         employeeId: user.employeeId,
         name: user.name,
         role: normalizedRole,
@@ -107,6 +110,7 @@ export class AuthService {
         bloodGroup: user.bloodGroup ?? null,
         designationName: (user as any).designation?.name ?? null,
         designation: (user as any).designation ?? null,
+        profilePictureUrl: (user as any).profilePicture?.objectKey ? storageService.getPublicUrl((user as any).profilePicture.objectKey) : null,
       }
     };
   }
@@ -140,10 +144,12 @@ export class AuthService {
       throw new AppError('USER_NOT_FOUND', 'User not found', 404);
     }
     const normalizedRole = user.role;
+    const storageService = (await import('../../shared/services/storage.service')).StorageService.getInstance();
     return {
       id: user.id,
       companyId: user.companyId,
       companyName: user.company?.name ?? null,
+      companyLogoUrl: (user.company as any)?.logoFile?.objectKey ? storageService.getPublicUrl((user.company as any).logoFile.objectKey) : null,
       employeeId: user.employeeId,
       name: user.name,
       email: user.email ?? null,
@@ -158,6 +164,7 @@ export class AuthService {
       isGpsTracked: user.isGpsTracked,
       hasMpin: !!user.mpinHash,
       bloodGroup: user.bloodGroup ?? null,
+      profilePictureUrl: (user as any).profilePicture?.objectKey ? storageService.getPublicUrl((user as any).profilePicture.objectKey) : null,
     };
   }
 

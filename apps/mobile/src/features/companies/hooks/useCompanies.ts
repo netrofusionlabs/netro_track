@@ -30,7 +30,7 @@ export function useCreateCompany() {
 export function useUpdateCompany() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: { name?: string; code?: string } }) =>
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<import('../services/companyService').CompanyRecord> }) =>
       companyService.updateCompany(id, payload),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['companies'] });

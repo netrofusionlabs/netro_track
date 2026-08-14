@@ -11,10 +11,12 @@ import {
   Badge,
   AppIcon,
   Button,
+  Avatar,
 } from '../../../shared/components';
 import { useCompanies, useDeleteCompany } from '../hooks/useCompanies';
-import { AddCompanyModal } from '../components/AddCompanyModal';
 import { useRefreshOnFocus } from '../../../shared/utils/useRefreshOnFocus';
+import * as ImagePicker from 'react-native-image-picker';
+import { companyService } from '../services/companyService';
 
 export function CompanyManagementScreen({ navigation }: { navigation: any }) {
   const theme = useTheme();
@@ -22,9 +24,38 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
   const deleteCompanyMutation = useDeleteCompany();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [modalVisible, setModalVisible] = useState(false);
+  const [uploadingCompanyId, setUploadingCompanyId] = useState<string | null>(null);
 
   useRefreshOnFocus(refetch);
+
+  const handleUploadLogo = async (companyId: string) => {
+    try {
+      const result = await ImagePicker.launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+      });
+
+      if (result.didCancel || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      if (!asset.uri || !asset.type) return;
+
+      setUploadingCompanyId(companyId);
+
+      const { uploadUrl, fileId } = await companyService.getLogoUploadUrl(companyId, asset.type);
+      await companyService.uploadToR2(uploadUrl, asset.uri, asset.type);
+      await companyService.completeLogoUpload(companyId, fileId);
+
+      refetch();
+    } catch (error) {
+      console.error('Failed to upload company logo:', error);
+      Alert.alert('Upload Failed', 'There was an issue uploading the logo. Please try again.');
+    } finally {
+      setUploadingCompanyId(null);
+    }
+  };
 
   const filteredCompanies = companies.filter((c) => {
     if (!searchQuery.trim()) return true;
@@ -66,6 +97,7 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
         <ScreenHeader
           title="Company Management"
           subtitle={`${companies.length} active tenant companies registered in system`}
+          onBackPress={() => navigation.goBack()}
         />
 
         <View style={styles.searchRow}>
@@ -90,30 +122,51 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
             return (
               <Card key={c.id} variant="outlined" style={styles.companyCard}>
               <View style={styles.cardHeader}>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-                    <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
-                      {c.name}
-                    </Text>
-                    <Badge label={`[${c.code}]`} variant="info" size="sm" />
-                    <Badge
-                      label={c.isGpsEnabled !== false ? 'GPS Enabled' : 'Simple Punch Only'}
-                      variant={c.isGpsEnabled !== false ? 'success' : 'warning'}
+                <View style={{ flex: 1, flexDirection: 'row', gap: 12 }}>
+                  <View style={{ alignItems: 'center' }}>
+                    <Avatar name={c.name} source={c.companyLogoUrl} size="lg" />
+                    <Button
+                      label={uploadingCompanyId === c.id ? "..." : "Logo"}
+                      variant="ghost"
                       size="sm"
+                      onPress={() => handleUploadLogo(c.id)}
+                      disabled={uploadingCompanyId === c.id}
+                      style={{ marginTop: 4, paddingHorizontal: 4, height: 24 }}
                     />
                   </View>
-                  <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 4 }]}>
-                    Created: {new Date(c.createdAt).toLocaleDateString()}
-                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                      <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+                        {c.name}
+                      </Text>
+                      <Badge label={`[${c.code}]`} variant="info" size="sm" />
+                      <Badge
+                        label={c.isGpsEnabled !== false ? 'GPS Enabled' : 'Simple Punch Only'}
+                        variant={c.isGpsEnabled !== false ? 'success' : 'warning'}
+                        size="sm"
+                      />
+                    </View>
+                    <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 4 }]}>
+                      Created: {new Date(c.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
                 </View>
 
                 {!isMasterCompany && (
-                  <TouchableOpacity
-                    onPress={() => handleDelete(c.id, c.name)}
-                    style={{ padding: 6 }}
-                  >
-                    <AppIcon name="close" color={theme.colors.semantic.error} size={18} />
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('CompanyWizard', { companyId: c.id })}
+                      style={{ padding: 6, marginRight: 4 }}
+                    >
+                      <AppIcon name="edit" color={theme.colors.text.secondary} size={18} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDelete(c.id, c.name)}
+                      style={{ padding: 6 }}
+                    >
+                      <AppIcon name="close" color={theme.colors.semantic.error} size={18} />
+                    </TouchableOpacity>
+                  </View>
                 )}
               </View>
 
@@ -148,7 +201,7 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
       {/* FAB: Add Company */}
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: theme.colors.brand.primary }]}
-        onPress={() => setModalVisible(true)}
+        onPress={() => navigation.navigate('CompanyWizard')}
         activeOpacity={0.9}
       >
         <AppIcon name="add" color="#FFFFFF" size={24} />
@@ -156,12 +209,6 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
           Add Company
         </Text>
       </TouchableOpacity>
-
-      <AddCompanyModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        onSuccess={() => refetch()}
-      />
     </View>
   );
 }

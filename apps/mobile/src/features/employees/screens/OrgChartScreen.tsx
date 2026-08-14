@@ -288,7 +288,7 @@ export function OrgChartScreen() {
   };
 
   // Hard reload / force refresh from PostgreSQL Neon DB & update Redis Cloud
-  const handleHardReload = async () => {
+  const handleRefreshOrgData = async () => {
     setRefreshing(true);
     try {
       await userManagementService.getOrgChartRoots(true); // ?refresh=true
@@ -298,7 +298,7 @@ export function OrgChartScreen() {
       await queryClient.invalidateQueries({ queryKey: ['org-chart-search'] });
       await refetch();
     } catch (e) {
-      console.error('Hard reload failed:', e);
+      console.error('Refresh failed:', e);
     } finally {
       setRefreshing(false);
     }
@@ -339,9 +339,9 @@ export function OrgChartScreen() {
 
           {!isSearchActive && (
             <View style={styles.toggleButtonsRow}>
-              {/* Hard Reload Sync Button */}
+              {/* Refresh Sync Button */}
               <TouchableOpacity
-                onPress={handleHardReload}
+                onPress={handleRefreshOrgData}
                 disabled={refreshing}
                 style={[styles.toggleBtn, { backgroundColor: theme.colors.brand.primaryLight }]}
               >
@@ -349,7 +349,7 @@ export function OrgChartScreen() {
                   <ActivityIndicator size="small" color={theme.colors.brand.primary} />
                 ) : (
                   <Text style={[typography.caption, { color: theme.colors.brand.primary, fontWeight: '700' }]}>
-                    🔄 Hard Reload
+                    🔄 Refresh Organization Data
                   </Text>
                 )}
               </TouchableOpacity>
@@ -373,7 +373,7 @@ export function OrgChartScreen() {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={handleHardReload}
+              onRefresh={handleRefreshOrgData}
               colors={[theme.colors.brand.primary]}
               tintColor={theme.colors.brand.primary}
             />

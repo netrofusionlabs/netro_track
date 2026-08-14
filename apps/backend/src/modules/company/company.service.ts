@@ -1,6 +1,9 @@
 import { CompanyRepository } from './company.repository';
 import { AppError } from '../../shared/errors/AppError';
 import { Company } from '@prisma/client';
+import { CreateCompanyWizardInput, UpdateCompanyInput } from '@netrotrack/shared';
+import * as argon2 from 'argon2';
+import { prisma } from '../../shared/config/prisma';
 
 export class CompanyService {
   private companyRepository = new CompanyRepository();
@@ -25,17 +28,35 @@ export class CompanyService {
     return this.companyRepository.create(data);
   }
 
-  public async updateCompany(id: string, data: { name?: string; code?: string; isGpsEnabled?: boolean }): Promise<Company> {
+  public async createCompanyWizard(payload: CreateCompanyWizardInput): Promise<Company> {
+    const existing = await this.companyRepository.findByCode(payload.company.code);
+    if (existing) {
+      throw new AppError('COMPANY_CODE_ALREADY_EXISTS', 'Company code already registered', 409);
+    }
+
+    const existingAdmin = await prisma.user.findUnique({
+      where: { email: payload.admin.email }
+    });
+    
+    if (existingAdmin) {
+      throw new AppError('EMAIL_ALREADY_EXISTS', 'Admin email is already registered', 409);
+    }
+
+    const adminPasswordHash = await argon2.hash(payload.admin.password);
+    return this.companyRepository.createWizard(payload, adminPasswordHash);
+  }
+
+  public async updateCompany(id: string, payload: UpdateCompanyInput): Promise<Company> {
     await this.getCompanyById(id);
 
-    if (data.code) {
-      const existing = await this.companyRepository.findByCode(data.code);
+    if (payload.code) {
+      const existing = await this.companyRepository.findByCode(payload.code);
       if (existing && existing.id !== id) {
         throw new AppError('COMPANY_CODE_ALREADY_EXISTS', 'Company code already registered', 409);
       }
     }
 
-    return this.companyRepository.update(id, data);
+    return this.companyRepository.update(id, payload);
   }
 
   public async deleteCompany(id: string): Promise<Company> {

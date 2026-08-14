@@ -32,6 +32,7 @@ import { trackingRouter } from './modules/tracking/tracking.routes';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes';
 import { reportRouter } from './modules/report/report.routes';
 import { userManagementRouter } from './modules/user-management/user-management.routes';
+import { profileRouter } from './modules/profile/profile.routes';
 import path from 'path';
 
 // Static assets serving
@@ -39,6 +40,7 @@ app.use('/static/uploads', express.static(path.join(__dirname, '../public/upload
 
 // Register routes
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/users/me', profileRouter);
 app.use('/api/v1/user-management', userManagementRouter);
 app.use('/api/v1/companies', companyRouter);
 app.use('/api/v1/employees', employeeRouter);

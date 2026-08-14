@@ -10,6 +10,7 @@ interface ScreenHeaderProps {
   actionLabel?: string;
   actionIcon?: AppIconName | string;
   onAction?: () => void;
+  onBackPress?: () => void;
   variant?: 'page' | 'section';
   style?: ViewStyle;
 }
@@ -20,6 +21,7 @@ export function ScreenHeader({
   actionLabel,
   actionIcon,
   onAction,
+  onBackPress,
   variant = 'page',
   style,
 }: ScreenHeaderProps) {
@@ -30,6 +32,14 @@ export function ScreenHeader({
 
   return (
     <View style={[styles.container, isSection ? styles.sectionContainer : styles.pageContainer, style]}>
+      {onBackPress && (
+        <TouchableOpacity 
+          onPress={onBackPress} 
+          style={{ marginRight: 12, justifyContent: 'center', height: isSection ? 20 : 28 }}
+        >
+          <AppIcon name="chevronLeft" color={theme.colors.text.primary} size={24} />
+        </TouchableOpacity>
+      )}
       <View style={styles.textBlock}>
         <Text
           style={[

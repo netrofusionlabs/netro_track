@@ -24,6 +24,8 @@ import { UserManagementScreen } from '../features/employees/screens/UserManageme
 import { AddUserScreen } from '../features/employees/screens/AddUserScreen';
 import { EditUserScreen } from '../features/employees/screens/EditUserScreen';
 import { CompanyManagementScreen } from '../features/companies/screens/CompanyManagementScreen';
+import { CompanySetupDashboardScreen } from '../features/companies/screens/CompanySetupDashboardScreen';
+import { CompanyWizardScreen } from '../features/companies/screens/CompanyWizardScreen';
 import { EmployeeListScreen } from '../features/employees/EmployeeListScreen';
 import { EmployeeDetailScreen } from '../features/employees/EmployeeDetailScreen';
 import { TeamMapScreen } from '../features/tracking/TeamMapScreen';
@@ -109,6 +111,16 @@ function EmployeesStackScreen() {
       <EmployeesStack.Screen
         name="CompanyManagement"
         component={CompanyManagementScreen}
+        options={{ headerShown: false }}
+      />
+      <EmployeesStack.Screen
+        name="CompanySetupDashboard"
+        component={CompanySetupDashboardScreen}
+        options={{ headerShown: false }}
+      />
+      <EmployeesStack.Screen
+        name="CompanyWizard"
+        component={CompanyWizardScreen}
         options={{ headerShown: false }}
       />
       <EmployeesStack.Screen
@@ -208,6 +220,15 @@ function CustomBottomTabBar({ state, descriptors, navigation, insets, theme }: a
 
           if (!isFocused && !event.defaultPrevented) {
             navigation.navigate(route.name);
+          } else if (isFocused && !event.defaultPrevented) {
+            // Pop to top of the stack if the tab is already focused
+            const state = navigation.getState();
+            const tabRoute = state.routes[index];
+            if (tabRoute.state && tabRoute.state.index > 0) {
+              navigation.navigate(route.name, {
+                screen: tabRoute.state.routes[0].name,
+              });
+            }
           }
         };
 

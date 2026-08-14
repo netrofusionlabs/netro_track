@@ -22,8 +22,13 @@ import { useProfile } from '../hooks/useProfile';
 import { useUsers, useUserTimeline, useOrgChartRoots } from '../../employees/hooks/useUserManagement';
 import { ROLE_DISPLAY_LABELS, UserRole } from '@netrotrack/shared';
 
+import * as ImagePicker from 'react-native-image-picker';
+import { profileService } from '../services/profile.service';
+import { useQueryClient } from '@tanstack/react-query';
+
 export function ProfileScreen({ navigation }: any) {
   const theme = useTheme();
+  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const clearCredentials = useAuthStore((s) => s.clearCredentials);
   const consentState = useConsentStore();
@@ -33,6 +38,7 @@ export function ProfileScreen({ navigation }: any) {
 
   const [termsVisible, setTermsVisible] = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Filter org chart for other members in company
   const companyOrgMembers = orgChartData.filter((u: any) => u.id !== user?.id);
@@ -41,10 +47,45 @@ export function ProfileScreen({ navigation }: any) {
   const managerName = profile?.managerName ?? user?.managerName;
   const managerId = profile?.managerId ?? user?.managerId;
   const userDesignation = (user as any)?.designation?.name || (user as any)?.designationName || (profile as any)?.designation?.name || (profile as any)?.designationName || 'Team Member';
+  const profilePictureUrl = (profile as any)?.profilePictureUrl ?? (user as any)?.profilePictureUrl;
 
   const formatRole = (role?: string) => {
     if (!role) return 'Employee';
     return ROLE_DISPLAY_LABELS[role as UserRole] || role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
+  const handleUploadProfilePicture = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+      });
+
+      if (result.didCancel || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      if (!asset.uri || !asset.type) return;
+
+      setIsUploading(true);
+
+      // 1. Get pre-signed upload URL
+      const { uploadUrl, fileId } = await profileService.getUploadUrl(asset.type);
+
+      // 2. Upload directly to R2
+      await profileService.uploadToR2(uploadUrl, asset.uri, asset.type);
+
+      // 3. Notify backend of completion
+      await profileService.completeUpload(fileId);
+
+      // Refresh profile data to get the new picture URL
+      await queryClient.invalidateQueries({ queryKey: ['profile', 'me'] });
+    } catch (error) {
+      console.error('Failed to upload profile picture:', error);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -58,7 +99,17 @@ export function ProfileScreen({ navigation }: any) {
 
         {/* User Card */}
         <Card variant="elevated" style={styles.userCard}>
-          <Avatar name={user?.name} size="lg" />
+          <View style={{ alignItems: 'center' }}>
+            <Avatar name={user?.name} source={profilePictureUrl} size="lg" />
+            <Button
+              label={isUploading ? "Uploading..." : "Change Picture"}
+              variant="ghost"
+              size="sm"
+              onPress={handleUploadProfilePicture}
+              disabled={isUploading}
+              style={{ marginTop: 8 }}
+            />
+          </View>
           <Text style={[typography.headingLg, { color: theme.colors.text.primary, marginTop: 12 }]}>
             {user?.name ?? 'User'}
           </Text>

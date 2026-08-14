@@ -27,9 +27,10 @@ export class AuthRepository {
         deletedAt: null,
       },
       include: {
-        company: true,
+        company: { include: { logoFile: { select: { objectKey: true } } } },
         manager: { select: { id: true, name: true, employeeId: true } },
         designation: { select: { id: true, name: true } },
+        profilePicture: { select: { objectKey: true } },
       },
     });
   }
@@ -42,9 +43,10 @@ export class AuthRepository {
         deletedAt: null,
       },
       include: {
-        company: true,
+        company: { include: { logoFile: { select: { objectKey: true } } } },
         manager: { select: { id: true, name: true, employeeId: true } },
         designation: { select: { id: true, name: true } },
+        profilePicture: { select: { objectKey: true } },
       },
     });
   }
@@ -53,9 +55,10 @@ export class AuthRepository {
     return prisma.user.findFirst({
       where: { id, deletedAt: null },
       include: {
-        company: true,
+        company: { include: { logoFile: { select: { objectKey: true } } } },
         manager: { select: { id: true, name: true, employeeId: true } },
         designation: { select: { id: true, name: true } },
+        profilePicture: { select: { objectKey: true } },
       },
     });
   }

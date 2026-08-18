@@ -5,19 +5,31 @@ import { CreateCompanyWizardInput, UpdateCompanyInput } from '@netrotrack/shared
 import * as argon2 from 'argon2';
 import { prisma } from '../../shared/config/prisma';
 
+import { StorageService } from '../../shared/services/storage.service';
+
 export class CompanyService {
   private companyRepository = new CompanyRepository();
 
-  public async getAllCompanies(): Promise<Company[]> {
-    return this.companyRepository.findMany();
+  public async getAllCompanies(): Promise<any[]> {
+    const companies = await this.companyRepository.findMany();
+    const storageService = StorageService.getInstance();
+
+    return companies.map((c) => ({
+      ...c,
+      companyLogoUrl: c.logoFile?.objectKey ? storageService.getPublicUrl(c.logoFile.objectKey) : null,
+    }));
   }
 
-  public async getCompanyById(id: string): Promise<Company> {
+  public async getCompanyById(id: string): Promise<any> {
     const company = await this.companyRepository.findById(id);
     if (!company) {
       throw new AppError('COMPANY_NOT_FOUND', 'Company not found', 404);
     }
-    return company;
+    const storageService = StorageService.getInstance();
+    return {
+      ...company,
+      companyLogoUrl: company.logoFile?.objectKey ? storageService.getPublicUrl(company.logoFile.objectKey) : null,
+    };
   }
 
   public async createCompany(data: { name: string; code: string; isGpsEnabled?: boolean }): Promise<Company> {

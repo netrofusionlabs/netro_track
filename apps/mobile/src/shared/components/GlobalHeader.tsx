@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-nativ
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
+import { typography } from '../theme/typography';
 import { AppIcon } from './AppIcon';
 import { BrandLogo } from './BrandLogo';
 import { Avatar } from './Avatar';
@@ -32,16 +33,20 @@ export function GlobalHeader({
   const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
 
-  // Auto-fetch company name from backend if missing in persisted user profile
+  // Auto-fetch company name & logo from backend
   useEffect(() => {
-    if (user?.companyId && !user?.companyName) {
+    if (user?.companyId) {
       api
         .get(`/companies/${user.companyId}`)
         .then((res) => {
-          const compName = res.data?.data?.name;
-          if (compName && user) {
+          const comp = res.data?.data;
+          if (comp && user && (user.companyName !== comp.name || user.companyLogoUrl !== comp.companyLogoUrl)) {
             useAuthStore.setState({
-              user: { ...user, companyName: compName },
+              user: {
+                ...user,
+                companyName: comp.name,
+                companyLogoUrl: comp.companyLogoUrl,
+              },
             });
           }
         })
@@ -49,7 +54,7 @@ export function GlobalHeader({
           // ignore
         });
     }
-  }, [user?.companyId, user?.companyName]);
+  }, [user?.companyId]);
 
   // Display logged user's company name or subBrand.
   const companyDisplayName = user?.companyName || subBrand;
@@ -97,8 +102,8 @@ export function GlobalHeader({
         {/* LEFT SIDE: NetroTrack Brand + Splitter + Client Company Name */}
         <View style={styles.leftSection}>
           <BrandLogo
-            variant="banner"
-            size={companyDisplayName ? 108 : 128}
+            variant={companyDisplayName ? 'mark' : 'banner'}
+            size={companyDisplayName ? 32 : 128}
             style={styles.brandLogo}
           />
 
@@ -108,11 +113,16 @@ export function GlobalHeader({
               {/* CRISP VISIBLE VERTICAL SPLITTER */}
               <View style={[styles.verticalSplitter, { backgroundColor: theme.colors.surface.divider }]} />
 
-              {/* Client Company Name */}
+              {/* Client Company Branding: Logo + Name */}
               <View style={styles.coBrandGroup}>
-                <Text style={styles.subBrandText} numberOfLines={2}>
-                  {companyDisplayName}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 }}>
+                  {!!user?.companyLogoUrl && (
+                    <Avatar source={user.companyLogoUrl} name={companyDisplayName} size="xs" />
+                  )}
+                  <Text style={styles.subBrandText} numberOfLines={1}>
+                    {companyDisplayName}
+                  </Text>
+                </View>
               </View>
             </>
           )}
@@ -198,12 +208,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 1,
   },
+  workspaceLabel: {
+    fontSize: 8.5,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    lineHeight: 10,
+  },
   subBrandText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: '#0284C7',
     letterSpacing: -0.2,
-    lineHeight: 14,
+    lineHeight: 15,
   },
   rightSection: {
     flexDirection: 'row',

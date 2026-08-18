@@ -46,17 +46,44 @@ export class TrackingService {
       throw new AppError('BATCH_TOO_LARGE', 'GPS batch cannot exceed 500 points per request', 400);
     }
 
-    // Resolve attendanceId from active punch (if not supplied by client)
+    // Collect candidate attendance IDs from client points to validate against DB
+    const candidateAttIds = Array.from(
+      new Set(points.map((p) => p.attendanceId).filter(Boolean) as string[])
+    );
+
+    let validAttIdMap = new Set<string>();
+    if (candidateAttIds.length > 0) {
+      const validAtts = await prisma.attendance.findMany({
+        where: {
+          id: { in: candidateAttIds },
+          companyId,
+          userId,
+        },
+        select: { id: true },
+      });
+      validAttIdMap = new Set(validAtts.map((a) => a.id));
+    }
+
+    // Resolve active punch for fallback
     const activePunch = await prisma.attendance.findFirst({
       where: { companyId, userId, punchOutTime: null },
       select: { id: true },
     });
 
-    const enrichedPoints: GpsBatchItem[] = points.map((p) => ({
-      ...p,
-      attendanceId: p.attendanceId ?? activePunch?.id ?? null,
-      recordedAt: p.recordedAt instanceof Date ? p.recordedAt : new Date(p.recordedAt),
-    }));
+    const enrichedPoints: GpsBatchItem[] = points.map((p) => {
+      let resolvedAttId: string | null = null;
+      if (p.attendanceId && validAttIdMap.has(p.attendanceId)) {
+        resolvedAttId = p.attendanceId;
+      } else if (activePunch?.id) {
+        resolvedAttId = activePunch.id;
+      }
+
+      return {
+        ...p,
+        attendanceId: resolvedAttId,
+        recordedAt: p.recordedAt instanceof Date ? p.recordedAt : new Date(p.recordedAt),
+      };
+    });
 
     const count = await this.trackingRepository.batchInsert(companyId, userId, enrichedPoints);
 

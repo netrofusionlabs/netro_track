@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
 import {
@@ -10,16 +10,17 @@ import {
   EmptyState,
   Badge,
   AppIcon,
-  Button,
   Avatar,
 } from '../../../shared/components';
 import { useCompanies, useDeleteCompany } from '../hooks/useCompanies';
 import { useRefreshOnFocus } from '../../../shared/utils/useRefreshOnFocus';
 import * as ImagePicker from 'react-native-image-picker';
 import { companyService } from '../services/companyService';
+import { usePermissions } from '../../../shared/hooks/usePermissions';
 
 export function CompanyManagementScreen({ navigation }: { navigation: any }) {
   const theme = useTheme();
+  const permissions = usePermissions();
   const { data: companies = [], isLoading, refetch } = useCompanies();
   const deleteCompanyMutation = useDeleteCompany();
 
@@ -28,11 +29,27 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
 
   useRefreshOnFocus(refetch);
 
+  if (!permissions.isSuperAdmin) {
+    return (
+      <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
+        <ScreenHeader title="Company Management" onBackPress={() => navigation.goBack()} />
+        <EmptyState
+          title="Access Restricted"
+          subtitle="Tenant company management is restricted to Platform Super Administrators."
+          icon="document"
+          actionLabel="Back to Workforce"
+          onAction={() => navigation.goBack()}
+        />
+      </View>
+    );
+  }
+
   const handleUploadLogo = async (companyId: string) => {
     try {
       const result = await ImagePicker.launchImageLibrary({
         mediaType: 'photo',
         quality: 0.8,
+        includeBase64: true,
       });
 
       if (result.didCancel || !result.assets || result.assets.length === 0) {
@@ -40,12 +57,15 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
       }
 
       const asset = result.assets[0];
-      if (!asset.uri || !asset.type) return;
+      if (!asset.base64 || !asset.type) {
+        Alert.alert('Upload Error', 'Could not read image data.');
+        return;
+      }
 
       setUploadingCompanyId(companyId);
 
       const { uploadUrl, fileId } = await companyService.getLogoUploadUrl(companyId, asset.type);
-      await companyService.uploadToR2(uploadUrl, asset.uri, asset.type);
+      await companyService.uploadToR2(uploadUrl, asset.base64, asset.type);
       await companyService.completeLogoUpload(companyId, fileId);
 
       refetch();
@@ -123,17 +143,29 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
               <Card key={c.id} variant="outlined" style={styles.companyCard}>
               <View style={styles.cardHeader}>
                 <View style={{ flex: 1, flexDirection: 'row', gap: 12 }}>
-                  <View style={{ alignItems: 'center' }}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => handleUploadLogo(c.id)}
+                    disabled={uploadingCompanyId === c.id}
+                    style={styles.avatarTouchable}
+                  >
                     <Avatar name={c.name} source={c.companyLogoUrl} size="lg" />
-                    <Button
-                      label={uploadingCompanyId === c.id ? "..." : "Logo"}
-                      variant="ghost"
-                      size="sm"
-                      onPress={() => handleUploadLogo(c.id)}
-                      disabled={uploadingCompanyId === c.id}
-                      style={{ marginTop: 4, paddingHorizontal: 4, height: 24 }}
-                    />
-                  </View>
+                    <View
+                      style={[
+                        styles.cameraBadge,
+                        {
+                          backgroundColor: theme.colors.brand.primary,
+                          borderColor: theme.colors.surface.card,
+                        },
+                      ]}
+                    >
+                      {uploadingCompanyId === c.id ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" style={{ transform: [{ scale: 0.55 }] }} />
+                      ) : (
+                        <AppIcon name="camera" size={10} color="#FFFFFF" />
+                      )}
+                    </View>
+                  </TouchableOpacity>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                       <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
@@ -241,6 +273,22 @@ const styles = StyleSheet.create({
   statBox: {
     flex: 1,
     alignItems: 'center',
+  },
+  avatarTouchable: {
+    position: 'relative',
+    alignSelf: 'center',
+  },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
   },
   fab: {
     position: 'absolute',

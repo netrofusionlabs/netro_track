@@ -31,11 +31,6 @@ export const DEFAULT_SEED_CONFIG: SeedConfig = {
       code: 'NETRO',
       isGpsEnabled: true,
     },
-    {
-      name: 'Infobell IT Solutions Pvt Ltd',
-      code: 'IB',
-      isGpsEnabled: true,
-    },
   ],
   users: [
     {
@@ -57,17 +52,6 @@ export const DEFAULT_SEED_CONFIG: SeedConfig = {
       phone: '+91 8317513201',
       emergencyContactName: 'Super Admin',
       emergencyContactPhone: '+91 8317513201',
-    },
-    {
-      employeeId: 'IB-CA01',
-      name: 'Company Admin',
-      email: 'admin@infobellit.com',
-      role: Role.COMPANY_ADMIN,
-      companyCode: 'IB',
-      designationName: 'HR & Administration Manager',
-      phone: '+91 9786534265',
-      emergencyContactName: 'Leela Krishna',
-      emergencyContactPhone: '+91 9786534265',
     },
   ],
 };
@@ -212,7 +196,6 @@ export async function seedDatabase(config: SeedConfig = DEFAULT_SEED_CONFIG) {
   console.log('\n🔑 Quick Demo Accounts (Password: Password123! | MPIN: 9999):');
   console.log('  1. NetroTrack Master Super Admin : NETRO-MASTER (mastersuperadmin@netrotrack.in)');
   console.log('  2. NetroTrack Super Admin        : NETRO-EMP001 (superadmin@netrotrack.in)');
-  console.log('  3. Infobell Company Admin        : IB-CA01      (admin@infobellit.com)');
 }
 
 async function main() {

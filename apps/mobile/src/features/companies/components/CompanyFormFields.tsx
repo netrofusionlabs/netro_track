@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, FlatList } from 'react-native';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
-import { Card, Input, Select, PhoneInput, AppIcon } from '../../../shared/components';
-import { Control, Controller, FieldErrors } from 'react-hook-form';
+import { Card, Input, Select, PhoneInput, AppIcon, AddressSearchModal, StructuredAddress } from '../../../shared/components';
+import { Control, Controller, FieldErrors, UseFormSetValue } from 'react-hook-form';
 
 export const COMPANY_TYPES = [
   { label: 'Private Limited Company', value: 'Private Limited Company' },
@@ -63,12 +63,14 @@ export const CURRENCIES = [
 interface Props {
   control: any;
   errors: any;
+  setValue?: any;
   step?: 1 | 2; // Pass 1 for Profile, 2 for Contact, undefined for all
   prefix?: string; // e.g., 'company.' if nested in a wizard
 }
 
-export function CompanyFormFields({ control, errors, step, prefix = '' }: Props) {
+export function CompanyFormFields({ control, errors, setValue, step, prefix = '' }: Props) {
   const theme = useTheme();
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
 
   const [pickerConfig, setPickerConfig] = useState<{
     visible: boolean;
@@ -130,7 +132,7 @@ export function CompanyFormFields({ control, errors, step, prefix = '' }: Props)
         render={({ field: { onChange, value } }) => (
           <Select 
             label="Company Type" 
-            value={COMPANY_TYPES.find(o => o.value === value)?.label} 
+            value={COMPANY_TYPES.find(o => o.value === value || o.label === value)?.label || value} 
             onPress={() => openPicker('Select Company Type', COMPANY_TYPES, value, onChange)} 
             placeholder="Select company type..."
             error={getError('companyType')}
@@ -144,7 +146,7 @@ export function CompanyFormFields({ control, errors, step, prefix = '' }: Props)
         render={({ field: { onChange, value } }) => (
           <Select 
             label="Industry" 
-            value={INDUSTRIES.find(o => o.value === value)?.label} 
+            value={INDUSTRIES.find(o => o.value === value || o.label === value)?.label || value} 
             onPress={() => openPicker('Select Industry', INDUSTRIES, value, onChange)} 
             placeholder="Select industry..."
             error={getError('industry')}
@@ -158,7 +160,7 @@ export function CompanyFormFields({ control, errors, step, prefix = '' }: Props)
         render={({ field: { onChange, value } }) => (
           <Select 
             label="Employee Size" 
-            value={EMP_COUNTS.find(o => o.value === value)?.label} 
+            value={EMP_COUNTS.find(o => o.value === value || o.label === value)?.label || value} 
             onPress={() => openPicker('Select Employee Size', EMP_COUNTS, value, onChange)} 
             placeholder="Select size..."
             error={getError('employeeCount')}
@@ -188,6 +190,35 @@ export function CompanyFormFields({ control, errors, step, prefix = '' }: Props)
         <Controller control={control} name={`${prefix}officialEmail`} render={({ field: { onChange, value } }) => (
           <Input label="Official Email" value={value} onChangeText={onChange} keyboardType="email-address" error={getError('officialEmail')} />
         )}/>
+
+        {/* Location Search / Autocomplete */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => setAddressModalVisible(true)}
+          style={[
+            styles.locationSearchBtn,
+            {
+              backgroundColor: theme.colors.brand.primaryLight,
+              borderColor: theme.colors.brand.primary,
+            },
+          ]}
+        >
+          <View style={styles.locationSearchLeft}>
+            <View style={[styles.locationIconBadge, { backgroundColor: theme.colors.brand.primary }]}>
+              <AppIcon name="mapPin" size={14} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.bodySm, { color: theme.colors.brand.primary, fontWeight: '700' }]}>
+                Search Location on Maps
+              </Text>
+              <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 1 }]}>
+                Autofill address, city, state & PIN code
+              </Text>
+            </View>
+          </View>
+          <AppIcon name="chevronRight" size={16} color={theme.colors.brand.primary} />
+        </TouchableOpacity>
+
         <Controller control={control} name={`${prefix}addressLine1`} render={({ field: { onChange, value } }) => (
           <Input label="Address Line 1" value={value} onChangeText={onChange} error={getError('addressLine1')} />
         )}/>
@@ -212,7 +243,7 @@ export function CompanyFormFields({ control, errors, step, prefix = '' }: Props)
             <Controller control={control} name={`${prefix}country`} render={({ field: { onChange, value } }) => (
               <Select 
                 label="Country" 
-                value={COUNTRIES.find(o => o.value === value)?.label} 
+                value={COUNTRIES.find(o => o.value === value || o.label === value)?.label || value} 
                 onPress={() => openPicker('Select Country', COUNTRIES, value, onChange)} 
                 error={getError('country')}
               />
@@ -226,7 +257,7 @@ export function CompanyFormFields({ control, errors, step, prefix = '' }: Props)
         <Controller control={control} name={`${prefix}timezone`} render={({ field: { onChange, value } }) => (
           <Select 
             label="Timezone" 
-            value={TIMEZONES.find(o => o.value === value)?.label} 
+            value={TIMEZONES.find(o => o.value === value || o.label === value)?.label || value} 
             onPress={() => openPicker('Select Timezone', TIMEZONES, value, onChange)} 
             error={getError('timezone')}
           />
@@ -234,7 +265,7 @@ export function CompanyFormFields({ control, errors, step, prefix = '' }: Props)
         <Controller control={control} name={`${prefix}currency`} render={({ field: { onChange, value } }) => (
           <Select 
             label="Base Currency" 
-            value={CURRENCIES.find(o => o.value === value)?.label} 
+            value={CURRENCIES.find(o => o.value === value || o.label === value)?.label || value} 
             onPress={() => openPicker('Select Currency', CURRENCIES, value, onChange)} 
             error={getError('currency')}
           />
@@ -249,10 +280,32 @@ export function CompanyFormFields({ control, errors, step, prefix = '' }: Props)
     </>
   );
 
+  const handleAddressSelect = (address: StructuredAddress) => {
+    if (setValue) {
+      if (address.addressLine1) setValue(`${prefix}addressLine1`, address.addressLine1, { shouldValidate: true, shouldDirty: true });
+      if (address.addressLine2) setValue(`${prefix}addressLine2`, address.addressLine2, { shouldValidate: true, shouldDirty: true });
+      if (address.city) setValue(`${prefix}city`, address.city, { shouldValidate: true, shouldDirty: true });
+      if (address.state) setValue(`${prefix}state`, address.state, { shouldValidate: true, shouldDirty: true });
+      if (address.zipCode) setValue(`${prefix}zipCode`, address.zipCode, { shouldValidate: true, shouldDirty: true });
+      if (address.country) {
+        const match = COUNTRIES.find((c) => c.value.toLowerCase() === address.country.toLowerCase());
+        if (match) {
+          setValue(`${prefix}country`, match.value, { shouldValidate: true, shouldDirty: true });
+        }
+      }
+    }
+  };
+
   return (
     <>
       {(!step || step === 1) && renderProfile()}
       {(!step || step === 2) && renderContact()}
+
+      <AddressSearchModal
+        visible={addressModalVisible}
+        onClose={() => setAddressModalVisible(false)}
+        onSelect={handleAddressSelect}
+      />
       
       <Modal visible={pickerConfig.visible} transparent animationType="fade" onRequestClose={() => setPickerConfig({ ...pickerConfig, visible: false })}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setPickerConfig({ ...pickerConfig, visible: false })}>
@@ -316,5 +369,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     marginBottom: 4,
-  }
+  },
+  locationSearchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    borderStyle: 'dashed',
+  },
+  locationSearchLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  locationIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

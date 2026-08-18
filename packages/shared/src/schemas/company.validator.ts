@@ -61,7 +61,8 @@ export const CompanyWizardSchema = z.object({
 export type CreateCompanyWizardInput = z.infer<typeof CompanyWizardSchema>;
 
 export const UpdateCompanySchema = CompanyProfileSchema.partial().extend({
-  isGpsEnabled: z.boolean().optional()
+  isGpsEnabled: z.boolean().optional(),
+  modules: z.record(z.boolean()).optional(),
 });
 
 export type UpdateCompanyInput = z.infer<typeof UpdateCompanySchema>;

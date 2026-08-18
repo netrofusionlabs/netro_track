@@ -14,8 +14,8 @@ router.get('/', authMiddleware, requireRoles(Role.SUPER_ADMIN), controller.getCo
 router.post('/', authMiddleware, requireRoles(Role.SUPER_ADMIN), validate(CompanyWizardSchema), controller.createCompany);
 router.delete('/:id', authMiddleware, requireRoles(Role.SUPER_ADMIN), controller.deleteCompany);
 
-// Both SUPER_ADMIN and COMPANY_ADMIN can read/update the company profile
-router.get('/:id', authMiddleware, requireRoles(Role.SUPER_ADMIN, Role.COMPANY_ADMIN), controller.getCompany);
+// Any authenticated user belonging to the company or SUPER_ADMIN can read company profile
+router.get('/:id', authMiddleware, controller.getCompany);
 router.put('/:id', authMiddleware, requireRoles(Role.SUPER_ADMIN, Role.COMPANY_ADMIN), controller.updateCompany);
 
 // Logo Upload Endpoints

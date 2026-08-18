@@ -25,6 +25,9 @@ export class CompanyController {
 
   public getCompany = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
+      if (req.user!.role !== 'SUPER_ADMIN' && req.user!.role !== 'MASTER_SUPER_ADMIN') {
+        this.authService.assertCompanyScope(req.user!, req.params.id);
+      }
       const company = await this.companyService.getCompanyById(req.params.id);
       res.status(200).json({
         success: true,

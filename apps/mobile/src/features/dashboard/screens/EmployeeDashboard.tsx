@@ -18,6 +18,8 @@ import { useAttendanceToday } from '../../attendance/hooks/useAttendance';
 import { useTodayVisits } from '../../visits/hooks/useVisits';
 import { useTodaySales } from '../../sales/hooks/useSales';
 import { useRefreshOnFocus } from '../../../shared/utils/useRefreshOnFocus';
+import { startTracking, stopTracking } from '../../../shared/services/trackingService';
+import { requestLocationPermission } from '../../../shared/utils/locationPermissions';
 
 function formatTime(iso: string | null | undefined): string {
   if (!iso) return '--:--';
@@ -45,6 +47,18 @@ export function EmployeeDashboard({ navigation }: { navigation: any }) {
 
   const isPunchedIn = !!todayRecord && !todayRecord.punchOutTime;
   const isPunchedOut = !!todayRecord && !!todayRecord.punchOutTime;
+
+  React.useEffect(() => {
+    if (isPunchedIn && todayRecord?.id) {
+      void requestLocationPermission().then((granted) => {
+        if (granted) {
+          void startTracking(todayRecord.id);
+        }
+      });
+    } else if (isPunchedOut) {
+      void stopTracking();
+    }
+  }, [isPunchedIn, isPunchedOut, todayRecord?.id]);
 
   const totalSalesAmount = todaySales.reduce(
     (sum, sale) => sum + Number(sale.totalAmount), 0

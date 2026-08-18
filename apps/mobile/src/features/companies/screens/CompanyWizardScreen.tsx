@@ -9,9 +9,11 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CompanyWizardSchema, CreateCompanyWizardInput } from '@netrotrack/shared';
 import { CompanyFormFields } from '../components/CompanyFormFields';
+import { usePermissions } from '../../../shared/hooks/usePermissions';
 
 export function CompanyWizardScreen() {
   const theme = useTheme();
+  const permissions = usePermissions();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const companyId = route.params?.companyId;
@@ -40,18 +42,51 @@ export function CompanyWizardScreen() {
   // Pre-fill form in edit mode
   useEffect(() => {
     if (isEditMode && company) {
+      const modulesObj = {
+        attendance: false,
+        leave: false,
+        shift: false,
+        gps: company.isGpsEnabled ?? true,
+        payroll: false,
+        expense: false,
+        asset: false,
+        performance: false,
+        recruitment: false,
+      };
+
+      if (Array.isArray(company.modules)) {
+        company.modules.forEach((m: any) => {
+          const key = m.module?.toLowerCase() as keyof typeof modulesObj;
+          if (key in modulesObj) {
+            modulesObj[key] = Boolean(m.isEnabled);
+          }
+        });
+      }
+
       reset({
         company: {
-          name: company.name || '', code: company.code || '', legalName: company.legalName || '', industry: company.industry || '', 
-          companyType: company.companyType || '', employeeCount: company.employeeCount || '', officialEmail: company.officialEmail || '', 
-          phone: company.phone || '', addressLine1: company.addressLine1 || '', addressLine2: company.addressLine2 || '', 
-          city: company.city || '', state: company.state || '', zipCode: company.zipCode || '', country: company.country || 'India', 
-          timezone: company.timezone || 'Asia/Kolkata', currency: company.currency || 'INR', taxId: company.taxId || '', 
+          name: company.name || '',
+          code: company.code || '',
+          legalName: company.legalName || '',
+          industry: company.industry || '',
+          companyType: company.companyType || '',
+          employeeCount: company.employeeCount || '',
+          officialEmail: company.officialEmail || '',
+          phone: company.phone || '',
+          addressLine1: company.addressLine1 || '',
+          addressLine2: company.addressLine2 || '',
+          city: company.city || '',
+          state: company.state || '',
+          zipCode: company.zipCode || '',
+          country: company.country || 'India',
+          timezone: company.timezone || 'Asia/Kolkata',
+          currency: company.currency || 'INR',
+          taxId: company.taxId || '',
           registrationNumber: company.registrationNumber || '',
         },
         // Admin fields are not required/edited in edit mode
         admin: { name: 'admin', email: 'admin@edit.com', mobile: '9999999999', password: 'Password@123', confirmPassword: 'Password@123' },
-        modules: { gps: company.isGpsEnabled || false, attendance: false, leave: false, shift: false, payroll: false, expense: false, asset: false, performance: false, recruitment: false }
+        modules: modulesObj,
       });
     }
   }, [company, isEditMode, reset]);
@@ -104,7 +139,11 @@ export function CompanyWizardScreen() {
       if (isEditMode) {
         await updateCompanyMutation.mutateAsync({
           id: companyId,
-          payload: { ...data.company, isGpsEnabled: data.modules?.gps }
+          payload: {
+            ...data.company,
+            isGpsEnabled: data.modules?.gps,
+            modules: data.modules,
+          }
         });
       } else {
         await createCompanyMutation.mutateAsync(data);
@@ -225,8 +264,8 @@ export function CompanyWizardScreen() {
         {renderStepper()}
 
         <ScrollView ref={scrollViewRef} style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {step === 1 && <CompanyFormFields control={control} errors={errors} step={1} prefix="company." />}
-          {step === 2 && <CompanyFormFields control={control} errors={errors} step={2} prefix="company." />}
+          {step === 1 && <CompanyFormFields control={control} errors={errors} setValue={setValue} step={1} prefix="company." />}
+          {step === 2 && <CompanyFormFields control={control} errors={errors} setValue={setValue} step={2} prefix="company." />}
 
           {step === 3 && !isEditMode && (() => {
             const getAdminError = (field: string) => (errors.admin as any)?.[field]?.message;
@@ -320,17 +359,23 @@ export function CompanyWizardScreen() {
                   : 'The multi-tenant workspace has been successfully provisioned. You can now configure organizational structures.'}
               </Text>
               <Button 
-                label={isEditMode ? "Back to Dashboard" : "Go to Company Setup"} 
+                label={isEditMode ? "Done" : "Go to Company Setup"} 
                 variant="primary" 
                 size="lg"
                 fullWidth
                 onPress={() => {
-                  navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'CompanyManagement' }],
-                  });
-                  if (!isEditMode) {
+                  if (permissions.isSuperAdmin && !isEditMode) {
+                    navigation.reset({
+                      index: 0,
+                      routes: [{ name: 'CompanyManagement' }],
+                    });
                     navigation.navigate('CompanySetupDashboard');
+                  } else {
+                    if (navigation.canGoBack()) {
+                      navigation.goBack();
+                    } else {
+                      navigation.navigate('UserManagement');
+                    }
                   }
                 }} 
               />

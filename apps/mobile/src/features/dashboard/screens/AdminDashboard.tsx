@@ -15,11 +15,13 @@ import {
 } from '../../../shared/components';
 import { useCustomers } from '../../customers/hooks/useCustomers';
 import { useEmployees } from '../../employees/hooks/useEmployees';
+import { useCompanyDetail } from '../../companies/hooks/useCompanies';
 import { useRefreshOnFocus } from '../../../shared/utils/useRefreshOnFocus';
 
 export function AdminDashboard({ navigation }: { navigation: any }) {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
+  const { data: company } = useCompanyDetail(user?.companyId);
   const { data: customers = [], refetch: r1 } = useCustomers();
   const { data: employees = [], refetch: r2 } = useEmployees();
 
@@ -73,7 +75,11 @@ export function AdminDashboard({ navigation }: { navigation: any }) {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Top Header */}
         <View style={styles.topHeader}>
-          <Avatar name={user?.name} size="md" />
+          <Avatar
+            name={user?.role === 'COMPANY_ADMIN' && company?.name ? company.name : user?.name}
+            source={user?.role === 'COMPANY_ADMIN' && company?.companyLogoUrl ? company.companyLogoUrl : undefined}
+            size="md"
+          />
           <View style={styles.titleGroup}>
             <View style={styles.titleHeaderRow}>
               <Text style={[typography.headingLg, { color: theme.colors.text.primary }]}>
@@ -82,7 +88,9 @@ export function AdminDashboard({ navigation }: { navigation: any }) {
               <Badge label={portalHeader.badge} variant={portalHeader.variant} size="sm" />
             </View>
             <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
-              {portalHeader.subtitle}
+              {user?.role === 'COMPANY_ADMIN' && company?.name
+                ? `${company.name} (${company.code})`
+                : portalHeader.subtitle}
             </Text>
           </View>
         </View>

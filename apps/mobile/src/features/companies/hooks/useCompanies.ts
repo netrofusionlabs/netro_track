@@ -8,11 +8,11 @@ export function useCompanies() {
   });
 }
 
-export function useCompanyDetail(id: string) {
+export function useCompanyDetail(id?: string) {
   return useQuery({
     queryKey: ['company-detail', id],
-    queryFn: () => companyService.getCompanyById(id),
-    enabled: !!id,
+    queryFn: () => companyService.getCompanyById(id!),
+    enabled: Boolean(id),
   });
 }
 

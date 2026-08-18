@@ -6,6 +6,7 @@ export interface UserProfile {
   id: string;
   companyId: string;
   companyName?: string;
+  companyLogoUrl?: string;
   employeeId: string;
   name: string;
   role: string;

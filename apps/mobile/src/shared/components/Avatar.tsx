@@ -5,7 +5,7 @@ import { useTheme } from '../theme/ThemeProvider';
 interface AvatarProps {
   name?: string;
   source?: string | null;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   backgroundColor?: string;
   style?: ViewStyle;
 }
@@ -26,17 +26,23 @@ export function Avatar({
   style,
 }: AvatarProps) {
   const theme = useTheme();
+  const [hasError, setHasError] = React.useState(false);
 
-  const dimensions = size === 'sm' ? 32 : size === 'lg' ? 48 : 40;
-  const fontSize = size === 'sm' ? 12 : size === 'lg' ? 18 : 14;
+  React.useEffect(() => {
+    setHasError(false);
+  }, [source]);
+
+  const dimensions = size === 'xs' ? 24 : size === 'sm' ? 32 : size === 'lg' ? 48 : 40;
+  const fontSize = size === 'xs' ? 9 : size === 'sm' ? 12 : size === 'lg' ? 18 : 14;
 
   const bgColor = backgroundColor ?? theme.colors.brand.primaryLight;
   const textColor = theme.colors.brand.primary;
 
-  if (source) {
+  if (source && !hasError) {
     return (
       <Image
         source={{ uri: source }}
+        onError={() => setHasError(true)}
         style={[
           styles.avatar,
           { width: dimensions, height: dimensions, borderRadius: dimensions / 2 },

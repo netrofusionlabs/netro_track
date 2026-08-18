@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
 import { useAuthStore } from '../../auth/stores/authStore';
@@ -20,6 +20,7 @@ import { TermsModal } from '../../auth/components/TermsModal';
 import { PrivacyModal } from '../../auth/components/PrivacyModal';
 import { useProfile } from '../hooks/useProfile';
 import { useUsers, useUserTimeline, useOrgChartRoots } from '../../employees/hooks/useUserManagement';
+import { useCompanyDetail } from '../../companies/hooks/useCompanies';
 import { ROLE_DISPLAY_LABELS, UserRole } from '@netrotrack/shared';
 
 import * as ImagePicker from 'react-native-image-picker';
@@ -35,6 +36,7 @@ export function ProfileScreen({ navigation }: any) {
   const { data: profile } = useProfile();
   const { data: timelineEvents = [] } = useUserTimeline(user?.id || '');
   const { data: orgChartData = [] } = useOrgChartRoots();
+  const { data: company } = useCompanyDetail(user?.companyId);
 
   const [termsVisible, setTermsVisible] = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
@@ -59,6 +61,7 @@ export function ProfileScreen({ navigation }: any) {
       const result = await ImagePicker.launchImageLibrary({
         mediaType: 'photo',
         quality: 0.8,
+        includeBase64: true,
       });
 
       if (result.didCancel || !result.assets || result.assets.length === 0) {
@@ -66,7 +69,10 @@ export function ProfileScreen({ navigation }: any) {
       }
 
       const asset = result.assets[0];
-      if (!asset.uri || !asset.type) return;
+      if (!asset.base64 || !asset.type) {
+        Alert.alert('Upload Error', 'Could not read image data.');
+        return;
+      }
 
       setIsUploading(true);
 
@@ -74,7 +80,7 @@ export function ProfileScreen({ navigation }: any) {
       const { uploadUrl, fileId } = await profileService.getUploadUrl(asset.type);
 
       // 2. Upload directly to R2
-      await profileService.uploadToR2(uploadUrl, asset.uri, asset.type);
+      await profileService.uploadToR2(uploadUrl, asset.base64, asset.type);
 
       // 3. Notify backend of completion
       await profileService.completeUpload(fileId);
@@ -190,7 +196,27 @@ export function ProfileScreen({ navigation }: any) {
         </Section>
 
         {/* Organization Hierarchy Link */}
-        <Section title="Company Organization">
+        <Section title="Company & Organization">
+          {user?.role === 'COMPANY_ADMIN' && company && (
+            <Card
+              onPress={() => (navigation as any).navigate('CompanyWizard', { companyId: user?.companyId })}
+              style={{ padding: 14, marginBottom: 10 }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Avatar name={company.name} source={company.companyLogoUrl} size="md" />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
+                    {company.name}
+                  </Text>
+                  <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+                    Code: {company.code} · Manage Company Profile & Logo
+                  </Text>
+                </View>
+                <AppIcon name="chevronRight" color={theme.colors.text.tertiary} size={18} />
+              </View>
+            </Card>
+          )}
+
           <Card
             onPress={() => (navigation as any).navigate('OrgChart')}
             style={{ padding: 14 }}

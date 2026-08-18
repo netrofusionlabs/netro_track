@@ -6,7 +6,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
 import {
@@ -33,12 +35,18 @@ import { EmployeeRecord } from '../types';
 import { UserDetailSheet } from '../components/UserDetailSheet';
 import { RemoveManagerModal } from '../components/RemoveManagerModal';
 import { ROLE_DISPLAY_LABELS, UserRole } from '@netrotrack/shared';
+import { useAuthStore } from '../../auth/stores/authStore';
+import { useCompanyDetail } from '../../companies/hooks/useCompanies';
+import { companyService } from '../../companies/services/companyService';
 
 type TabCategory = 'ALL' | 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'HR' | 'MANAGER' | 'EMPLOYEE' | 'UNASSIGNED';
 
 export function UserManagementScreen({ navigation }: { navigation: any }) {
   const theme = useTheme();
   const permissions = usePermissions();
+  const user = useAuthStore((state) => state.user);
+  const { data: company, refetch: refetchCompany } = useCompanyDetail(user?.companyId);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   // Managers only have the EMPLOYEE tab; default to it so the first query is correctly scoped
   const [activeTab, setActiveTab] = useState<TabCategory>(
@@ -219,6 +227,111 @@ export function UserManagementScreen({ navigation }: { navigation: any }) {
               Manage Tenant Companies & Register New Company
             </Text>
           </TouchableOpacity>
+        )}
+
+        {/* Company Profile & Logo Management (Company Admin only) */}
+        {permissions.isCompanyAdmin && company && (
+          <Card variant="outlined" style={styles.companyAdminCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              <TouchableOpacity
+                onPress={async () => {
+                  if (!user?.companyId) return;
+                  const result = await launchImageLibrary({
+                    mediaType: 'photo',
+                    quality: 0.8,
+                    includeBase64: true,
+                  });
+
+                  if (result.didCancel || !result.assets || result.assets.length === 0) return;
+                  const asset = result.assets[0];
+                  if (!asset.base64 || !asset.type) {
+                    Alert.alert('Error', 'Unable to read image data.');
+                    return;
+                  }
+
+                  setIsUploadingLogo(true);
+                  try {
+                    const { uploadUrl, fileId } = await companyService.getLogoUploadUrl(user.companyId, asset.type);
+                    await companyService.uploadToR2(uploadUrl, asset.base64, asset.type);
+                    await companyService.completeLogoUpload(user.companyId, fileId);
+                    await refetchCompany();
+                    Alert.alert('Success', 'Company logo updated successfully!');
+                  } catch (err: any) {
+                    Alert.alert('Upload Failed', err?.message || 'Failed to update company logo');
+                  } finally {
+                    setIsUploadingLogo(false);
+                  }
+                }}
+                disabled={isUploadingLogo}
+                activeOpacity={0.8}
+                style={{ position: 'relative' }}
+              >
+                <Avatar name={company.name} source={company.companyLogoUrl} size="lg" />
+                <View style={[styles.cameraBadge, { backgroundColor: theme.colors.brand.primary }]}>
+                  {isUploadingLogo ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <AppIcon name="camera" size={12} color="#FFFFFF" />
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.headingSm, { color: theme.colors.text.primary }]} numberOfLines={1}>
+                  {company.name}
+                </Text>
+                <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+                  Code: <Text style={{ fontWeight: '700', color: theme.colors.brand.primary }}>{company.code}</Text> · {company.city || 'India'}
+                </Text>
+                <TouchableOpacity
+                  onPress={async () => {
+                    if (!user?.companyId) return;
+                    const result = await launchImageLibrary({
+                      mediaType: 'photo',
+                      quality: 0.8,
+                      includeBase64: true,
+                    });
+
+                    if (result.didCancel || !result.assets || result.assets.length === 0) return;
+                    const asset = result.assets[0];
+                    if (!asset.base64 || !asset.type) {
+                      Alert.alert('Error', 'Unable to read image data.');
+                      return;
+                    }
+
+                    setIsUploadingLogo(true);
+                    try {
+                      const { uploadUrl, fileId } = await companyService.getLogoUploadUrl(user.companyId, asset.type);
+                      await companyService.uploadToR2(uploadUrl, asset.base64, asset.type);
+                      await companyService.completeLogoUpload(user.companyId, fileId);
+                      await refetchCompany();
+                      Alert.alert('Success', 'Company logo updated successfully!');
+                    } catch (err: any) {
+                      Alert.alert('Upload Failed', err?.message || 'Failed to update company logo');
+                    } finally {
+                      setIsUploadingLogo(false);
+                    }
+                  }}
+                  disabled={isUploadingLogo}
+                  style={{ marginTop: 6 }}
+                >
+                  <Text style={[typography.caption, { color: theme.colors.brand.primary, fontWeight: '700' }]}>
+                    {isUploadingLogo ? 'Uploading Logo...' : '📷 Change Company Logo'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.editCompanyBtn,
+                  { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.surface.border },
+                ]}
+                onPress={() => navigation.navigate('CompanyWizard', { companyId: user?.companyId })}
+              >
+                <AppIcon name="edit" size={16} color={theme.colors.brand.primary} />
+              </TouchableOpacity>
+            </View>
+          </Card>
         )}
 
         {/* Tab Filters */}
@@ -538,5 +651,29 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
+  },
+  companyAdminCard: {
+    marginBottom: 16,
+    padding: 14,
+    borderRadius: 14,
+  },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  editCompanyBtn: {
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

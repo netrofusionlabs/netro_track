@@ -1,0 +1,957 @@
+<div class="page">
+  <netro-page-header
+    title="Attendance"
+    [description]="today"
+  >
+    <div slot="actions" class="row row--nowrap">
+      <a class="btn btn--default btn--sm" routerLink="/approvals" *ngIf="canReview()">
+        <netro-icon name="approve" [size]="13" /> Approvals queue
+      </a>
+      <button type="button" class="btn btn--default btn--sm" (click)="refresh()" [disabled]="mineLoading()">
+        <netro-icon name="refresh" [size]="13" [spin]="mineLoading()" /> Refresh
+      </button>
+      <button
+        type="button"
+        class="btn btn--primary btn--sm"
+        *ngIf="punchesOwnShift()"
+        (click)="openRequest()"
+      >
+        <netro-icon name="edit" [size]="13" /> Request a correction
+      </button>
+    </div>
+
+    <netro-tabs
+      *ngIf="tabs().length > 1"
+      [tabs]="tabs()"
+      [value]="tab()"
+      label="Attendance views"
+      (valueChange)="setTab($event)"
+    />
+  </netro-page-header>
+
+  <!-- ======================================================================
+       MY ATTENDANCE
+       ====================================================================== -->
+  @if (tab() === 'me') {
+    <div class="workspace workspace--rail-first">
+      <!-- Punch console: the one action this page exists for. -->
+      <aside class="workspace__rail">
+        @if (punchesOwnShift()) {
+          <netro-panel [flush]="true" padding="none">
+            <div class="console" [class.console--live]="!!ownShift()">
+              <p class="eyebrow">Shift console</p>
+
+              @if (mineLoading()) {
+                <div class="sk-stack" style="width: 100%">
+                  <span class="sk sk--title" style="width: 60%"></span>
+                  <span class="sk sk--line"></span>
+                </div>
+              } @else if (ownShift()) {
+                <netro-status tone="ok" [live]="true">On duty</netro-status>
+                <p class="console__clock tnum" role="timer" aria-live="off">{{ elapsed() }}</p>
+                <p class="console__since">Since {{ time(ownShift()!.punchInTime) }}</p>
+              } @else {
+                <netro-status tone="neutral" [hollow]="true">Not punched in</netro-status>
+                <p class="console__clock console__clock--idle tnum">--:--:--</p>
+                <p class="console__since">Your shift has not started today.</p>
+              }
+
+              <!-- Evidence and Fields Requested by Policy -->
+              <div class="console__fields">
+                <!-- Selfie Capture Chip -->
+                <div *ngIf="activeConfig().selfie !== 'DISABLED'" class="evidence-action-row">
+                  <div *ngIf="capturedEvidence()['selfie']; else captureSelfieBtn" class="evidence-chip evidence-chip--attached">
+                    <netro-icon name="check" [size]="14" class="text-ok" />
+                    <span>Selfie attached</span>
+                    <button type="button" class="btn-chip-action" (click)="removeEvidence('selfie')" title="Remove">
+                      <netro-icon name="x" [size]="12" />
+                    </button>
+                  </div>
+                  <ng-template #captureSelfieBtn>
+                    <button
+                      type="button"
+                      class="btn btn--sm btn--subtle btn--block"
+                      (click)="openEvidenceCapture('selfie', 'CAMERA', 'Take Selfie', 'Front-camera photo of you punching in/out')"
+                    >
+                      <netro-icon name="camera" [size]="14" />
+                      Take Selfie {{ activeConfig().selfie === 'REQUIRED' ? '*' : '' }}
+                    </button>
+                  </ng-template>
+                </div>
+
+                <!-- Worksite Photo Chip -->
+                <div *ngIf="activeConfig().workSitePhoto !== 'DISABLED'" class="evidence-action-row">
+                  <div *ngIf="capturedEvidence()['workSitePhoto']; else captureSiteBtn" class="evidence-chip evidence-chip--attached">
+                    <netro-icon name="check" [size]="14" class="text-ok" />
+                    <span>Worksite photo attached</span>
+                    <button type="button" class="btn-chip-action" (click)="removeEvidence('workSitePhoto')" title="Remove">
+                      <netro-icon name="x" [size]="12" />
+                    </button>
+                  </div>
+                  <ng-template #captureSiteBtn>
+                    <button
+                      type="button"
+                      class="btn btn--sm btn--subtle btn--block"
+                      (click)="openEvidenceCapture('workSitePhoto', 'CAMERA', 'Work Site Photo', 'Take or upload photo of the work site')"
+                    >
+                      <netro-icon name="camera" [size]="14" />
+                      Work Site Photo {{ activeConfig().workSitePhoto === 'REQUIRED' ? '*' : '' }}
+                    </button>
+                  </ng-template>
+                </div>
+
+                <!-- Vehicle Photo Chip -->
+                <div *ngIf="activeConfig().vehiclePhoto !== 'DISABLED'" class="evidence-action-row">
+                  <div *ngIf="capturedEvidence()['vehiclePhoto']; else captureVehicleBtn" class="evidence-chip evidence-chip--attached">
+                    <netro-icon name="check" [size]="14" class="text-ok" />
+                    <span>Vehicle photo attached</span>
+                    <button type="button" class="btn-chip-action" (click)="removeEvidence('vehiclePhoto')" title="Remove">
+                      <netro-icon name="x" [size]="12" />
+                    </button>
+                  </div>
+                  <ng-template #captureVehicleBtn>
+                    <button
+                      type="button"
+                      class="btn btn--sm btn--subtle btn--block"
+                      (click)="openEvidenceCapture('vehiclePhoto', 'CAMERA', 'Vehicle Photo', 'Take or upload photo of the vehicle')"
+                    >
+                      <netro-icon name="camera" [size]="14" />
+                      Vehicle Photo {{ activeConfig().vehiclePhoto === 'REQUIRED' ? '*' : '' }}
+                    </button>
+                  </ng-template>
+                </div>
+
+                <!-- Digital Signature Chip -->
+                <div *ngIf="activeConfig().signature !== 'DISABLED'" class="evidence-action-row">
+                  <div *ngIf="capturedEvidence()['signature']; else captureSignBtn" class="evidence-chip evidence-chip--attached">
+                    <netro-icon name="check" [size]="14" class="text-ok" />
+                    <span>Signature attached</span>
+                    <button type="button" class="btn-chip-action" (click)="removeEvidence('signature')" title="Remove">
+                      <netro-icon name="x" [size]="12" />
+                    </button>
+                  </div>
+                  <ng-template #captureSignBtn>
+                    <button
+                      type="button"
+                      class="btn btn--sm btn--subtle btn--block"
+                      (click)="openEvidenceCapture('signature', 'SIGNATURE', 'Digital Signature', 'Draw your signature on the screen')"
+                    >
+                      <netro-icon name="document" [size]="14" />
+                      Draw Signature {{ activeConfig().signature === 'REQUIRED' ? '*' : '' }}
+                    </button>
+                  </ng-template>
+                </div>
+
+                <!-- Odometer Reading & Photo -->
+                <div *ngIf="asksForOdometer()" class="stack stack--xs">
+                  <label class="field">
+                    <span class="field__label">
+                      Odometer reading
+                      <span class="field__req" *ngIf="activeConfig().vehicleMeter === 'REQUIRED'">*</span>
+                    </span>
+                    <input
+                      class="input input--sm"
+                      type="number"
+                      inputmode="numeric"
+                      [ngModel]="odometer()"
+                      (ngModelChange)="odometer.set($event)"
+                      placeholder="km on the dial"
+                    />
+                  </label>
+                  <div *ngIf="capturedEvidence()['vehicleMeterPhoto']; else meterPhotoBtn" class="evidence-chip evidence-chip--attached">
+                    <netro-icon name="check" [size]="14" class="text-ok" />
+                    <span>Dial photo attached</span>
+                    <button type="button" class="btn-chip-action" (click)="removeEvidence('vehicleMeterPhoto')" title="Remove">
+                      <netro-icon name="x" [size]="12" />
+                    </button>
+                  </div>
+                  <ng-template #meterPhotoBtn>
+                    <button
+                      type="button"
+                      class="btn btn--xs btn--subtle"
+                      (click)="openEvidenceCapture('vehicleMeterPhoto', 'CAMERA', 'Odometer Photo', 'Photo of the vehicle meter dial')"
+                    >
+                      <netro-icon name="camera" [size]="12" /> Attach Dial Photo
+                    </button>
+                  </ng-template>
+                </div>
+
+                <label class="field" *ngFor="let field of customFields()">
+                  <span class="field__label">
+                    {{ field.label }}
+                    <span class="field__req" *ngIf="field.status === 'REQUIRED'">*</span>
+                  </span>
+                  <input
+                    class="input input--sm"
+                    [type]="field.type === 'NUMBER' ? 'number' : 'text'"
+                    [ngModel]="customValues()[field.key] || ''"
+                    (ngModelChange)="setCustom(field.key, $event)"
+                  />
+                </label>
+
+                <label class="field" *ngIf="asksForRemarks()">
+                  <span class="field__label">
+                    Remarks
+                    <span class="field__req" *ngIf="activeConfig().remarks === 'REQUIRED'">*</span>
+                  </span>
+                  <textarea
+                    class="textarea"
+                    rows="2"
+                    [ngModel]="remarks()"
+                    (ngModelChange)="remarks.set($event)"
+                    placeholder="Where you are, or notes on this punch."
+                  ></textarea>
+                </label>
+              </div>
+
+              @if (missingRequiredEvidence().length > 0) {
+                <netro-alert tone="warn" heading="Evidence Required">
+                  Please attach {{ missingRequiredEvidence()[0].label | lowercase }} before recording your punch.
+                </netro-alert>
+              }
+
+              <button
+                type="button"
+                class="btn btn--lg btn--block"
+                [class.btn--primary]="!ownShift()"
+                [class.btn--danger]="!!ownShift()"
+                [disabled]="punching() || mineLoading()"
+                (click)="punch()"
+              >
+                <netro-icon
+                  [name]="punching() ? 'spinner' : ownShift() ? 'stop' : 'play'"
+                  [size]="15"
+                  [spin]="punching()"
+                />
+                {{ punching() ? 'Recording…' : ownShift() ? 'Punch out' : 'Punch in' }}
+              </button>
+
+              @if (punchError()) {
+                <netro-alert tone="risk" [dismissible]="true" (dismissed)="punchError.set(null)">
+                  {{ punchError() }}
+                </netro-alert>
+              }
+            </div>
+
+            <div class="console__policy" *ngIf="policy() as p">
+              <div class="row row--between">
+                <span class="text-micro text-subtle">Attendance policy</span>
+                <a class="text-micro text-brand" routerLink="/policies" *ngIf="canSeeCompany()">Manage</a>
+              </div>
+              <p class="console__policy-name">{{ policyName() }}</p>
+              <p class="text-micro text-subtle">{{ policySource() }}</p>
+              <p class="text-micro text-subtle" *ngIf="shiftFollowsSnapshot()" style="margin-top: 6px">
+                This shift still follows the rules you punched in under. A policy change applies to the next punch-in.
+              </p>
+
+              <ul class="reqs" *ngIf="punchRequirements().length">
+                <li class="req" *ngFor="let req of punchRequirements()">
+                  <netro-icon
+                    [name]="req.supported ? (req.status === 'REQUIRED' ? 'check-circle' : 'info') : 'alert'"
+                    [size]="12"
+                    [class]="req.supported ? 'req__glyph' : 'req__glyph req__glyph--warn'"
+                  />
+                  <span class="req__label">{{ req.label }}</span>
+                  <span class="req__status">{{ req.status === 'REQUIRED' ? 'Required' : 'Optional' }}</span>
+                </li>
+              </ul>
+            </div>
+          </netro-panel>
+        } @else {
+          <netro-panel heading="No shift to record" icon="shield">
+            <p class="text-small text-muted" style="line-height: 1.6">
+              Administrator accounts do not punch in or out. Use the roster to see how the organisation's day is
+              going, and the approvals queue to decide correction requests.
+            </p>
+          </netro-panel>
+        }
+      </aside>
+
+      <div class="workspace__main">
+        <!-- The month behind today -->
+        <section class="metrics" *ngIf="punchesOwnShift()">
+          <netro-metric
+            label="Hours this month"
+            [value]="monthHours()"
+            unit="h"
+            icon="clock"
+            [caption]="monthLabel()"
+          />
+          <netro-metric
+            label="Days worked"
+            [value]="month()?.totalDaysWorked ?? '—'"
+            icon="calendar"
+            caption="Days with at least one punch"
+          />
+          <netro-metric label="Average day" [value]="monthAverage()" icon="gauge" caption="Across days worked" />
+          <netro-metric
+            label="Open requests"
+            [value]="openRequests()"
+            icon="approve"
+            [tone]="openRequests() ? 'attention' : 'neutral'"
+            [caption]="
+              requestsThisMonth() + ' of ' + regularizationRules().maxRequestsPerMonth + ' used this month'
+            "
+          />
+        </section>
+
+        <netro-panel
+          [flush]="true"
+          padding="none"
+          heading="Shift log"
+          [description]="monthLabel()"
+          icon="history"
+        >
+          <div slot="actions" class="row row--nowrap" style="gap: 4px">
+            <button
+              type="button"
+              class="btn btn--default btn--sm btn--icon"
+              aria-label="Previous month"
+              (click)="shiftMonth(-1)"
+            >
+              <netro-icon name="chevron-left" [size]="14" />
+            </button>
+            <button
+              type="button"
+              class="btn btn--default btn--sm btn--icon"
+              aria-label="Next month"
+              [disabled]="atCurrentMonth()"
+              (click)="shiftMonth(1)"
+            >
+              <netro-icon name="chevron-right" [size]="14" />
+            </button>
+          </div>
+
+          @if (monthLoading()) {
+            <netro-skeleton-rows [rows]="6" [cols]="4" />
+          } @else if (!month()?.days?.length) {
+            <netro-state
+              icon="calendar"
+              [inline]="true"
+              title="No shifts recorded in {{ monthLabel() }}"
+              body="Days you punch in on will be listed here with their hours."
+            />
+          } @else {
+            <div class="table-scroll">
+              <table class="table">
+                <caption class="sr-only">Shifts recorded in {{ monthLabel() }}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Day</th>
+                    <th scope="col">First punch in</th>
+                    <th scope="col">Last punch out</th>
+                    <th scope="col" class="col-hide-sm">Sessions</th>
+                    <th scope="col" class="num">Hours</th>
+                    <th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (d of month()!.days; track d.date) {
+                    <tr
+                      class="is-clickable"
+                      tabindex="0"
+                      (click)="view(d.records[0])"
+                      (keydown.enter)="view(d.records[0])"
+                    >
+                      <td>
+                        <span class="cell-strong">{{ day(d.date) }}</span>
+                        <span class="cell-secondary" style="display: block">{{ d.dayOfWeek }}</span>
+                      </td>
+                      <td class="tnum">{{ time(d.records[0].punchInTime) }}</td>
+                      <td class="tnum">
+                        @if (d.records[d.records.length - 1].punchOutTime) {
+                          {{ time(d.records[d.records.length - 1].punchOutTime) }}
+                        } @else {
+                          <netro-status tone="ok" [live]="true">Still open</netro-status>
+                        }
+                      </td>
+                      <td class="col-hide-sm cell-secondary tnum">{{ d.sessionsCount }}</td>
+                      <td class="num tnum">{{ d.totalHours ? (d.totalHours | number: '1.0-2') + 'h' : '—' }}</td>
+                      <td class="col-actions" (click)="$event.stopPropagation()">
+                        <span class="row-actions">
+                          <button
+                            type="button"
+                            class="btn btn--subtle btn--sm"
+                            (click)="openRequest(d)"
+                            [attr.aria-label]="'Request a correction for ' + day(d.date)"
+                          >
+                            Correct
+                          </button>
+                        </span>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </netro-panel>
+
+        <netro-panel
+          [flush]="true"
+          padding="none"
+          heading="My correction requests"
+          description="Changes you have asked for, and where each one stands."
+          icon="approve"
+        >
+          <div slot="actions">
+            <button type="button" class="btn btn--default btn--sm" (click)="openRequest()" *ngIf="punchesOwnShift()">
+              <netro-icon name="plus" [size]="13" /> New request
+            </button>
+          </div>
+
+          @if (mineLoading()) {
+            <netro-skeleton-rows [rows]="3" [cols]="4" />
+          } @else if (!myRequests().length) {
+            <netro-state
+              icon="check-circle"
+              [inline]="true"
+              title="Nothing outstanding"
+              body="When a punch is wrong or missing, raise a correction and it will appear here until it is decided."
+            />
+          } @else {
+            <ul class="requests">
+              @for (request of myRequests(); track request.id) {
+                <li class="request">
+                  <span class="request__mark" [class]="'request__mark--' + statusTone(request.status)">
+                    <netro-icon
+                      [name]="
+                        request.status === 'APPROVED'
+                          ? 'check'
+                          : request.status === 'REJECTED'
+                            ? 'close'
+                            : 'clock'
+                      "
+                      [size]="12"
+                    />
+                  </span>
+                  <div class="request__body">
+                    <p class="request__title">
+                      {{ day(request.date) }}
+                      <netro-badge [tone]="statusTone(request.status)">
+                        {{ request.status === 'PENDING' ? 'Awaiting decision' : (request.status | titlecase) }}
+                      </netro-badge>
+                    </p>
+                    <p class="request__delta tnum">
+                      {{ time(request.originalPunchIn) }} – {{ time(request.originalPunchOut) }}
+                      <netro-icon name="arrow-right" [size]="11" />
+                      {{ time(request.requestedPunchIn) }} – {{ time(request.requestedPunchOut) }}
+                    </p>
+                    <p class="request__reason">{{ request.reason }}</p>
+                    <p class="request__note" *ngIf="request.remarks">
+                      <strong>{{ request.approver?.name || 'Reviewer' }}:</strong> {{ request.remarks }}
+                    </p>
+                  </div>
+                  <span class="request__age text-micro text-subtle">{{ ago(request.createdAt) }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </netro-panel>
+      </div>
+    </div>
+  }
+
+  <!-- ======================================================================
+       ROSTER
+       ====================================================================== -->
+  @if (tab() === 'roster') {
+    <netro-panel [flush]="true" padding="none">
+      <div class="toolbar">
+        <div class="row row--nowrap" style="gap: 4px">
+          <button
+            type="button"
+            class="btn btn--default btn--sm btn--icon"
+            aria-label="Previous day"
+            (click)="stepRosterDate(-1)"
+          >
+            <netro-icon name="chevron-left" [size]="14" />
+          </button>
+          <label>
+            <span class="sr-only">Roster date</span>
+            <input
+              class="input input--sm"
+              type="date"
+              style="width: auto"
+              [max]="maxRequestDate"
+              [ngModel]="rosterDate()"
+              (ngModelChange)="setRosterDate($event)"
+            />
+          </label>
+          <button
+            type="button"
+            class="btn btn--default btn--sm btn--icon"
+            aria-label="Next day"
+            [disabled]="rosterIsToday()"
+            (click)="stepRosterDate(1)"
+          >
+            <netro-icon name="chevron-right" [size]="14" />
+          </button>
+          <button
+            type="button"
+            class="btn btn--subtle btn--sm"
+            *ngIf="!rosterIsToday()"
+            (click)="setRosterDate(maxRequestDate)"
+          >
+            Today
+          </button>
+        </div>
+
+        <span class="toolbar__spacer"></span>
+
+        <span class="text-micro text-subtle">
+          {{ rosterIsToday() ? 'Today' : day(rosterDate()) }} ·
+          {{ canSeeCompany() ? 'whole company' : 'your reporting line' }}
+        </span>
+        <button type="button" class="btn btn--default btn--sm" (click)="loadRoster()" [disabled]="rosterLoading()">
+          <netro-icon name="refresh" [size]="13" [spin]="rosterLoading()" /> Refresh
+        </button>
+      </div>
+
+      @if (rosterLoading()) {
+        <netro-skeleton-rows [rows]="8" [cols]="5" />
+      } @else if (rosterError()) {
+        <netro-state icon="x-circle" tone="risk" title="Could not load the roster" [body]="rosterError()">
+          <button type="button" class="btn btn--default" (click)="loadRoster()">Try again</button>
+        </netro-state>
+      } @else {
+        <div class="roster-head">
+          <section class="metrics">
+            <netro-metric
+              label="On duty"
+              [value]="rosterOnDuty().length"
+              icon="pulse"
+              [caption]="rosterIsToday() ? 'Currently punched in' : 'Never punched out'"
+              [tone]="unclosedShifts().length ? 'attention' : 'neutral'"
+            />
+            <netro-metric
+              label="Shifts closed"
+              [value]="rosterClosed().length"
+              icon="check-circle"
+              caption="Punched in and out"
+            />
+            <netro-metric
+              label="No punch"
+              [value]="exceptions().length"
+              icon="alert"
+              [tone]="exceptions().length ? 'risk' : 'neutral'"
+              caption="Expected but not recorded"
+            />
+            <netro-metric
+              label="Attendance"
+              [value]="rosterRate() === null ? '—' : rosterRate()!"
+              [unit]="rosterRate() === null ? null : '%'"
+              icon="gauge"
+              [caption]="expectedCaption()"
+            />
+          </section>
+
+          <div class="band-wrap" *ngIf="roster().length">
+            <p class="eyebrow" style="margin-bottom: 8px">Presence through the day</p>
+            <netro-pulse-band [records]="roster()" [limit]="10" />
+          </div>
+        </div>
+
+        <netro-alert tone="warn" *ngIf="unclosedShifts().length" style="margin: 0 var(--s-4) var(--s-4)">
+          {{ unclosedShifts().length }}
+          {{ unclosedShifts().length === 1 ? 'person' : 'people' }} never punched out on
+          {{ day(rosterDate()) }}. Their hours cannot be counted until the record is corrected.
+        </netro-alert>
+
+        @if (!roster().length) {
+          <netro-state
+            icon="clock"
+            [inline]="true"
+            title="No punches on {{ day(rosterDate()) }}"
+            body="Nobody in this scope recorded a shift on this date."
+          />
+        } @else {
+          <div class="table-scroll">
+            <table class="table">
+              <caption class="sr-only">Attendance roster for {{ day(rosterDate()) }}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Person</th>
+                  <th scope="col">State</th>
+                  <th scope="col">Punch in</th>
+                  <th scope="col">Punch out</th>
+                  <th scope="col" class="col-hide-md">Location check</th>
+                  <th scope="col" class="num">Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (record of roster(); track record.id) {
+                  <tr class="is-clickable" tabindex="0" (click)="view(record)" (keydown.enter)="view(record)">
+                    <td>
+                      <span class="identity">
+                        <netro-avatar
+                          [name]="personLabel(record)"
+                          [src]="record.user?.profilePictureUrl"
+                          [seed]="record.userId"
+                          size="sm"
+                          [presence]="record.punchOutTime ? 'none' : 'on'"
+                        />
+                        <span class="identity__body">
+                          <span class="identity__name">{{ personLabel(record) }}</span>
+                          <span class="identity__meta">
+                            {{ record.user?.employeeId || record.user?.designationName || '—' }}
+                          </span>
+                        </span>
+                      </span>
+                    </td>
+                    <td>
+                      <netro-status [tone]="stateOf(record).tone" [live]="!record.punchOutTime">
+                        {{ stateOf(record).label }}
+                      </netro-status>
+                    </td>
+                    <td class="tnum">{{ time(record.punchInTime) }}</td>
+                    <td class="tnum">
+                      {{ record.punchOutTime ? time(record.punchOutTime) : '—' }}
+                    </td>
+                    <td class="col-hide-md">
+                      @if (geofenceOf(record); as fence) {
+                        <netro-badge [tone]="fence.tone" [dot]="true">{{ fence.label }}</netro-badge>
+                      } @else {
+                        <span class="cell-secondary">Not measured</span>
+                      }
+                    </td>
+                    <td class="num tnum">
+                      {{ record.punchOutTime ? span(record) : span(record) + ' so far' }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+
+        <div class="exceptions" *ngIf="exceptions().length">
+          <div class="row row--between" style="margin-bottom: var(--s-3)">
+            <p class="eyebrow">No punch on {{ day(rosterDate()) }}</p>
+            <span class="text-micro text-subtle">{{ exceptions().length }} people</span>
+          </div>
+          <ul class="absent">
+            @for (item of exceptions(); track item.person.id) {
+              <li class="absent__item">
+                <netro-avatar [name]="item.person.name" [seed]="item.person.id" size="xs" />
+                <span class="truncate">{{ item.person.name }}</span>
+                <span class="text-micro text-subtle truncate">
+                  {{ item.person.employeeId || item.person.designationName || '' }}
+                </span>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    </netro-panel>
+  }
+</div>
+
+<!-- ==========================================================================
+     SHIFT DETAIL
+     ========================================================================== -->
+@if (viewing(); as record) {
+  <netro-drawer
+    eyebrow="Shift record"
+    [heading]="personLabel(record) === 'Unknown' ? day(record.punchInTime) : personLabel(record)"
+    [sub]="day(record.punchInTime) + ' · ' + stateOf(record).label"
+    [hasFooter]="false"
+    (closed)="closeView()"
+  >
+    <div class="stack stack--lg">
+      <section class="ws-shift">
+        <div class="ws-fact">
+          <span class="ws-fact__label">Punched in</span>
+          <span class="ws-fact__value tnum">{{ time(record.punchInTime) }}</span>
+        </div>
+        <div class="ws-fact">
+          <span class="ws-fact__label">Punched out</span>
+          <span class="ws-fact__value tnum">
+            {{ record.punchOutTime ? time(record.punchOutTime) : 'Still open' }}
+          </span>
+        </div>
+        <div class="ws-fact">
+          <span class="ws-fact__label">{{ record.punchOutTime ? 'Hours' : 'Elapsed' }}</span>
+          <span class="ws-fact__value tnum">{{ span(record) }}</span>
+        </div>
+      </section>
+
+      <section>
+        <p class="eyebrow" style="margin-bottom: 8px">Where it was recorded</p>
+        <dl class="defs">
+          <div class="defs__row">
+            <dt class="defs__key">Punch-in location</dt>
+            <dd class="defs__val">
+              <div class="stack stack--xs">
+                <span *ngIf="inAddress()" class="text-small text-normal font-medium">{{ inAddress() }}</span>
+                <span *ngIf="!inAddress() && addressLoading()" class="text-micro text-subtle">Looking up address…</span>
+                @if (maps(record.punchInLatitude, record.punchInLongitude); as href) {
+                  <a [href]="href" target="_blank" rel="noopener" class="text-brand text-micro">
+                    {{ record.punchInLatitude }}, {{ record.punchInLongitude }}
+                    <netro-icon name="external" [size]="11" />
+                  </a>
+                } @else {
+                  <span *ngIf="!inAddress()">Not captured</span>
+                }
+              </div>
+            </dd>
+          </div>
+          <div class="defs__row" *ngIf="record.punchOutTime">
+            <dt class="defs__key">Punch-out location</dt>
+            <dd class="defs__val">
+              <div class="stack stack--xs">
+                <span *ngIf="outAddress()" class="text-small text-normal font-medium">{{ outAddress() }}</span>
+                @if (maps(record.punchOutLatitude, record.punchOutLongitude); as href) {
+                  <a [href]="href" target="_blank" rel="noopener" class="text-brand text-micro">
+                    {{ record.punchOutLatitude }}, {{ record.punchOutLongitude }}
+                    <netro-icon name="external" [size]="11" />
+                  </a>
+                } @else {
+                  <span *ngIf="!outAddress()">Not captured</span>
+                }
+              </div>
+            </dd>
+          </div>
+          <div class="defs__row" *ngIf="geofenceOf(record) as fence">
+            <dt class="defs__key">Branch check</dt>
+            <dd class="defs__val">
+              <netro-badge [tone]="fence.tone" [dot]="true">{{ fence.label }}</netro-badge>
+            </dd>
+          </div>
+          <div class="defs__row" *ngIf="record.workingHours != null">
+            <dt class="defs__key">Recorded hours</dt>
+            <dd class="defs__val tnum">{{ hours(record.workingHours) }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section *ngIf="evidenceRows(record.punchInEvidence).length">
+        <p class="eyebrow" style="margin-bottom: 8px">Punch-in evidence</p>
+        <dl class="defs">
+          <div class="defs__row" *ngFor="let row of evidenceRows(record.punchInEvidence)">
+            <dt class="defs__key">{{ row.label }}</dt>
+            <dd class="defs__val">
+              <div *ngIf="row.link; else plainIn" class="evidence-thumb-wrap">
+                <img
+                  [src]="row.link"
+                  [alt]="row.label"
+                  class="evidence-thumb"
+                  (click)="openLightbox(row.link)"
+                  title="Click to view full size"
+                />
+                <a [href]="row.link" target="_blank" rel="noopener" class="text-brand text-micro">
+                  Open full <netro-icon name="external" [size]="11" />
+                </a>
+              </div>
+              <ng-template #plainIn>{{ row.value }}</ng-template>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section *ngIf="evidenceRows(record.punchOutEvidence).length">
+        <p class="eyebrow" style="margin-bottom: 8px">Punch-out evidence</p>
+        <dl class="defs">
+          <div class="defs__row" *ngFor="let row of evidenceRows(record.punchOutEvidence)">
+            <dt class="defs__key">{{ row.label }}</dt>
+            <dd class="defs__val">
+              <div *ngIf="row.link; else plainOut" class="evidence-thumb-wrap">
+                <img
+                  [src]="row.link"
+                  [alt]="row.label"
+                  class="evidence-thumb"
+                  (click)="openLightbox(row.link)"
+                  title="Click to view full size"
+                />
+                <a [href]="row.link" target="_blank" rel="noopener" class="text-brand text-micro">
+                  Open full <netro-icon name="external" [size]="11" />
+                </a>
+              </div>
+              <ng-template #plainOut>{{ row.value }}</ng-template>
+            </dd>
+          </div>
+        </dl>
+      </section>
+    </div>
+  </netro-drawer>
+}
+
+<!-- ==========================================================================
+     CORRECTION REQUEST
+     ========================================================================== -->
+@if (requestOpen()) {
+  <netro-drawer
+    eyebrow="Attendance correction"
+    [heading]="requestKind()"
+    sub="Someone with approval rights compares what was recorded against what you are asking for."
+    width="wide"
+    [dismissOnScrim]="false"
+    (closed)="closeRequest()"
+  >
+    <div class="stack stack--lg">
+      <netro-alert tone="risk" *ngIf="requestBlocker()">{{ requestBlocker() }}</netro-alert>
+
+      <fieldset class="fieldset">
+        <div class="fieldset__head">
+          <h3 class="fieldset__title">Which day</h3>
+          <p class="fieldset__desc">
+            Corrections can be raised up to {{ regularizationRules().regularizationWindowDays }} days after the
+            attendance date. You have used {{ requestsThisMonth() }} of
+            {{ regularizationRules().maxRequestsPerMonth }} this month.
+          </p>
+        </div>
+
+        <label class="field" style="max-width: 240px">
+          <span class="field__label">Attendance date <span class="field__req">*</span></span>
+          <input
+            class="input"
+            type="date"
+            [ngModel]="form().date"
+            [min]="earliestRequestDate()"
+            [max]="maxRequestDate"
+            (ngModelChange)="patchForm({ date: $event })"
+          />
+        </label>
+
+        <div class="recorded">
+          @if (recordForRequest(); as record) {
+            <p class="recorded__label">Currently recorded</p>
+            <p class="recorded__value tnum">
+              {{ time(record.punchInTime) }} – {{ time(record.punchOutTime) }}
+              <span class="text-subtle">({{ span(record) }})</span>
+            </p>
+          } @else {
+            <p class="recorded__label">Currently recorded</p>
+            <p class="recorded__value">Nothing — this day has no punch at all.</p>
+          }
+        </div>
+      </fieldset>
+
+      <fieldset class="fieldset">
+        <div class="fieldset__head">
+          <h3 class="fieldset__title">What it should say</h3>
+          <p class="fieldset__desc">
+            Approving this request rewrites the attendance record with these times.
+          </p>
+        </div>
+
+        <div class="form-grid">
+          <div class="stack stack--sm">
+            <label class="check">
+              <input
+                type="checkbox"
+                [ngModel]="form().includePunchIn"
+                (ngModelChange)="patchForm({ includePunchIn: $event })"
+              />
+              <span class="check__text">Correct the punch-in</span>
+            </label>
+            <input
+              class="input"
+              type="time"
+              [disabled]="!form().includePunchIn"
+              [ngModel]="form().punchIn"
+              (ngModelChange)="patchForm({ punchIn: $event })"
+              aria-label="Requested punch-in time"
+            />
+          </div>
+
+          <div class="stack stack--sm">
+            <label class="check">
+              <input
+                type="checkbox"
+                [ngModel]="form().includePunchOut"
+                (ngModelChange)="patchForm({ includePunchOut: $event })"
+              />
+              <span class="check__text">Correct the punch-out</span>
+            </label>
+            <input
+              class="input"
+              type="time"
+              [disabled]="!form().includePunchOut"
+              [ngModel]="form().punchOut"
+              (ngModelChange)="patchForm({ punchOut: $event })"
+              aria-label="Requested punch-out time"
+            />
+          </div>
+
+          <ng-container *ngIf="punchInConfig().vehicleMeter !== 'DISABLED'">
+            <label class="field">
+              <span class="field__label">Odometer at punch-in</span>
+              <input
+                class="input"
+                type="number"
+                inputmode="numeric"
+                [ngModel]="form().odometerIn"
+                (ngModelChange)="patchForm({ odometerIn: $event })"
+              />
+            </label>
+            <label class="field">
+              <span class="field__label">Odometer at punch-out</span>
+              <input
+                class="input"
+                type="number"
+                inputmode="numeric"
+                [ngModel]="form().odometerOut"
+                (ngModelChange)="patchForm({ odometerOut: $event })"
+              />
+            </label>
+          </ng-container>
+        </div>
+      </fieldset>
+
+      <fieldset class="fieldset">
+        <div class="fieldset__head">
+          <h3 class="fieldset__title">Why</h3>
+          <p class="fieldset__desc">This is the only thing the reviewer has to go on. Be specific.</p>
+        </div>
+
+        <label class="field">
+          <span class="field__label">Reason <span class="field__req">*</span></span>
+          <textarea
+            class="textarea"
+            rows="3"
+            placeholder="e.g. Phone battery died at the customer site, punched out 40 minutes late."
+            [ngModel]="form().reason"
+            (ngModelChange)="patchForm({ reason: $event })"
+          ></textarea>
+        </label>
+      </fieldset>
+    </div>
+
+    <div slot="footer" style="display: contents">
+      <button type="button" class="btn btn--subtle" (click)="closeRequest()">Cancel</button>
+      <span class="spacer"></span>
+      <button
+        type="button"
+        class="btn btn--primary"
+        data-autofocus
+        [disabled]="requestSaving() || !!requestBlocker()"
+        (click)="submitRequest()"
+      >
+        <netro-icon [name]="requestSaving() ? 'spinner' : 'check'" [size]="14" [spin]="requestSaving()" />
+        Send for approval
+      </button>
+    </div>
+  </netro-drawer>
+}
+
+<!-- Punch Evidence Capture Modal -->
+<app-punch-evidence-modal
+  *ngIf="evidenceModalOpen()"
+  [title]="evidenceModalTitle()"
+  [subtitle]="evidenceModalSubtitle()"
+  [mode]="evidenceModalMode()"
+  [fieldKey]="evidenceModalField()"
+  (confirmed)="onEvidenceConfirmed($event)"
+  (cancelled)="evidenceModalOpen.set(false)"
+></app-punch-evidence-modal>
+
+<!-- Image Lightbox Overlay -->
+<div *ngIf="lightboxUrl()" class="lightbox-overlay" (click)="closeLightbox()">
+  <div class="lightbox-content" (click)="$event.stopPropagation()">
+    <img [src]="lightboxUrl()" alt="Evidence Photo" class="lightbox-image" />
+    <button type="button" class="lightbox-close" (click)="closeLightbox()" title="Close">
+      <netro-icon name="x" [size]="20" />
+    </button>
+  </div>
+</div>

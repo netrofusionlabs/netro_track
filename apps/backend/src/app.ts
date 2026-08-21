@@ -33,6 +33,8 @@ import { dashboardRouter } from './modules/dashboard/dashboard.routes';
 import { reportRouter } from './modules/report/report.routes';
 import { userManagementRouter } from './modules/user-management/user-management.routes';
 import { profileRouter } from './modules/profile/profile.routes';
+import { attendancePolicyRouter } from './modules/attendance-policy/attendance-policy.routes';
+import { policyRouter } from './modules/policy/policy.routes';
 import path from 'path';
 
 // Static assets serving
@@ -47,6 +49,8 @@ app.use('/api/v1/employees', employeeRouter);
 app.use('/api/v1/customers', customerRouter);
 app.use('/api/v1/products', productRouter);
 app.use('/api/v1/attendance', attendanceRouter);
+app.use('/api/v1/attendance-policies', attendancePolicyRouter);
+app.use('/api/v1/policies', policyRouter);
 app.use('/api/v1/customer-visits', visitRouter);
 app.use('/api/v1/product-sales', saleRouter);
 app.use('/api/v1/inspections', inspectionRouter);

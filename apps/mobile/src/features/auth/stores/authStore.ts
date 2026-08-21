@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { zustandStorage } from '../../../shared/utils/storage';
+import { zustandStorage, storage } from '../../../shared/utils/storage';
 
 export interface UserProfile {
   id: string;
@@ -12,8 +12,10 @@ export interface UserProfile {
   role: string;
   isMasterAdmin?: boolean;
   isGpsEnabled?: boolean;
+  isRegularizationEnabled?: boolean;
   isGpsTracked?: boolean;
   hasMpin?: boolean;
+  attendancePolicyId?: string | null;
   email?: string | null;
   phone?: string | null;
   personalEmail?: string | null;
@@ -60,8 +62,11 @@ export const useAuthStore = create<AuthState>()(
           hasMpin: user.hasMpin ?? false,
           isMpinVerified: false,
         }),
-      clearCredentials: () =>
-        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, isMpinVerified: false }),
+      clearCredentials: () => {
+        storage.remove('local_mpin_hash');
+        storage.remove('last_active_attendance_session');
+        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, isMpinVerified: false });
+      },
       setMpinVerified: (verified) => set({ isMpinVerified: verified }),
       setHasMpin: (has) => set({ hasMpin: has }),
     }),

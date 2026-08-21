@@ -1,0 +1,155 @@
+<div class="page">
+  <netro-page-header title="Sales orders" description="Transactions recorded in the field — customer, line items, and the person who closed them.">
+    <div slot="actions" class="row row--nowrap">
+      <netro-badge tone="neutral">Coming Soon</netro-badge>
+    </div>
+  </netro-page-header>
+
+  <netro-alert tone="info" heading="Feature Coming Soon">
+    The Sales Orders module is currently under active development and will be released in an upcoming platform update.
+  </netro-alert>
+
+  <netro-panel [flush]="true" padding="none">
+    <netro-toolbar [search]="search()" searchPlaceholder="Customer, person or product" searchLabel="Search orders" (searchChange)="applySearch($event)">
+      <span slot="actions" class="text-micro text-subtle tnum">{{ rows().length }} {{ rows().length === 1 ? 'order' : 'orders' }}</span>
+    </netro-toolbar>
+
+    @if (loading()) {
+      <netro-skeleton-rows [rows]="8" [cols]="4" />
+    } @else if (error()) {
+      <netro-state icon="x-circle" tone="risk" title="Could not load orders" [body]="error()">
+        <button type="button" class="btn btn--default" (click)="load()">Try again</button>
+      </netro-state>
+    } @else if (!rows().length) {
+      <netro-state icon="orders" [title]="search() ? 'No order matches that search' : 'No orders recorded'" body="An order is a customer, one or more catalogue items, and a total. Record it while you are still with them.">
+        <button type="button" class="btn btn--primary" *ngIf="!search()" (click)="startCreate()">Record order</button>
+      </netro-state>
+    } @else {
+      <div class="table-scroll">
+        <table class="table">
+          <caption class="sr-only">Sales orders</caption>
+          <thead>
+            <tr>
+              <th scope="col">Customer</th>
+              <th scope="col">Recorded by</th>
+              <th scope="col" class="col-hide-md">Items</th>
+              <th scope="col" class="num">Total</th>
+              <th scope="col" class="col-hide-sm">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of rows(); track s.id) {
+              <tr class="is-clickable" tabindex="0" (click)="view(s)" (keydown.enter)="view(s)">
+                <td><span class="cell-strong">{{ s.customer?.name || 'Unknown' }}</span></td>
+                <td>
+                  <span class="identity">
+                    <netro-avatar [name]="s.user?.name" [seed]="s.userId" size="xs" />
+                    <span class="identity__name">{{ s.user?.name || '—' }}</span>
+                  </span>
+                </td>
+                <td class="col-hide-md cell-truncate">{{ itemsLabel(s) }}</td>
+                <td class="num tnum">{{ money(s.totalAmount) }}</td>
+                <td class="col-hide-sm tnum">{{ when(s) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </netro-panel>
+</div>
+
+@if (viewing(); as s) {
+  <netro-drawer eyebrow="Sales order" [heading]="s.customer?.name || 'Order'" [sub]="(s.createdAt | date: 'medium') + ' · ' + (s.user?.name || '')" [hasFooter]="false" (closed)="closeView()">
+    <div class="stack stack--lg">
+      <section class="ws-shift">
+        <div class="ws-fact">
+          <span class="ws-fact__label">Total</span>
+          <span class="ws-fact__value tnum">{{ money(s.totalAmount) }}</span>
+        </div>
+        <div class="ws-fact">
+          <span class="ws-fact__label">Items</span>
+          <span class="ws-fact__value tnum">{{ s.items?.length || 0 }}</span>
+        </div>
+        <div class="ws-fact">
+          <span class="ws-fact__label">Recorded by</span>
+          <span class="ws-fact__value">{{ s.user?.name || '—' }}</span>
+        </div>
+      </section>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Product</th>
+              <th scope="col" class="num">Qty</th>
+              <th scope="col" class="num">Price</th>
+              <th scope="col" class="num">Line</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of s.items">
+              <td>{{ item.product?.name || '—' }}</td>
+              <td class="num tnum">{{ item.quantity }}</td>
+              <td class="num tnum">{{ money(item.unitPrice) }}</td>
+              <td class="num tnum">{{ money(item.totalPrice) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-small text-subtle" *ngIf="s.remarks || s.notes">{{ s.remarks || s.notes }}</p>
+    </div>
+  </netro-drawer>
+}
+
+@if (editorOpen()) {
+  <netro-drawer eyebrow="Sales order" heading="Record order" sub="Totals are taken from the catalogue price at the moment you save." width="wide" [dismissOnScrim]="false" (closed)="closeEditor()">
+    <div class="stack stack--lg">
+      <label class="field">
+        <span class="field__label">Customer <span class="field__req">*</span></span>
+        <select class="select" [ngModel]="customerId()" (ngModelChange)="customerId.set($event)">
+          <option value="">Select a customer…</option>
+          <option *ngFor="let c of customers()" [value]="c.id">{{ c.name }}</option>
+        </select>
+      </label>
+
+      <fieldset class="fieldset">
+        <div class="fieldset__head">
+          <h3 class="fieldset__title">Line items</h3>
+          <p class="fieldset__desc">At least one product is required.</p>
+        </div>
+        <div class="stack stack--sm">
+          @for (line of lines(); track $index) {
+            <div class="row">
+              <select class="select" style="flex: 2" [ngModel]="line.productId" (ngModelChange)="patchLine($index, { productId: $event })">
+                <option value="">Product…</option>
+                <option *ngFor="let p of catalogue()" [value]="p.id">{{ p.name }} · {{ money(p.price ?? p.unitPrice) }}</option>
+              </select>
+              <input class="input" style="width: 88px" type="number" min="1" [ngModel]="line.quantity" (ngModelChange)="patchLine($index, { quantity: +$event })" aria-label="Quantity" />
+              <button type="button" class="btn btn--subtle btn--sm btn--icon" aria-label="Remove line" (click)="removeLine($index)" [disabled]="lines().length === 1">
+                <netro-icon name="close" [size]="13" />
+              </button>
+            </div>
+          }
+          <button type="button" class="btn btn--default btn--sm" (click)="addLine()"><netro-icon name="plus" [size]="12" /> Add line</button>
+        </div>
+      </fieldset>
+
+      <label class="field">
+        <span class="field__label">Remarks</span>
+        <textarea class="textarea" rows="2" [ngModel]="remarks()" (ngModelChange)="remarks.set($event)"></textarea>
+      </label>
+
+      <p class="row row--between">
+        <span class="text-micro text-subtle">Order total</span>
+        <strong class="tnum">{{ money(draftTotal()) }}</strong>
+      </p>
+    </div>
+    <div slot="footer" style="display: contents">
+      <button type="button" class="btn btn--subtle" (click)="closeEditor()">Cancel</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--primary" [disabled]="saving()" (click)="submit()">
+        <netro-icon [name]="saving() ? 'spinner' : 'check'" [size]="14" [spin]="saving()" /> Log order
+      </button>
+    </div>
+  </netro-drawer>
+}

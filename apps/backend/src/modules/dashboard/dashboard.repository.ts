@@ -12,6 +12,11 @@ export class DashboardRepository {
       where: {
         companyId,
         punchInTime: { gte: startOfDay, lte: endOfDay },
+        user: {
+          role: {
+            notIn: ['COMPANY_ADMIN', 'SUPER_ADMIN', 'MASTER_SUPER_ADMIN'],
+          },
+        },
       },
     });
   }
@@ -19,7 +24,13 @@ export class DashboardRepository {
   /** Count active (non-deleted) employees in the company. */
   async countActiveEmployees(companyId: string): Promise<number> {
     return prisma.user.count({
-      where: { companyId, deletedAt: null },
+      where: {
+        companyId,
+        deletedAt: null,
+        role: {
+          notIn: ['COMPANY_ADMIN', 'SUPER_ADMIN', 'MASTER_SUPER_ADMIN'],
+        },
+      },
     });
   }
 
@@ -100,6 +111,11 @@ export class DashboardRepository {
       where: {
         companyId,
         punchInTime: { gte: startDate, lte: endDate },
+        user: {
+          role: {
+            notIn: ['COMPANY_ADMIN', 'SUPER_ADMIN', 'MASTER_SUPER_ADMIN'],
+          },
+        },
       },
       select: {
         userId: true,

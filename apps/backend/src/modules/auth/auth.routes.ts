@@ -13,6 +13,9 @@ router.post('/login', validate(loginSchema), controller.login);
 // Full MPIN login (public — user not yet authenticated)
 router.post('/mpin', validate(mpinLoginSchema), controller.mpinLogin);
 
+// Demo Login Users endpoint (public / temporary quick-login helper)
+router.get('/demo-users', controller.getDemoUsers);
+
 // ── Authenticated ─────────────────────────────────────────────────────────────
 
 // Get current user's profile (including manager info)

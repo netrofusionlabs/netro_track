@@ -101,6 +101,20 @@ export function VisitsScreen({ route, navigation }: Props = {}) {
           subtitle={`${visits.length} total records`}
           actionLabel={(!viewOnly && '+ New') || undefined}
           onAction={!viewOnly ? handleNew : undefined}
+          onBackPress={() => {
+            if (navigation) {
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                const parent = navigation.getParent();
+                if (parent && parent.canGoBack()) {
+                  parent.goBack();
+                } else {
+                  navigation.navigate('Home');
+                }
+              }
+            }
+          }}
         />
 
         {isLoading && <LoadingState message="Loading visits..." />}

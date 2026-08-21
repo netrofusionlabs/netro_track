@@ -1,0 +1,864 @@
+<div class="page">
+  <netro-page-header
+    title="Policies"
+    description="Manage enterprise governance rules across Attendance, Leave, Expenses, GPS Tracking, Customer Visits, and Field Inspections. Assigned at company, department, designation or person level."
+  >
+    <div slot="actions" class="row row--nowrap">
+      <button type="button" class="btn btn--default btn--sm" (click)="load()" [disabled]="loading()">
+        <netro-icon name="refresh" [size]="13" [spin]="loading()" /> Refresh
+      </button>
+      <button type="button" class="btn btn--primary btn--sm" (click)="startCreate()">
+        <netro-icon name="plus" [size]="13" /> New policy
+      </button>
+    </div>
+  </netro-page-header>
+
+  <!-- Policy Type Filter Tabs -->
+  <div class="type-filter-bar">
+    <button
+      *ngFor="let pt of policyTypes"
+      type="button"
+      class="type-chip"
+      [class.type-chip--active]="selectedTypeFilter() === pt.type"
+      (click)="setTypeFilter(pt.type)"
+    >
+      <netro-icon [name]="pt.icon" [size]="14" />
+      <span>{{ pt.label }}</span>
+    </button>
+  </div>
+
+  <section class="metrics">
+    <netro-metric
+      label="Total Policies"
+      [value]="filteredPolicies().length"
+      icon="layers"
+      [caption]="selectedTypeFilter() === 'ALL' ? 'Across all categories' : 'In selected category'"
+    />
+    <netro-metric
+      label="Active Rules"
+      [value]="activeCount()"
+      icon="check-circle"
+      caption="Available for enforcement"
+    />
+    <netro-metric
+      label="Company Default"
+      [value]="defaultPolicyId() ? 'Configured' : 'System Default'"
+      icon="building"
+      [tone]="defaultPolicyId() ? 'neutral' : 'attention'"
+      caption="Attendance fallback rule"
+    />
+  </section>
+
+  <netro-panel [flush]="true" padding="none">
+    <netro-toolbar
+      [search]="search()"
+      searchPlaceholder="Search policies by name, category or description..."
+      searchLabel="Search policies"
+      (searchChange)="applySearch($event)"
+    >
+      <span slot="actions" class="text-micro text-subtle tnum">
+        {{ rows().length }} {{ rows().length === 1 ? 'policy' : 'policies' }}
+      </span>
+    </netro-toolbar>
+
+    @if (loading()) {
+      <netro-skeleton-rows [rows]="5" [cols]="4" />
+    } @else if (error()) {
+      <netro-state icon="x-circle" tone="risk" title="Could not load policies" [body]="error()">
+        <button type="button" class="btn btn--default" (click)="load()">Try again</button>
+      </netro-state>
+    } @else if (!rows().length) {
+      <netro-state
+        icon="layers"
+        [title]="search() ? 'No policy matches that search' : 'No policies in this category'"
+        [body]="
+          search()
+            ? 'Clear the search query to see all policies.'
+            : 'Create a custom policy for this category to enforce specialized business rules.'
+        "
+      >
+        <button type="button" class="btn btn--primary" (click)="startCreate()">Create Policy</button>
+      </netro-state>
+    } @else {
+      <div class="table-scroll">
+        <table class="table">
+          <caption class="sr-only">Policies list</caption>
+          <thead>
+            <tr>
+              <th scope="col">Policy</th>
+              <th scope="col">Type</th>
+              <th scope="col">Configuration Summary</th>
+              <th scope="col">State</th>
+              <th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (policy of rows(); track policy.id) {
+              <tr class="is-clickable" tabindex="0" (click)="view(policy)" (keydown.enter)="view(policy)">
+                <td>
+                  <span class="cell-strong">{{ policy.name }}</span>
+                  <span class="cell-secondary" style="display: block">
+                    {{ policy.description || 'No description provided' }}
+                  </span>
+                </td>
+                <td>
+                  <netro-badge [tone]="typeLabels[policy.type || 'ATTENDANCE'].tone">
+                    <netro-icon [name]="typeLabels[policy.type || 'ATTENDANCE'].icon" [size]="12" />
+                    {{ typeLabels[policy.type || 'ATTENDANCE'].label }}
+                  </netro-badge>
+                </td>
+                <td>
+                  <div class="policy-summary-text">
+                    {{ policySummary(policy) }}
+                  </div>
+                  <!-- Mini evidence pills for ATTENDANCE -->
+                  <div *ngIf="policy.type === 'ATTENDANCE'" class="pills" style="margin-top: 4px">
+                    <span class="pill" *ngFor="let req of inReqs(policy)" [class.pill--req]="req.status === 'REQUIRED'" [class.pill--opt]="req.status === 'OPTIONAL'">
+                      In: {{ req.label }}
+                    </span>
+                  </div>
+                </td>
+                <td>
+                  <div class="stack" style="gap: 4px">
+                    <netro-badge [tone]="policy.isActive ? 'ok' : 'neutral'" [dot]="true">
+                      {{ policy.isActive ? 'Active' : 'Draft' }}
+                    </netro-badge>
+                    <netro-badge *ngIf="isDefault(policy)" tone="info" size="xs">
+                      Default
+                    </netro-badge>
+                  </div>
+                </td>
+                <td class="col-actions" (click)="$event.stopPropagation()">
+                  <div class="row row--nowrap row--end">
+                    <button type="button" class="btn btn--subtle btn--xs" (click)="view(policy)">
+                      View
+                    </button>
+                    <button type="button" class="btn btn--subtle btn--xs" (click)="startEdit(policy)">
+                      Edit
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </netro-panel>
+</div>
+
+<!-- ========================================================================= -->
+<!-- View Policy Drawer                                                        -->
+<!-- ========================================================================= -->
+<netro-drawer
+  *ngIf="viewing()"
+  [heading]="viewing()?.name ?? 'Policy Details'"
+  [sub]="typeLabels[viewing()?.type || 'ATTENDANCE'].label"
+  width="wide"
+  (closed)="closeView()"
+>
+  <div class="stack stack--lg" *ngIf="viewing() as policy">
+    <netro-alert
+      *ngIf="isDefault(policy)"
+      tone="info"
+      title="Company default policy"
+      body="This policy is inherited by anyone in the company without a more specific assignment."
+    />
+
+    <section class="stack stack--sm">
+      <h3 class="section-title">Overview</h3>
+      <div class="meta-grid">
+        <div>
+          <span class="meta-label">Policy Type</span>
+          <span class="meta-value">{{ typeLabels[policy.type || 'ATTENDANCE'].label }}</span>
+        </div>
+        <div>
+          <span class="meta-label">Status</span>
+          <span class="meta-value">{{ policy.isActive ? 'Active' : 'Inactive' }}</span>
+        </div>
+        <div class="meta-grid-full" *ngIf="policy.description">
+          <span class="meta-label">Description</span>
+          <span class="meta-value">{{ policy.description }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ATTENDANCE DETAILS -->
+    <section class="stack stack--sm" *ngIf="policy.type === 'ATTENDANCE'">
+      <h3 class="section-title">Attendance Punch Evidence</h3>
+      <div class="evidence-block">
+        <h4 class="evidence-heading">Punch In Requirements</h4>
+        <div class="pills" *ngIf="inReqs(policy).length; else noIn">
+          <span class="pill" *ngFor="let req of inReqs(policy)" [class.pill--req]="req.status === 'REQUIRED'" [class.pill--opt]="req.status === 'OPTIONAL'">
+            {{ req.label }} ({{ req.status }})
+          </span>
+        </div>
+        <ng-template #noIn><p class="text-subtle text-sm">No special evidence required.</p></ng-template>
+
+        <h4 class="evidence-heading" style="margin-top: 12px">Punch Out Requirements</h4>
+        <div class="pills" *ngIf="outReqs(policy).length; else noOut">
+          <span class="pill" *ngFor="let req of outReqs(policy)" [class.pill--req]="req.status === 'REQUIRED'" [class.pill--opt]="req.status === 'OPTIONAL'">
+            {{ req.label }} ({{ req.status }})
+          </span>
+        </div>
+        <ng-template #noOut><p class="text-subtle text-sm">No special evidence required.</p></ng-template>
+      </div>
+
+      <h3 class="section-title" style="margin-top: 12px">Regularization</h3>
+      <p class="text-subtle text-sm">{{ correctionSummary(policy) }}</p>
+    </section>
+
+    <!-- GENERIC CONFIG SUMMARY FOR OTHER TYPES -->
+    <section class="stack stack--sm" *ngIf="policy.type !== 'ATTENDANCE'">
+      <h3 class="section-title">Rule Configuration</h3>
+      <div class="meta-grid">
+        <div *ngFor="let item of policy.config | keyvalue">
+          <span class="meta-label">{{ item.key }}</span>
+          <span class="meta-value">{{ item.value }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ASSIGNMENTS SECTION -->
+    <section class="stack stack--sm">
+      <div class="row row--between row--center">
+        <h3 class="section-title">Assignments</h3>
+        <button type="button" class="btn btn--subtle btn--xs" (click)="openAssign(policy)">
+          <netro-icon name="user-plus" [size]="12" /> Assign target
+        </button>
+      </div>
+
+      <div *ngIf="assignmentsLoading()">
+        <p class="text-subtle text-sm">Loading assignments...</p>
+      </div>
+      <div *ngIf="!assignmentsLoading() && assignments() as a" class="assignments-card">
+        <div class="row row--gap-md">
+          <span><strong>{{ a.counts.departments }}</strong> Departments</span>
+          <span><strong>{{ a.counts.designations }}</strong> Designations</span>
+          <span><strong>{{ a.counts.users }}</strong> Employees</span>
+        </div>
+
+        <div *ngIf="a.details.departments && a.details.departments.length" class="mt-2">
+          <span class="text-micro text-subtle">Departments:</span>
+          <p class="text-sm">{{ namesOf(a.details.departments) }}</p>
+        </div>
+        <div *ngIf="a.details.designations && a.details.designations.length" class="mt-2">
+          <span class="text-micro text-subtle">Designations:</span>
+          <p class="text-sm">{{ namesOf(a.details.designations) }}</p>
+        </div>
+        <div *ngIf="a.details.users && a.details.users.length" class="mt-2">
+          <span class="text-micro text-subtle">Direct Employees:</span>
+          <p class="text-sm">{{ namesOf(a.details.users) }}</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div slot="footer" class="row row--between" *ngIf="viewing() as policy">
+    <button type="button" class="btn btn--danger btn--sm" (click)="remove(policy)">
+      Delete
+    </button>
+    <div class="row row--gap-sm">
+      <button type="button" class="btn btn--default btn--sm" (click)="duplicate(policy)">
+        Duplicate
+      </button>
+      <button *ngIf="!isDefault(policy) && policy.type === 'ATTENDANCE'" type="button" class="btn btn--default btn--sm" (click)="makeDefault(policy)">
+        Make Default
+      </button>
+      <button type="button" class="btn btn--primary btn--sm" (click)="startEdit(policy)">
+        Edit Policy
+      </button>
+    </div>
+  </div>
+</netro-drawer>
+
+<!-- ========================================================================= -->
+<!-- Policy Editor Drawer                                                      -->
+<!-- ========================================================================= -->
+<netro-drawer
+  *ngIf="editorOpen()"
+  [heading]="editorTitle()"
+  sub="Configure rules and parameters"
+  width="wide"
+  (closed)="closeEditor()"
+>
+  <div class="stack stack--lg" *ngIf="draft() as d">
+    <!-- Basic Info -->
+    <section class="stack stack--sm">
+      <h3 class="section-title">Policy Definition</h3>
+
+      <div class="form-group">
+        <label class="form-label" for="pol-type">Policy Category</label>
+        <select
+          id="pol-type"
+          class="form-input"
+          [ngModel]="d.type"
+          (ngModelChange)="patchDraft({ type: $event })"
+          [disabled]="!!editingId()"
+        >
+          <option value="ATTENDANCE">Attendance & Punch Policy</option>
+          <option value="LEAVE">Leave & Absence Policy</option>
+          <option value="EXPENSE">Expense & Reimbursement Policy</option>
+          <option value="TRACKING">GPS & Live Tracking Policy</option>
+          <option value="VISIT">Customer Visit Policy</option>
+          <option value="INSPECTION">Field Inspection Policy</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="pol-name">Policy Name *</label>
+        <input
+          id="pol-name"
+          type="text"
+          class="form-input"
+          placeholder="e.g. Standard Field Rep Policy"
+          [ngModel]="d.name"
+          (ngModelChange)="patchDraft({ name: $event })"
+        />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="pol-desc">Description</label>
+        <textarea
+          id="pol-desc"
+          class="form-input form-input--textarea"
+          rows="2"
+          placeholder="Who this policy targets and its key constraints..."
+          [ngModel]="d.description"
+          (ngModelChange)="patchDraft({ description: $event })"
+        ></textarea>
+      </div>
+
+      <div class="form-check">
+        <input
+          id="pol-active"
+          type="checkbox"
+          class="form-checkbox"
+          [checked]="d.isActive"
+          (change)="patchDraft({ isActive: !d.isActive })"
+        />
+        <label for="pol-active" class="form-check-label">
+          <strong>Active & Available</strong> — Policy can be assigned to companies, departments, or users.
+        </label>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- ATTENDANCE POLICY CONFIG                                              -->
+    <!-- ===================================================================== -->
+    <section class="stack stack--md" *ngIf="d.type === 'ATTENDANCE'">
+      <h3 class="section-title">Punch Evidence Matrix</h3>
+      <p class="text-subtle text-xs">Choose what evidence must be captured during punch in and punch out.</p>
+
+      <div class="evidence-matrix">
+        <div class="matrix-header">
+          <span>Component</span>
+          <span>Punch In</span>
+          <span>Punch Out</span>
+        </div>
+        <div class="matrix-row" *ngFor="let c of components">
+          <div class="matrix-cell-label">
+            <strong>{{ c.label }}</strong>
+            <span class="matrix-hint">{{ c.hint }}</span>
+          </div>
+          <div class="matrix-cell-control">
+            <select
+              class="matrix-select"
+              [ngModel]="statusOf(d.punchInConfig, c.key)"
+              (ngModelChange)="setPunch('in', c.key, $event)"
+            >
+              <option *ngFor="let s of statuses" [value]="s.value">{{ s.label }}</option>
+            </select>
+          </div>
+          <div class="matrix-cell-control">
+            <select
+              class="matrix-select"
+              [ngModel]="statusOf(d.punchOutConfig, c.key)"
+              (ngModelChange)="setPunch('out', c.key, $event)"
+            >
+              <option *ngFor="let s of statuses" [value]="s.value">{{ s.label }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="section-title mt-3">Regularization Rules</h3>
+      <div class="form-check">
+        <input
+          id="reg-allow"
+          type="checkbox"
+          class="form-checkbox"
+          [checked]="d.regularizationConfig.allowRegularization"
+          (change)="setAttendanceRule('allowRegularization', !d.regularizationConfig.allowRegularization)"
+        />
+        <label for="reg-allow" class="form-check-label">Allow Attendance Regularization</label>
+      </div>
+
+      <div class="grid grid--2" *ngIf="d.regularizationConfig.allowRegularization">
+        <div class="form-group">
+          <label class="form-label" for="reg-max">Max Requests / Month</label>
+          <input
+            id="reg-max"
+            type="number"
+            class="form-input"
+            [ngModel]="d.regularizationConfig.maxRequestsPerMonth"
+            (ngModelChange)="setAttendanceRule('maxRequestsPerMonth', +$event)"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reg-win">Window Period (Days)</label>
+          <input
+            id="reg-win"
+            type="number"
+            class="form-input"
+            [ngModel]="d.regularizationConfig.regularizationWindowDays"
+            (ngModelChange)="setAttendanceRule('regularizationWindowDays', +$event)"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- LEAVE POLICY CONFIG                                                   -->
+    <!-- ===================================================================== -->
+    <section class="stack stack--md" *ngIf="d.type === 'LEAVE'">
+      <h3 class="section-title">Leave Entitlements</h3>
+      <div class="grid grid--3">
+        <div class="form-group">
+          <label class="form-label" for="lv-al">Annual Leave Quota</label>
+          <input
+            id="lv-al"
+            type="number"
+            class="form-input"
+            [ngModel]="d.leaveConfig.annualLeaveQuota"
+            (ngModelChange)="setLeaveRule('annualLeaveQuota', +$event)"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="lv-sl">Sick Leave Quota</label>
+          <input
+            id="lv-sl"
+            type="number"
+            class="form-input"
+            [ngModel]="d.leaveConfig.sickLeaveQuota"
+            (ngModelChange)="setLeaveRule('sickLeaveQuota', +$event)"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="lv-cl">Casual Leave Quota</label>
+          <input
+            id="lv-cl"
+            type="number"
+            class="form-input"
+            [ngModel]="d.leaveConfig.casualLeaveQuota"
+            (ngModelChange)="setLeaveRule('casualLeaveQuota', +$event)"
+          />
+        </div>
+      </div>
+
+      <h3 class="section-title mt-3">Leave Rules</h3>
+      <div class="grid grid--2">
+        <div class="form-group">
+          <label class="form-label" for="lv-max">Max Consecutive Days</label>
+          <input
+            id="lv-max"
+            type="number"
+            class="form-input"
+            [ngModel]="d.leaveConfig.maxConsecutiveDays"
+            (ngModelChange)="setLeaveRule('maxConsecutiveDays', +$event)"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="lv-notice">Advance Notice (Days)</label>
+          <input
+            id="lv-notice"
+            type="number"
+            class="form-input"
+            [ngModel]="d.leaveConfig.noticePeriodDays"
+            (ngModelChange)="setLeaveRule('noticePeriodDays', +$event)"
+          />
+        </div>
+      </div>
+
+      <div class="stack stack--xs">
+        <div class="form-check">
+          <input
+            id="lv-sand"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.leaveConfig.allowSandwichLeaves"
+            (change)="setLeaveRule('allowSandwichLeaves', !d.leaveConfig.allowSandwichLeaves)"
+          />
+          <label for="lv-sand" class="form-check-label">Apply Sandwich Leave Rule (Count weekends in-between)</label>
+        </div>
+        <div class="form-check">
+          <input
+            id="lv-half"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.leaveConfig.allowHalfDay"
+            (change)="setLeaveRule('allowHalfDay', !d.leaveConfig.allowHalfDay)"
+          />
+          <label for="lv-half" class="form-check-label">Allow Half-Day Leaves</label>
+        </div>
+        <div class="form-check">
+          <input
+            id="lv-appr"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.leaveConfig.requireManagerApproval"
+            (change)="setLeaveRule('requireManagerApproval', !d.leaveConfig.requireManagerApproval)"
+          />
+          <label for="lv-appr" class="form-check-label">Require Manager Approval</label>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- EXPENSE POLICY CONFIG                                                 -->
+    <!-- ===================================================================== -->
+    <section class="stack stack--md" *ngIf="d.type === 'EXPENSE'">
+      <h3 class="section-title">Expense & Reimbursement Limits</h3>
+      <div class="grid grid--2">
+        <div class="form-group">
+          <label class="form-label" for="exp-max">Max Daily Claim ($)</label>
+          <input
+            id="exp-max"
+            type="number"
+            class="form-input"
+            [ngModel]="d.expenseConfig.maxDailyClaim"
+            (ngModelChange)="setExpenseRule('maxDailyClaim', +$event)"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="exp-rcpt">Receipt Mandatory Above ($)</label>
+          <input
+            id="exp-rcpt"
+            type="number"
+            class="form-input"
+            [ngModel]="d.expenseConfig.receiptMandatoryThreshold"
+            (ngModelChange)="setExpenseRule('receiptMandatoryThreshold', +$event)"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="exp-rate">Mileage Rate ($ / km)</label>
+          <input
+            id="exp-rate"
+            type="number"
+            class="form-input"
+            [ngModel]="d.expenseConfig.mileageRatePerKm"
+            (ngModelChange)="setExpenseRule('mileageRatePerKm', +$event)"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="exp-auto">Auto-Approval Threshold ($)</label>
+          <input
+            id="exp-auto"
+            type="number"
+            class="form-input"
+            [ngModel]="d.expenseConfig.autoApprovalLimit"
+            (ngModelChange)="setExpenseRule('autoApprovalLimit', +$event)"
+          />
+        </div>
+      </div>
+
+      <h3 class="section-title mt-3">Permitted Expense Categories</h3>
+      <div class="grid grid--2">
+        <div class="form-check">
+          <input
+            id="exp-fuel"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.expenseConfig.allowFuelExpense"
+            (change)="setExpenseRule('allowFuelExpense', !d.expenseConfig.allowFuelExpense)"
+          />
+          <label for="exp-fuel" class="form-check-label">Fuel & Mileage</label>
+        </div>
+        <div class="form-check">
+          <input
+            id="exp-food"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.expenseConfig.allowFoodExpense"
+            (change)="setExpenseRule('allowFoodExpense', !d.expenseConfig.allowFoodExpense)"
+          />
+          <label for="exp-food" class="form-check-label">Meals & Food</label>
+        </div>
+        <div class="form-check">
+          <input
+            id="exp-stay"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.expenseConfig.allowStayExpense"
+            (change)="setExpenseRule('allowStayExpense', !d.expenseConfig.allowStayExpense)"
+          />
+          <label for="exp-stay" class="form-check-label">Hotel & Accommodation</label>
+        </div>
+        <div class="form-check">
+          <input
+            id="exp-trav"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.expenseConfig.allowTravelExpense"
+            (change)="setExpenseRule('allowTravelExpense', !d.expenseConfig.allowTravelExpense)"
+          />
+          <label for="exp-trav" class="form-check-label">Travel & Tickets</label>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- TRACKING / GPS POLICY CONFIG                                          -->
+    <!-- ===================================================================== -->
+    <section class="stack stack--md" *ngIf="d.type === 'TRACKING'">
+      <h3 class="section-title">GPS & Location Sync</h3>
+      <div class="grid grid--2">
+        <div class="form-group">
+          <label class="form-label" for="trk-int">Sync Interval (Seconds)</label>
+          <select
+            id="trk-int"
+            class="form-input"
+            [ngModel]="d.trackingConfig.trackingIntervalSeconds"
+            (ngModelChange)="setTrackingRule('trackingIntervalSeconds', +$event)"
+          >
+            <option [value]="30">30 seconds (High precision)</option>
+            <option [value]="60">1 minute</option>
+            <option [value]="120">2 minutes (Recommended)</option>
+            <option [value]="300">5 minutes (Battery saver)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="trk-geo">Geofence Accuracy Radius (m)</label>
+          <input
+            id="trk-geo"
+            type="number"
+            class="form-input"
+            [ngModel]="d.trackingConfig.geofenceRadiusMeters"
+            (ngModelChange)="setTrackingRule('geofenceRadiusMeters', +$event)"
+          />
+        </div>
+      </div>
+
+      <div class="stack stack--xs mt-2">
+        <div class="form-check">
+          <input
+            id="trk-work"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.trackingConfig.workingHoursOnly"
+            (change)="setTrackingRule('workingHoursOnly', !d.trackingConfig.workingHoursOnly)"
+          />
+          <label for="trk-work" class="form-check-label">Track During Active Shift Only</label>
+        </div>
+        <div class="form-check">
+          <input
+            id="trk-acc"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.trackingConfig.highAccuracy"
+            (change)="setTrackingRule('highAccuracy', !d.trackingConfig.highAccuracy)"
+          />
+          <label for="trk-acc" class="form-check-label">Enforce High Accuracy GPS Mode</label>
+        </div>
+        <div class="form-check">
+          <input
+            id="trk-bat"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.trackingConfig.batteryOptimization"
+            (change)="setTrackingRule('batteryOptimization', !d.trackingConfig.batteryOptimization)"
+          />
+          <label for="trk-bat" class="form-check-label">Enable Smart Battery Optimization</label>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- VISIT POLICY CONFIG                                                   -->
+    <!-- ===================================================================== -->
+    <section class="stack stack--md" *ngIf="d.type === 'VISIT'">
+      <h3 class="section-title">Customer Visit Rules</h3>
+      <div class="grid grid--2">
+        <div class="form-group">
+          <label class="form-label" for="vst-prox">Max Allowed Proximity (Meters)</label>
+          <input
+            id="vst-prox"
+            type="number"
+            class="form-input"
+            [ngModel]="d.visitConfig.maxAllowedDistanceMeters"
+            (ngModelChange)="setVisitRule('maxAllowedDistanceMeters', +$event)"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="vst-dur">Min Visit Duration (Minutes)</label>
+          <input
+            id="vst-dur"
+            type="number"
+            class="form-input"
+            [ngModel]="d.visitConfig.minVisitDurationMinutes"
+            (ngModelChange)="setVisitRule('minVisitDurationMinutes', +$event)"
+          />
+        </div>
+      </div>
+
+      <div class="stack stack--xs mt-2">
+        <div class="form-check">
+          <input
+            id="vst-self"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.visitConfig.requireCheckInSelfie"
+            (change)="setVisitRule('requireCheckInSelfie', !d.visitConfig.requireCheckInSelfie)"
+          />
+          <label for="vst-self" class="form-check-label">Mandatory Check-in Selfie</label>
+        </div>
+        <div class="form-check">
+          <input
+            id="vst-sig"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.visitConfig.requireSignature"
+            (change)="setVisitRule('requireSignature', !d.visitConfig.requireSignature)"
+          />
+          <label for="vst-sig" class="form-check-label">Mandatory Customer Signature</label>
+        </div>
+        <div class="form-check">
+          <input
+            id="vst-notes"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.visitConfig.requireMeetingNotes"
+            (change)="setVisitRule('requireMeetingNotes', !d.visitConfig.requireMeetingNotes)"
+          />
+          <label for="vst-notes" class="form-check-label">Mandatory Meeting Notes / Summary</label>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- INSPECTION POLICY CONFIG                                              -->
+    <!-- ===================================================================== -->
+    <section class="stack stack--md" *ngIf="d.type === 'INSPECTION'">
+      <h3 class="section-title">Inspection & Audit Criteria</h3>
+      <div class="grid grid--2">
+        <div class="form-group">
+          <label class="form-label" for="insp-photo">Minimum Photos Required</label>
+          <input
+            id="insp-photo"
+            type="number"
+            class="form-input"
+            [ngModel]="d.inspectionConfig.minPhotosRequired"
+            (ngModelChange)="setInspectionRule('minPhotosRequired', +$event)"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="insp-pass">Pass Threshold Score (%)</label>
+          <input
+            id="insp-pass"
+            type="number"
+            class="form-input"
+            [ngModel]="d.inspectionConfig.passThresholdScore"
+            (ngModelChange)="setInspectionRule('passThresholdScore', +$event)"
+          />
+        </div>
+      </div>
+
+      <div class="stack stack--xs mt-2">
+        <div class="form-check">
+          <input
+            id="insp-chk"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.inspectionConfig.requireChecklistCompletion"
+            (change)="setInspectionRule('requireChecklistCompletion', !d.inspectionConfig.requireChecklistCompletion)"
+          />
+          <label for="insp-chk" class="form-check-label">Enforce 100% Checklist Item Completion</label>
+        </div>
+        <div class="form-check">
+          <input
+            id="insp-sign"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.inspectionConfig.requireSupervisorSignoff"
+            (change)="setInspectionRule('requireSupervisorSignoff', !d.inspectionConfig.requireSupervisorSignoff)"
+          />
+          <label for="insp-sign" class="form-check-label">Require Supervisor Co-Signature</label>
+        </div>
+        <div class="form-check">
+          <input
+            id="insp-gps"
+            type="checkbox"
+            class="form-checkbox"
+            [checked]="d.inspectionConfig.requireGpsTagging"
+            (change)="setInspectionRule('requireGpsTagging', !d.inspectionConfig.requireGpsTagging)"
+          />
+          <label for="insp-gps" class="form-check-label">Mandatory GPS Coordinate Tagging</label>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div slot="footer" class="row row--end row--gap-sm">
+    <button type="button" class="btn btn--default btn--sm" (click)="closeEditor()">
+      Cancel
+    </button>
+    <button type="button" class="btn btn--primary btn--sm" [disabled]="saving()" (click)="save()">
+      <netro-icon name="check" [size]="13" *ngIf="!saving()" />
+      {{ saving() ? 'Saving...' : (editingId() ? 'Save Changes' : 'Publish Policy') }}
+    </button>
+  </div>
+</netro-drawer>
+
+<!-- ========================================================================= -->
+<!-- Assignment Modal / Drawer                                                 -->
+<!-- ========================================================================= -->
+<netro-drawer
+  *ngIf="assignOpen()"
+  heading="Assign Policy"
+  [sub]="viewing()?.name ?? 'Select Target'"
+  width="md"
+  (closed)="closeAssign()"
+>
+  <div class="stack stack--md" *ngIf="viewing() as policy">
+    <p class="text-subtle text-sm">
+      Assign <strong>{{ policy.name }}</strong> ({{ typeLabels[policy.type || 'ATTENDANCE'].label }}) to an organizational entity.
+    </p>
+
+    <div class="form-group">
+      <label class="form-label" for="assign-type">Assignment Target Level</label>
+      <select
+        id="assign-type"
+        class="form-input"
+        [ngModel]="assignTargetType()"
+        (ngModelChange)="onTargetTypeChange($event)"
+      >
+        <option value="COMPANY">Company Wide (Default)</option>
+        <option value="DEPARTMENT">Department Level</option>
+        <option value="DESIGNATION">Designation / Role Level</option>
+        <option value="USER">Direct Employee Override</option>
+      </select>
+    </div>
+
+    <div class="form-group" *ngIf="assignTargetType() !== 'COMPANY'">
+      <label class="form-label" for="assign-target">Select Target</label>
+      <select
+        id="assign-target"
+        class="form-input"
+        [ngModel]="assignTargetId()"
+        (ngModelChange)="assignTargetId.set($event)"
+      >
+        <option value="">-- Choose target --</option>
+        <option *ngFor="let t of assignTargets()" [value]="t.id">{{ t.name }}</option>
+      </select>
+    </div>
+  </div>
+
+  <div slot="footer" class="row row--end row--gap-sm">
+    <button type="button" class="btn btn--default btn--sm" (click)="closeAssign()">
+      Cancel
+    </button>
+    <button type="button" class="btn btn--primary btn--sm" [disabled]="assigning()" (click)="submitAssign()">
+      {{ assigning() ? 'Assigning...' : 'Confirm Assignment' }}
+    </button>
+  </div>
+</netro-drawer>

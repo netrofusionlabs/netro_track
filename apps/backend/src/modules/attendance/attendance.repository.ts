@@ -1,5 +1,5 @@
 import { prisma } from '../../shared/config/prisma';
-import { Attendance } from '@prisma/client';
+import { Attendance, Prisma } from '@prisma/client';
 
 export class AttendanceRepository {
   public async findActivePunch(companyId: string, userId: string): Promise<Attendance | null> {
@@ -31,6 +31,9 @@ export class AttendanceRepository {
     punchInTime: Date;
     punchInLatitude: number;
     punchInLongitude: number;
+    attendancePolicyId?: string | null;
+    policySnapshot?: Prisma.InputJsonValue;
+    punchInEvidence?: Prisma.InputJsonValue;
   }): Promise<Attendance> {
     return prisma.attendance.create({
       data: {
@@ -38,7 +41,10 @@ export class AttendanceRepository {
         userId: data.userId,
         punchInTime: data.punchInTime,
         punchInLatitude: data.punchInLatitude,
-        punchInLongitude: data.punchInLongitude
+        punchInLongitude: data.punchInLongitude,
+        attendancePolicyId: data.attendancePolicyId,
+        policySnapshot: data.policySnapshot,
+        punchInEvidence: data.punchInEvidence
       }
     });
   }
@@ -50,6 +56,7 @@ export class AttendanceRepository {
       punchOutLatitude: number;
       punchOutLongitude: number;
       workingHours: number;
+      punchOutEvidence?: Prisma.InputJsonValue;
     }
   ): Promise<Attendance> {
     return prisma.attendance.update({
@@ -58,7 +65,8 @@ export class AttendanceRepository {
         punchOutTime: data.punchOutTime,
         punchOutLatitude: data.punchOutLatitude,
         punchOutLongitude: data.punchOutLongitude,
-        workingHours: data.workingHours
+        workingHours: data.workingHours,
+        punchOutEvidence: data.punchOutEvidence
       }
     });
   }
@@ -127,6 +135,179 @@ export class AttendanceRepository {
         punchInTime: { gte: startOfMonth, lte: endOfMonth }
       },
       orderBy: { punchInTime: 'asc' }
+    });
+  }
+
+  // ── Regularization Operations ──────────────────────────────────────────────
+
+  public async findRegularizationForDate(userId: string, date: Date) {
+    return prisma.attendanceRegularization.findFirst({
+      where: {
+        userId,
+        date: {
+          equals: date
+        }
+      }
+    });
+  }
+
+  public async createRegularization(data: {
+    companyId: string;
+    userId: string;
+    attendanceId?: string | null;
+    date: Date;
+    requestedPunchIn?: Date | null;
+    requestedPunchOut?: Date | null;
+    originalPunchIn?: Date | null;
+    originalPunchOut?: Date | null;
+    requestedPunchInOdometer?: number | null;
+    requestedPunchOutOdometer?: number | null;
+    originalPunchInOdometer?: number | null;
+    originalPunchOutOdometer?: number | null;
+    reason: string;
+  }) {
+    return prisma.attendanceRegularization.create({
+      data: {
+        companyId: data.companyId,
+        userId: data.userId,
+        attendanceId: data.attendanceId || null,
+        date: data.date,
+        requestedPunchIn: data.requestedPunchIn || null,
+        requestedPunchOut: data.requestedPunchOut || null,
+        originalPunchIn: data.originalPunchIn || null,
+        originalPunchOut: data.originalPunchOut || null,
+        requestedPunchInOdometer: data.requestedPunchInOdometer || null,
+        requestedPunchOutOdometer: data.requestedPunchOutOdometer || null,
+        originalPunchInOdometer: data.originalPunchInOdometer || null,
+        originalPunchOutOdometer: data.originalPunchOutOdometer || null,
+        reason: data.reason,
+        status: 'PENDING'
+      }
+    });
+  }
+
+  public async findMonthlyRegularizationsCount(userId: string, startOfMonth: Date, endOfMonth: Date): Promise<number> {
+    return prisma.attendanceRegularization.count({
+      where: {
+        userId,
+        date: {
+          gte: startOfMonth,
+          lte: endOfMonth
+        }
+      }
+    });
+  }
+
+  public async findRegularizations(params: {
+    companyId: string;
+    userId?: string;
+    teamUserIds?: string[];
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  }) {
+    return prisma.attendanceRegularization.findMany({
+      where: {
+        companyId: params.companyId,
+        ...(params.userId ? { userId: params.userId } : {}),
+        ...(params.teamUserIds ? { userId: { in: params.teamUserIds } } : {}),
+        ...(params.status ? { status: params.status } : {})
+      },
+      include: {
+        user: { select: { id: true, name: true, employeeId: true } },
+        approver: { select: { id: true, name: true } },
+        attendance: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  public async findRegularizationById(id: string) {
+    return prisma.attendanceRegularization.findUnique({
+      where: { id },
+      include: {
+        company: true,
+        user: true,
+        attendance: true
+      }
+    });
+  }
+
+  public async updateRegularizationStatus(
+    id: string,
+    status: 'APPROVED' | 'REJECTED',
+    approvedBy: string,
+    remarks: string | null,
+    attendanceId?: string | null
+  ) {
+    return prisma.attendanceRegularization.update({
+      where: { id },
+      data: {
+        status,
+        approvedBy,
+        remarks,
+        ...(attendanceId ? { attendanceId } : {})
+      }
+    });
+  }
+
+  public async updateAttendanceTimes(
+    id: string,
+    data: {
+      punchInTime?: Date;
+      punchOutTime?: Date | null;
+      workingHours?: number | null;
+      punchInEvidence?: Prisma.InputJsonValue;
+      punchOutEvidence?: Prisma.InputJsonValue;
+    }
+  ) {
+    return prisma.attendance.update({
+      where: { id },
+      data: {
+        ...(data.punchInTime ? { punchInTime: data.punchInTime } : {}),
+        ...(data.punchOutTime !== undefined ? { punchOutTime: data.punchOutTime } : {}),
+        ...(data.workingHours !== undefined ? { workingHours: data.workingHours } : {}),
+        ...(data.punchInEvidence !== undefined ? { punchInEvidence: data.punchInEvidence } : {}),
+        ...(data.punchOutEvidence !== undefined ? { punchOutEvidence: data.punchOutEvidence } : {})
+      }
+    });
+  }
+
+  public async findAttendanceById(id: string) {
+    return prisma.attendance.findUnique({
+      where: { id }
+    });
+  }
+
+  public async findSubordinateIds(companyId: string, managerId: string): Promise<string[]> {
+    const users = await prisma.user.findMany({
+      where: { companyId, managerId, deletedAt: null },
+      select: { id: true }
+    });
+    return users.map(u => u.id);
+  }
+
+  public async findPolicyById(id: string) {
+    return prisma.attendancePolicy.findUnique({
+      where: { id }
+    });
+  }
+
+  public async createAttendance(data: {
+    companyId: string;
+    userId: string;
+    punchInTime: Date;
+    punchInLatitude: number;
+    punchInLongitude: number;
+    punchOutTime?: Date | null;
+    punchOutLatitude?: number | null;
+    punchOutLongitude?: number | null;
+    workingHours?: number | null;
+    attendancePolicyId?: string | null;
+    policySnapshot?: Prisma.InputJsonValue;
+    punchInEvidence?: Prisma.InputJsonValue;
+    punchOutEvidence?: Prisma.InputJsonValue;
+  }) {
+    return prisma.attendance.create({
+      data
     });
   }
 }

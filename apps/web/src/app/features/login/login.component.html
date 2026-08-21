@@ -1,0 +1,235 @@
+<div class="auth">
+  <aside class="auth__story">
+    <div class="auth__brand-header">
+      <div class="auth__brand-lockup">
+        <img src="images/appIconClean.png" alt="NetroTrack" class="auth__brand-icon" />
+        <span class="auth__brand-name">Netro<span class="auth__brand-accent">Track</span></span>
+      </div>
+    </div>
+    <div class="auth__copy">
+      <p class="eyebrow" style="color: var(--brand-200)">Track. Manage. Perform.</p>
+      <h1 class="auth__headline">Presence. Activity. Outcome.</h1>
+      <p class="auth__lede">
+        NetroTrack connects who is on duty, where they are, the work they do, and the business that follows — all in one
+        real-time operational platform.
+      </p>
+      <ul class="auth__points">
+        <li><netro-icon name="pulse" [size]="14" /> Workforce presence and live attendance</li>
+        <li><netro-icon name="pin" [size]="14" /> Field visits, inspections, and evidence</li>
+        <li><netro-icon name="orders" [size]="14" /> Sales orders tied to the field teams</li>
+      </ul>
+    </div>
+  </aside>
+
+  <main class="auth__panel">
+    <div class="auth__form">
+      <div class="auth__form-header">
+        <img src="images/bannerLogoClean.png" alt="NetroTrack" class="auth__form-banner" />
+        <h2 class="auth__title">{{ expired() ? 'Sign in again' : 'Sign in' }}</h2>
+        <p class="text-small text-subtle">
+          {{ expired() ? 'Your session ended. Use your password or MPIN to continue.' : 'Use your employee ID or work email.' }}
+        </p>
+      </div>
+
+      <netro-alert tone="warn" *ngIf="expired() && !error()">
+        Sign in with your password or MPIN to continue. You will return to where you left off.
+      </netro-alert>
+
+      <netro-segmented [options]="methods" [value]="method()" label="Sign-in method"
+        (valueChange)="setMethod($event)" />
+
+      <form [formGroup]="form" class="stack" style="margin-top: var(--s-5)" (ngSubmit)="submit()">
+        <label class="field">
+          <span class="field__label">Employee ID or email</span>
+          <input class="input" formControlName="loginId" autocomplete="username" placeholder="e.g. NT-0142"
+            [attr.aria-invalid]="!!errorFor('loginId')" />
+          <span class="field__error" *ngIf="errorFor('loginId')">
+            <netro-icon name="alert" [size]="12" /> {{ errorFor('loginId') }}
+          </span>
+        </label>
+
+        <label class="field" *ngIf="method() === 'password'">
+          <span class="field__label">Password</span>
+          <span class="input-wrap">
+            <input class="input" [type]="showSecret() ? 'text' : 'password'" formControlName="password"
+              autocomplete="current-password" [attr.aria-invalid]="!!errorFor('password')" />
+            <button type="button" class="btn btn--subtle btn--sm btn--icon"
+              [attr.aria-label]="showSecret() ? 'Hide password' : 'Show password'" (click)="toggleSecret()">
+              <netro-icon [name]="showSecret() ? 'eye-off' : 'eye'" [size]="14" />
+            </button>
+          </span>
+          <span class="field__error" *ngIf="errorFor('password')">
+            <netro-icon name="alert" [size]="12" /> {{ errorFor('password') }}
+          </span>
+        </label>
+
+        <label class="field" *ngIf="method() === 'mpin'">
+          <span class="field__label">MPIN (4–6 digits)</span>
+          <input class="input" type="password" inputmode="numeric" maxlength="6" formControlName="mpin"
+            autocomplete="one-time-code" [attr.aria-invalid]="!!errorFor('mpin')" />
+          <span class="field__error" *ngIf="errorFor('mpin')">
+            <netro-icon name="alert" [size]="12" /> {{ errorFor('mpin') }}
+          </span>
+        </label>
+
+        <netro-alert tone="risk" *ngIf="error()">{{ error() }}</netro-alert>
+
+        <button type="submit" class="btn btn--primary btn--lg btn--block" [disabled]="loading()">
+          <netro-icon [name]="loading() ? 'spinner' : 'arrow-right'" [size]="15" [spin]="loading()" />
+          {{ loading() ? 'Signing in…' : 'Sign in' }}
+        </button>
+      </form>
+
+      <!-- ====================================================================
+           ORGANIZED DEMO ACCOUNTS SELECTOR (BY TENANT & ACCESS ROLE)
+           ==================================================================== -->
+      <div class="auth__samples">
+        <div class="auth__samples-header">
+          <span class="text-micro text-subtle font-semibold">Quick Demo Login</span>
+          <button type="button" class="btn--link text-micro" (click)="demoDrawerOpen.set(true)" *ngIf="demoTenants().length > 0">
+            View All Accounts ({{ demoTenants().length }} Tenants) →
+          </button>
+        </div>
+
+        <!-- Tenant / Company Tabs -->
+        <div class="auth__tenant-chips" *ngIf="demoTenants().length > 0">
+          <button
+            type="button"
+            *ngFor="let t of demoTenants()"
+            class="tenant-chip"
+            [class.is-active]="selectedTenantCode() === t.companyCode"
+            (click)="setTenant(t.companyCode)"
+          >
+            <span class="tenant-chip__code">{{ t.companyCode }}</span>
+            <span class="tenant-chip__name truncate">{{ t.companyName }}</span>
+          </button>
+        </div>
+
+        <!-- Active Tenant Roles & Users -->
+        <div class="auth__role-groups" *ngIf="selectedTenant() as tenant">
+          <div *ngFor="let rg of tenant.roles" class="role-group">
+            <div class="role-group__header">
+              <span class="text-micro text-subtle font-bold">{{ rg.roleLabel }}</span>
+              <span class="role-group__count">({{ rg.users.length }})</span>
+            </div>
+            <div class="role-group__users">
+              <button
+                type="button"
+                *ngFor="let u of rg.users"
+                class="user-demo-btn"
+                [attr.title]="'Click to autofill ' + u.name + ' (' + u.loginId + ')'"
+                (click)="selectDemoUser(u)"
+              >
+                <span class="user-demo-btn__name truncate">{{ u.name }}</span>
+                <span class="user-demo-btn__id">{{ u.loginId }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="auth__legal">
+        <button type="button" class="btn--link text-micro" (click)="openLegal('terms')">Terms of Service</button>
+        <span>·</span>
+        <button type="button" class="btn--link text-micro" (click)="openLegal('privacy')">Privacy Policy</button>
+      </footer>
+    </div>
+  </main>
+</div>
+
+<!-- ==========================================================================
+     ALL DEMO ACCOUNTS DIRECTORY DRAWER
+     ========================================================================== -->
+<netro-drawer
+  *ngIf="demoDrawerOpen()"
+  eyebrow="Quick Testing Helper"
+  heading="Demo Accounts Directory"
+  sub="Select any account below to instantly autofill login credentials"
+  width="wide"
+  (closed)="demoDrawerOpen.set(false)"
+>
+  <div class="stack stack--lg">
+    <div *ngFor="let tenant of demoTenants()" class="tenant-drawer-card">
+      <div class="tenant-drawer-card__header">
+        <span class="tenant-drawer-card__badge">{{ tenant.companyCode }}</span>
+        <div class="stack stack--2xs flex-1">
+          <h3 class="font-bold text-md">{{ tenant.companyName }}</h3>
+          <p class="text-micro text-subtle">{{ tenant.userCount }} active demo accounts</p>
+        </div>
+      </div>
+
+      <div class="stack stack--md mt-3">
+        <div *ngFor="let rg of tenant.roles" class="drawer-role-block">
+          <div class="drawer-role-block__title">
+            <netro-badge tone="info" size="xs">{{ rg.roleLabel }}</netro-badge>
+          </div>
+
+          <div class="drawer-user-grid">
+            <div
+              *ngFor="let u of rg.users"
+              class="drawer-user-card"
+              (click)="selectDemoUser(u, true)"
+            >
+              <div class="drawer-user-card__main">
+                <p class="font-bold text-sm truncate">{{ u.name }}</p>
+                <p class="text-micro text-subtle truncate" *ngIf="u.designation">{{ u.designation }}</p>
+                <p class="text-micro text-subtle truncate" *ngIf="!u.designation">{{ u.email }}</p>
+              </div>
+              <div class="drawer-user-card__meta">
+                <code class="demo-code">{{ u.loginId }}</code>
+                <button type="button" class="btn btn--subtle btn--xs">Sign In →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div slot="footer" style="display: contents">
+    <span class="spacer"></span>
+    <button type="button" class="btn btn--subtle" (click)="demoDrawerOpen.set(false)">Close</button>
+  </div>
+</netro-drawer>
+
+<!-- ==========================================================================
+     LEGAL MODAL DRAWER
+     ========================================================================== -->
+@if (legalModal()) {
+<netro-drawer [eyebrow]="legalModal() === 'terms' ? 'Terms of Service' : 'Privacy Policy'"
+  [heading]="legalModal() === 'terms' ? 'NetroTrack Terms of Service' : 'NetroTrack Privacy & Security Policy'"
+  sub="Version 1.2 · Effective January 2026" width="wide" (closed)="closeLegal()">
+  <div class="stack stack--md text-small">
+    @if (legalModal() === 'terms') {
+    <h4 class="font-bold">1. Enterprise Multi-Tenant Platform</h4>
+    <p>NetroTrack is a commercial workforce operations SaaS platform designed for authorized organizational users, field
+      tracking, shifts, and visit logging.</p>
+
+    <h4 class="font-bold">2. Location Tracking & Shift Consent</h4>
+    <p>Location tracking operates strictly during active shift/duty hours in compliance with company attendance
+      policies. Location tracking is automatically deactivated when you punch out.</p>
+
+    <h4 class="font-bold">3. Security and Credentials</h4>
+    <p>You are responsible for keeping your credentials and device MPIN confidential. Shared access or automated
+      spoofing is strictly prohibited.</p>
+    } @else {
+    <h4 class="font-bold">1. Information Collection & Purpose</h4>
+    <p>NetroTrack collects workforce shift logs, geocoded punch coordinates, and field evidence solely for
+      organizational management and payroll validation.</p>
+
+    <h4 class="font-bold">2. Tenant Isolation & Protection</h4>
+    <p>Tenant data is strictly isolated via database tenancy constraints. Customer records and workforce logs are never
+      shared across tenants.</p>
+
+    <h4 class="font-bold">3. Retention & Compliance</h4>
+    <p>Shift history and GPS data are encrypted at rest and stored in compliance with enterprise audit and statutory
+      labor regulations.</p>
+    }
+  </div>
+
+  <div slot="footer" style="display: contents">
+    <span class="spacer"></span>
+    <button type="button" class="btn btn--primary" (click)="closeLegal()">Close</button>
+  </div>
+</netro-drawer>
+}

@@ -1,0 +1,149 @@
+/* A choice is a row you can read, not a swatch you have to decode. */
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--s-3);
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  color: var(--fg);
+  transition: border-color var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease);
+}
+
+.choice:hover {
+  border-color: var(--n-300);
+  background: var(--surface-hover);
+}
+
+.choice:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.choice.is-selected {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.choice__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+  color: var(--fg-subtle);
+}
+
+.choice.is-selected .choice__icon {
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.choice__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.choice__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: var(--t-body-md);
+}
+
+.choice__hint {
+  font: var(--t-small);
+  color: var(--fg-subtle);
+}
+
+.choice.is-selected .choice__hint {
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+/* Capabilities */
+.module-list {
+  list-style: none;
+}
+
+.module {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.module:last-child {
+  border-bottom: none;
+}
+
+.module__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line-subtle);
+  color: var(--fg-subtle);
+}
+
+.module__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.module__name {
+  font: var(--t-body-md);
+}
+
+.module__desc {
+  font: var(--t-small);
+  color: var(--fg-subtle);
+  line-height: 1.55;
+  max-width: 62ch;
+}
+
+.module .switch {
+  margin-top: 4px;
+  flex: none;
+}
+
+.module-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--line-subtle);
+  background: var(--surface-sunken);
+  color: var(--fg-subtle);
+  font: var(--t-small);
+  line-height: 1.55;
+}
+
+.module-note netro-icon {
+  margin-top: 1px;
+  flex: none;
+}

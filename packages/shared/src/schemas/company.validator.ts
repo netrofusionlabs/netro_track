@@ -45,6 +45,7 @@ export const CompanyWizardSchema = z.object({
     asset: z.boolean().default(false),
     performance: z.boolean().default(false),
     recruitment: z.boolean().default(false),
+    regularization: z.boolean().default(false),
   }).default({
     attendance: false,
     leave: false,
@@ -55,6 +56,7 @@ export const CompanyWizardSchema = z.object({
     asset: false,
     performance: false,
     recruitment: false,
+    regularization: false,
   })
 });
 

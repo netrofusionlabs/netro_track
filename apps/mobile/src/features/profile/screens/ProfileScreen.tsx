@@ -199,7 +199,10 @@ export function ProfileScreen({ navigation }: any) {
         <Section title="Company & Organization">
           {user?.role === 'COMPANY_ADMIN' && company && (
             <Card
-              onPress={() => (navigation as any).navigate('CompanyWizard', { companyId: user?.companyId })}
+              onPress={() => (navigation as any).navigate('Employees', {
+                screen: 'CompanyWizard',
+                params: { companyId: user?.companyId },
+              })}
               style={{ padding: 14, marginBottom: 10 }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>

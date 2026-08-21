@@ -114,4 +114,23 @@ export class AuthController {
       next(error);
     }
   };
+
+  /**
+   * GET /auth/demo-users (public / temporary)
+   * Returns active demo login accounts organized by Tenant -> Access Role -> User Name.
+   */
+  public getDemoUsers = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await this.authService.getDemoUsers();
+
+      res.status(200).json({
+        success: true,
+        message: 'Demo login users fetched successfully',
+        data: result,
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

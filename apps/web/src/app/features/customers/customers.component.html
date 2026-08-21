@@ -1,0 +1,153 @@
+<div class="page">
+  <netro-page-header title="Customers" description="Retailers, dealers and distributors the field team visits and sells to.">
+    <div slot="actions" class="row row--nowrap">
+      <netro-badge tone="neutral">Coming Soon</netro-badge>
+    </div>
+  </netro-page-header>
+
+  <netro-alert tone="info" heading="Feature Coming Soon">
+    The Customers CRM module is currently under active development and will be released in an upcoming platform update.
+  </netro-alert>
+
+  <netro-panel [flush]="true" padding="none">
+    <netro-toolbar [search]="search()" searchPlaceholder="Name, phone, village or type" searchLabel="Search customers" (searchChange)="applySearch($event)">
+      <span slot="actions" class="text-micro text-subtle tnum">{{ rows().length }} {{ rows().length === 1 ? 'customer' : 'customers' }}</span>
+    </netro-toolbar>
+
+    @if (loading()) {
+      <netro-skeleton-rows [rows]="8" [cols]="4" />
+    } @else if (error()) {
+      <netro-state icon="x-circle" tone="risk" title="Could not load customers" [body]="error()">
+        <button type="button" class="btn btn--default" (click)="load()">Try again</button>
+      </netro-state>
+    } @else if (!rows().length) {
+      <netro-state icon="building" [title]="search() ? 'No customer matches that search' : 'No customers yet'" body="Add the first retailer or dealer so visits and orders have somewhere to land.">
+        <button type="button" class="btn btn--primary" *ngIf="canCreate() && !search()" (click)="startCreate()">Add customer</button>
+      </netro-state>
+    } @else {
+      <div class="table-scroll">
+        <table class="table">
+          <caption class="sr-only">Customer directory</caption>
+          <thead>
+            <tr>
+              <th scope="col">Customer</th>
+              <th scope="col">Type</th>
+              <th scope="col">Phone</th>
+              <th scope="col" class="col-hide-md">Location</th>
+              <th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of rows(); track c.id) {
+              <tr class="is-clickable" tabindex="0" (click)="view(c)" (keydown.enter)="view(c)">
+                <td>
+                  <span class="cell-strong">{{ c.name }}</span>
+                  <span class="cell-secondary" style="display: block">{{ c.email || '' }}</span>
+                </td>
+                <td><netro-badge>{{ label(c.type) }}</netro-badge></td>
+                <td class="tnum">{{ phone(c) }}</td>
+                <td class="col-hide-md cell-secondary">{{ c.village || c.address || '—' }}</td>
+                <td class="col-actions" (click)="$event.stopPropagation()">
+                  <button type="button" class="btn btn--subtle btn--sm btn--icon" [attr.aria-label]="'Edit ' + c.name" (click)="startEdit(c)">
+                    <netro-icon name="edit" [size]="14" />
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </netro-panel>
+</div>
+
+@if (viewing(); as c) {
+  <netro-drawer eyebrow="Customer workspace" [heading]="c.name" [sub]="label(c.type)" width="wide" [hasFooter]="true" (closed)="closeView()">
+    <div class="stack stack--lg">
+      <dl class="defs">
+        <div class="defs__row"><dt class="defs__key">Phone</dt><dd class="defs__val">{{ phone(c) }}</dd></div>
+        <div class="defs__row"><dt class="defs__key">Email</dt><dd class="defs__val">{{ c.email || '—' }}</dd></div>
+        <div class="defs__row"><dt class="defs__key">Village</dt><dd class="defs__val">{{ c.village || '—' }}</dd></div>
+        <div class="defs__row"><dt class="defs__key">Address</dt><dd class="defs__val">{{ c.address || '—' }}</dd></div>
+      </dl>
+
+      <section>
+        <p class="eyebrow" style="margin-bottom: 8px">Recent visits</p>
+        @if (!relatedVisits().length) {
+          <p class="text-small text-subtle">No visits recorded against this customer yet.</p>
+        } @else {
+          <ul class="stack stack--sm">
+            <li *ngFor="let v of relatedVisits()" class="text-small">
+              <strong>{{ v.user?.name || '—' }}</strong>
+              <span class="text-subtle"> · {{ v.checkInTime | date: 'mediumDate' }}</span>
+              <span class="text-subtle" *ngIf="productsOf(v).length"> · {{ productsOf(v).join(', ') }}</span>
+            </li>
+          </ul>
+        }
+      </section>
+
+      <section>
+        <p class="eyebrow" style="margin-bottom: 8px">Recent orders</p>
+        @if (!relatedOrders().length) {
+          <p class="text-small text-subtle">No orders recorded against this customer yet.</p>
+        } @else {
+          <ul class="stack stack--sm">
+            <li *ngFor="let s of relatedOrders()" class="text-small">
+              <strong>{{ money(s.totalAmount) }}</strong>
+              <span class="text-subtle"> · {{ s.createdAt | date: 'mediumDate' }} · {{ s.user?.name || '—' }}</span>
+            </li>
+          </ul>
+        }
+      </section>
+    </div>
+    <div slot="footer" style="display: contents">
+      <button type="button" class="btn btn--danger-outline" *ngIf="canDelete()" (click)="remove(c)">Delete</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--primary" (click)="startEdit(c)"><netro-icon name="edit" [size]="14" /> Edit</button>
+    </div>
+  </netro-drawer>
+}
+
+@if (editorOpen()) {
+  <netro-drawer [eyebrow]="editing() ? 'Edit customer' : 'Add customer'" [heading]="editing()?.name || 'New customer'" sub="Fields marked with an asterisk are required." [dismissOnScrim]="false" (closed)="closeEditor()">
+    <form [formGroup]="form" class="stack stack--lg" (ngSubmit)="submit()">
+      <div class="form-grid">
+        <label class="field span-2">
+          <span class="field__label">Name <span class="field__req">*</span></span>
+          <input class="input" formControlName="name" />
+          <span class="field__error" *ngIf="errorFor('name')"><netro-icon name="alert" [size]="12" /> {{ errorFor('name') }}</span>
+        </label>
+        <label class="field">
+          <span class="field__label">Type</span>
+          <select class="select" formControlName="type">
+            <option *ngFor="let t of types" [value]="t">{{ label(t) }}</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field__label">Phone</span>
+          <input class="input" formControlName="phone" />
+        </label>
+        <label class="field">
+          <span class="field__label">Email</span>
+          <input class="input" type="email" formControlName="email" />
+        </label>
+        <label class="field">
+          <span class="field__label">Village</span>
+          <input class="input" formControlName="village" />
+        </label>
+        <label class="field span-2">
+          <span class="field__label">Address</span>
+          <textarea class="textarea" rows="2" formControlName="address"></textarea>
+        </label>
+      </div>
+    </form>
+    <div slot="footer" style="display: contents">
+      <button type="button" class="btn btn--subtle" (click)="closeEditor()">Cancel</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--primary" [disabled]="saving()" (click)="submit()">
+        <netro-icon [name]="saving() ? 'spinner' : 'check'" [size]="14" [spin]="saving()" />
+        {{ editing() ? 'Save changes' : 'Add customer' }}
+      </button>
+    </div>
+  </netro-drawer>
+}

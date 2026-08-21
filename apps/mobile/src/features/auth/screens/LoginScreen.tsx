@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   TouchableOpacity,
   View,
@@ -13,11 +13,38 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
-import { Input, Button, Card, BrandLogo } from '../../../shared/components';
+import { Input, Button, Card, BrandLogo, Badge } from '../../../shared/components';
 import { useAuthStore } from '../stores/authStore';
 import { BASE_URL } from '../../../shared/services/api';
 
 const API_URL = BASE_URL;
+
+interface DemoUserItem {
+  id: string;
+  name: string;
+  loginId: string;
+  email: string;
+  role: string;
+  roleLabel: string;
+  designation?: string | null;
+  defaultPassword?: string;
+  defaultMpin?: string;
+}
+
+interface DemoTenantRole {
+  role: string;
+  roleLabel: string;
+  roleOrder: number;
+  users: DemoUserItem[];
+}
+
+interface DemoTenantItem {
+  companyId: string;
+  companyName: string;
+  companyCode: string;
+  roles: DemoTenantRole[];
+  userCount: number;
+}
 
 export function LoginScreen({ navigation }: { navigation: any }) {
   const theme = useTheme();
@@ -27,6 +54,32 @@ export function LoginScreen({ navigation }: { navigation: any }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Demo accounts data
+  const [demoTenants, setDemoTenants] = useState<DemoTenantItem[]>([]);
+  const [selectedTenantCode, setSelectedTenantCode] = useState<string>('NETRO');
+
+  useEffect(() => {
+    let isMounted = true;
+    axios
+      .get<{ success: boolean; data: { tenants: DemoTenantItem[] } }>(`${API_URL}/api/v1/auth/demo-users`)
+      .then((res) => {
+        if (isMounted && res.data?.data?.tenants) {
+          const tenants = res.data.data.tenants;
+          setDemoTenants(tenants);
+          if (tenants.length > 0) {
+            setSelectedTenantCode(tenants[0].companyCode);
+          }
+        }
+      })
+      .catch(() => {
+        // Fallback gracefully to default static accounts
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleLogin = async () => {
     setErrors({});
@@ -57,8 +110,6 @@ export function LoginScreen({ navigation }: { navigation: any }) {
 
       const { accessToken, refreshToken, user } = response.data.data;
       setCredentials({ user, accessToken, refreshToken, loginId: loginId.trim() });
-
-
     } catch (error: any) {
       if (error.response?.data?.error?.code === 'VALIDATION_ERROR' && error.response?.data?.error?.details) {
         const backendErrors: { [key: string]: string } = {};
@@ -74,6 +125,8 @@ export function LoginScreen({ navigation }: { navigation: any }) {
       setLoading(false);
     }
   };
+
+  const selectedTenant = demoTenants.find((t) => t.companyCode === selectedTenantCode) || demoTenants[0];
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.surface.background }]}>
@@ -127,45 +180,89 @@ export function LoginScreen({ navigation }: { navigation: any }) {
             />
           </Card>
 
-          {/* Quick Demo Test Accounts (Scrollable Container) */}
-          <View style={styles.demoSection}>
-            <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 8, textAlign: 'center', fontWeight: '600' }]}>
-              Quick Demo Accounts (Tap to Autofill)
-            </Text>
-            <ScrollView
-              style={styles.demoScrollContainer}
-              nestedScrollEnabled={true}
-              showsVerticalScrollIndicator={true}
-              contentContainerStyle={styles.demoChipsRow}
-            >
-              {[
-                { label: 'Company Admin (Infobell)', loginId: 'IB-CA01', password: 'Password123!' },
-                { label: 'Super Admin (NetroTrack)', loginId: 'NETRO-EMP001', password: 'Password123!' },
-                { label: 'Master Super Admin', loginId: 'NETRO-MASTER', password: 'Password123!' },
-              ].map((acc) => (
-                <TouchableOpacity
-                  key={acc.loginId}
-                  style={[
-                    styles.demoChip,
-                    { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.brand.primary },
-                  ]}
-                  onPress={() => {
-                    setLoginId(acc.loginId);
-                    setPassword(acc.password);
-                    setErrors({});
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[typography.bodySm, { color: theme.colors.brand.primary, fontWeight: '700' }]}>
-                    {acc.label}
-                  </Text>
-                  <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
-                    {acc.loginId} · Password123!
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          {/* Quick Demo Test Accounts (Organized by Tenant & Access Role) */}
+          {demoTenants.length > 0 && (
+            <View style={styles.demoSection}>
+              <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 10, textAlign: 'center', fontWeight: '700' }]}>
+                Quick Demo Logins (Grouped by Tenant & Role)
+              </Text>
+
+              {/* Tenant Filter Pills */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tenantPillsRow}>
+                {demoTenants.map((t) => {
+                  const isSelected = selectedTenantCode === t.companyCode;
+                  return (
+                    <TouchableOpacity
+                      key={t.companyCode}
+                      onPress={() => setSelectedTenantCode(t.companyCode)}
+                      style={[
+                        styles.tenantPill,
+                        {
+                          backgroundColor: isSelected ? theme.colors.brand.primary : theme.colors.surface.card,
+                          borderColor: isSelected ? theme.colors.brand.primary : theme.colors.surface.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          typography.caption,
+                          {
+                            color: isSelected ? '#ffffff' : theme.colors.text.primary,
+                            fontWeight: isSelected ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {t.companyName} ({t.companyCode})
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Selected Tenant Users Grouped by Access Role */}
+              {selectedTenant && (
+                <View style={styles.roleGroupList}>
+                  {selectedTenant.roles.map((rg) => (
+                    <View key={rg.role} style={styles.roleBlock}>
+                      <Text style={[typography.caption, { color: theme.colors.brand.primary, fontWeight: '700', marginBottom: 6 }]}>
+                        {rg.roleLabel}
+                      </Text>
+                      <View style={styles.usersGrid}>
+                        {rg.users.map((u) => (
+                          <TouchableOpacity
+                            key={u.id}
+                            style={[
+                              styles.userCard,
+                              {
+                                backgroundColor: theme.colors.surface.card,
+                                borderColor: theme.colors.surface.border,
+                              },
+                            ]}
+                            onPress={() => {
+                              setLoginId(u.loginId);
+                              setPassword(u.defaultPassword || 'Password123!');
+                              setErrors({});
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]} numberOfLines={1}>
+                              {u.name}
+                            </Text>
+                            <Text style={[typography.caption, { color: theme.colors.text.secondary, fontSize: 11 }]} numberOfLines={1}>
+                              {u.designation || u.roleLabel}
+                            </Text>
+                            <Text style={[typography.caption, { color: theme.colors.brand.primary, fontSize: 10, fontWeight: '700', marginTop: 2 }]}>
+                              {u.loginId}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Footer */}
           <Text style={[typography.caption, { color: theme.colors.text.tertiary, textAlign: 'center', marginTop: 24 }]}>
@@ -198,22 +295,35 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   demoSection: {
-    marginTop: 20,
+    marginTop: 24,
   },
-  demoScrollContainer: {
-    maxHeight: 220,
-  },
-  demoChipsRow: {
-    alignItems: 'center',
+  tenantPillsRow: {
+    flexDirection: 'row',
     gap: 8,
-    paddingBottom: 4,
+    paddingBottom: 8,
+    marginBottom: 12,
   },
-  demoChip: {
-    width: '100%',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    alignItems: 'center',
+  tenantPill: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  roleGroupList: {
+    gap: 12,
+  },
+  roleBlock: {
+    marginBottom: 4,
+  },
+  usersGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  userCard: {
+    width: '48%',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
   },
 });

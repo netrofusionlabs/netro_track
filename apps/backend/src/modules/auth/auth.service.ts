@@ -1,5 +1,5 @@
 import { AuthRepository } from './auth.repository';
-import { LoginInput, MpinLoginInput } from '@netrotrack/shared';
+import { LoginInput, MpinLoginInput, ROLE_DISPLAY_LABELS, ROLE_HIERARCHY, UserRole } from '@netrotrack/shared';
 import { AppError } from '../../shared/errors/AppError';
 import * as argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
@@ -27,9 +27,9 @@ export class AuthService {
         throw new AppError('AUTHENTICATION_FAILED', 'Invalid credentials', 401);
       }
 
-      user = await this.authRepository.findUserByEmployeeId(company.id, employeeId);
+      user = await this.authRepository.findUserByEmployeeId(company.id, input.loginId);
       if (!user) {
-        user = await this.authRepository.findUserByEmployeeId(company.id, input.loginId);
+        user = await this.authRepository.findUserByEmployeeId(company.id, employeeId);
       }
     }
 
@@ -42,7 +42,7 @@ export class AuthService {
     }
 
     // 1. Password Verification
-    const isPasswordValid = await argon2.verify(user.passwordHash, input.password);
+    const isPasswordValid = await this.safeVerifyHash(user.passwordHash, input.password);
     if (!isPasswordValid) {
       throw new AppError('AUTHENTICATION_FAILED', 'Invalid credentials', 401);
     }
@@ -97,7 +97,8 @@ export class AuthService {
         name: user.name,
         role: normalizedRole,
         isMasterAdmin: user.role === 'MASTER_SUPER_ADMIN',
-        isGpsEnabled: user.company?.isGpsEnabled ?? true,
+        isGpsEnabled: this.getGpsStatus(user),
+        isRegularizationEnabled: this.getRegularizationStatus(user),
         isGpsTracked: user.isGpsTracked ?? true,
         hasMpin: !!user.mpinHash,
         managerId: user.manager?.id ?? null,
@@ -129,7 +130,7 @@ export class AuthService {
       throw new AppError('MPIN_NOT_SET', 'MPIN has not been configured for this account', 400);
     }
 
-    const isMpinValid = await argon2.verify(user.mpinHash, mpin);
+    const isMpinValid = await this.safeVerifyHash(user.mpinHash, mpin);
     if (!isMpinValid) {
       throw new AppError('INVALID_MPIN', 'Incorrect MPIN', 401);
     }
@@ -161,6 +162,8 @@ export class AuthService {
       managerId: user.manager?.id ?? null,
       managerName: user.manager?.name ?? null,
       managerEmployeeId: user.manager?.employeeId ?? null,
+      isGpsEnabled: this.getGpsStatus(user),
+      isRegularizationEnabled: this.getRegularizationStatus(user),
       isGpsTracked: user.isGpsTracked,
       hasMpin: !!user.mpinHash,
       bloodGroup: user.bloodGroup ?? null,
@@ -195,7 +198,10 @@ export class AuthService {
 
         const company = await this.authRepository.findCompanyByCode(companyCode);
         if (company) {
-          user = await this.authRepository.findUserByEmployeeId(company.id, employeeId);
+          user = await this.authRepository.findUserByEmployeeId(company.id, input.loginId);
+          if (!user) {
+            user = await this.authRepository.findUserByEmployeeId(company.id, employeeId);
+          }
         }
       }
     }
@@ -208,7 +214,7 @@ export class AuthService {
       throw new AppError('ACCOUNT_DEACTIVATED', 'Your account has been deactivated. Please contact your administrator.', 403);
     }
 
-    const isMpinValid = await argon2.verify(user.mpinHash, input.mpin);
+    const isMpinValid = await this.safeVerifyHash(user.mpinHash, input.mpin);
     if (!isMpinValid) {
       throw new AppError('AUTHENTICATION_FAILED', 'Invalid MPIN', 401);
     }
@@ -246,12 +252,148 @@ export class AuthService {
         name: user.name,
         role: normalizedRole,
         isMasterAdmin: normalizedRole === 'MASTER_SUPER_ADMIN',
-        isGpsEnabled: user.company?.isGpsEnabled ?? true,
+        isGpsEnabled: this.getGpsStatus(user),
+        isRegularizationEnabled: this.getRegularizationStatus(user),
         isGpsTracked: user.isGpsTracked ?? true,
         hasMpin: !!user.mpinHash,
         managerId: user.manager?.id ?? null,
         managerName: user.manager?.name ?? null,
       }
     };
+  }
+
+  public async getDemoUsers() {
+    const rawUsers = await this.authRepository.findEligibleDemoUsers();
+    const storageService = (await import('../../shared/services/storage.service')).StorageService.getInstance();
+
+    const formattedUsers = rawUsers.map((u) => {
+      const companyCode = u.company?.code || 'NETRO';
+      const rawEmpId = u.employeeId || '';
+      const loginId = rawEmpId.toUpperCase().startsWith(`${companyCode.toUpperCase()}-`)
+        ? rawEmpId
+        : `${companyCode}-${rawEmpId}`;
+
+      const roleEnum = u.role as unknown as UserRole;
+      const roleLabel = ROLE_DISPLAY_LABELS[roleEnum] || u.role;
+      const roleOrder = ROLE_HIERARCHY[roleEnum] ?? 0;
+
+      const logoObjectKey = (u.company as any)?.logoFile?.objectKey;
+      const companyLogoUrl = logoObjectKey ? storageService.getPublicUrl(logoObjectKey) : null;
+
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        employeeId: u.employeeId,
+        loginId,
+        role: u.role,
+        roleLabel,
+        roleOrder,
+        designation: u.designation?.name || null,
+        companyId: u.company?.id || u.companyId,
+        companyName: u.company?.name || 'NetroTrack',
+        companyCode,
+        companyLogoUrl,
+        defaultPassword: 'Password123!',
+        defaultMpin: '9999',
+      };
+    });
+
+    // Group by Tenant / Company -> Access Role -> User Name
+    const tenantMap = new Map<string, {
+      companyId: string;
+      companyName: string;
+      companyCode: string;
+      companyLogoUrl: string | null;
+      roleMap: Map<string, {
+        role: string;
+        roleLabel: string;
+        roleOrder: number;
+        users: typeof formattedUsers;
+      }>;
+    }>();
+
+    for (const u of formattedUsers) {
+      if (!tenantMap.has(u.companyId)) {
+        tenantMap.set(u.companyId, {
+          companyId: u.companyId,
+          companyName: u.companyName,
+          companyCode: u.companyCode,
+          companyLogoUrl: u.companyLogoUrl,
+          roleMap: new Map(),
+        });
+      }
+
+      const tenant = tenantMap.get(u.companyId)!;
+      if (!tenant.roleMap.has(u.role)) {
+        tenant.roleMap.set(u.role, {
+          role: u.role,
+          roleLabel: u.roleLabel,
+          roleOrder: u.roleOrder,
+          users: [],
+        });
+      }
+
+      tenant.roleMap.get(u.role)!.users.push(u);
+    }
+
+    const tenants = Array.from(tenantMap.values()).map((t) => {
+      const roles = Array.from(t.roleMap.values())
+        .sort((a, b) => b.roleOrder - a.roleOrder)
+        .map((r) => ({
+          role: r.role,
+          roleLabel: r.roleLabel,
+          roleOrder: r.roleOrder,
+          users: r.users.sort((a, b) => a.name.localeCompare(b.name)),
+        }));
+
+      return {
+        companyId: t.companyId,
+        companyName: t.companyName,
+        companyCode: t.companyCode,
+        companyLogoUrl: t.companyLogoUrl,
+        roles,
+        userCount: roles.reduce((sum, r) => sum + r.users.length, 0),
+      };
+    }).sort((a, b) => {
+      // Platform / NETRO company first, then alphabetical by company name
+      if (a.companyCode === 'NETRO') return -1;
+      if (b.companyCode === 'NETRO') return 1;
+      return a.companyName.localeCompare(b.companyName);
+    });
+
+    return {
+      tenants,
+      users: formattedUsers,
+      totalCount: formattedUsers.length,
+    };
+  }
+
+  private getRegularizationStatus(user: any): boolean {
+    const modules = user.company?.modules || [];
+    const hasAttendance = modules.some((m: any) => m.module === 'ATTENDANCE' && m.isEnabled);
+    const hasRegularizationRecord = modules.some((m: any) => m.module === 'REGULARIZATION');
+    return hasRegularizationRecord
+      ? modules.some((m: any) => m.module === 'REGULARIZATION' && m.isEnabled)
+      : hasAttendance;
+  }
+
+  private getGpsStatus(user: any): boolean {
+    const modules = user.company?.modules || [];
+    const hasGpsRecord = modules.some((m: any) => m.module === 'GPS');
+    return hasGpsRecord
+      ? modules.some((m: any) => m.module === 'GPS' && m.isEnabled)
+      : (user.company?.isGpsEnabled ?? true);
+  }
+
+  private async safeVerifyHash(hash: string | null, plain: string): Promise<boolean> {
+    if (!hash || !hash.startsWith('$')) {
+      return false;
+    }
+    try {
+      return await argon2.verify(hash, plain);
+    } catch (err) {
+      return false;
+    }
   }
 }

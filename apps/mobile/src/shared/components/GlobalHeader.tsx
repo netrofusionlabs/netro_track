@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ViewStyle, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
@@ -61,6 +61,13 @@ export function GlobalHeader({
 
   const nav = useNavigation<any>();
 
+  const handleHomePress = () => {
+    const activeNav = navigation || nav;
+    if (activeNav) {
+      activeNav.navigate('Main', { screen: 'Home' });
+    }
+  };
+
   const handleProfilePress = () => {
     if (onProfilePress) {
       onProfilePress();
@@ -81,6 +88,8 @@ export function GlobalHeader({
   const handleNotificationPress = () => {
     if (onNotificationPress) {
       onNotificationPress();
+    } else {
+      Alert.alert('Coming Soon', 'Notifications feature is coming soon.');
     }
   };
 
@@ -130,16 +139,18 @@ export function GlobalHeader({
 
         {/* RIGHT SIDE: Search, Notifications, User Avatar */}
         <View style={styles.rightSection}>
-          {/* Search Action */}
+          {/* Home Action */}
           <TouchableOpacity
-            onPress={handleSearchPress}
+            onPress={handleHomePress}
             activeOpacity={0.7}
             style={[styles.utilityBtn, { backgroundColor: theme.colors.surface.subtle }]}
             accessibilityRole="button"
-            accessibilityLabel="Search"
+            accessibilityLabel="Home"
           >
-            <AppIcon name="search" color={theme.colors.text.secondary} size={16} />
+            <AppIcon name="home" color={theme.colors.text.secondary} size={16} />
           </TouchableOpacity>
+
+
 
           {/* Notification Bell Action */}
           <TouchableOpacity

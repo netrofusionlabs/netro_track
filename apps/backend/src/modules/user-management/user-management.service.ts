@@ -1,6 +1,6 @@
 import { UserManagementRepository, UserFilterOptions, PaginatedResult } from './user-management.repository';
 import { TimelineRepository } from './timeline.repository';
-import { AuthorizationService, JwtPayload } from '../../shared/services/authorization.service';
+import { AuthorizationService, JwtPayload, ROLE_RANK } from '../../shared/services/authorization.service';
 import { AuditService } from '../../shared/services/audit.service';
 import { AppError } from '../../shared/errors/AppError';
 import { Role, UserStatus, User, TimelineEventType } from '@prisma/client';
@@ -438,6 +438,7 @@ export class UserManagementService {
           branch: input.branchId ? { connect: { id: input.branchId } } : undefined,
           department: input.departmentId ? { connect: { id: input.departmentId } } : undefined,
           designation: finalDesignationId ? { connect: { id: finalDesignationId } } : undefined,
+          attendancePolicy: input.attendancePolicyId ? { connect: { id: input.attendancePolicyId } } : undefined,
         },
       });
 
@@ -619,6 +620,15 @@ export class UserManagementService {
     if (input.role !== undefined) updateData.role = normalizeRole(input.role as string);
     if (input.status !== undefined) updateData.status = input.status;
     if (input.managerId !== undefined) updateData.managerId = input.managerId;
+    if (input.attendancePolicyId !== undefined) updateData.attendancePolicyId = input.attendancePolicyId;
+    if (input.isGpsTracked !== undefined) {
+      const actorRank = ROLE_RANK[actor.role] ?? 0;
+      const targetRank = ROLE_RANK[target.role] ?? 0;
+      if (actorRank <= targetRank) {
+        throw new AppError('FORBIDDEN', 'You can only toggle GPS tracking for users of lower role rank', 403);
+      }
+      updateData.isGpsTracked = input.isGpsTracked;
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       if (input.designationName !== undefined && !input.designationId) {
@@ -701,6 +711,38 @@ export class UserManagementService {
           changedByUserId: actor.id,
           changedByName: actorName,
           effectiveDate,
+        });
+      }
+      // 4. Log Attendance Policy Event
+      if (input.attendancePolicyId !== undefined && input.attendancePolicyId !== target.attendancePolicyId) {
+        const prevPolicyId = target.attendancePolicyId;
+        const newPolicyId = input.attendancePolicyId;
+
+        let prevName = 'None';
+        if (prevPolicyId) {
+          const p = await tx.attendancePolicy.findUnique({ where: { id: prevPolicyId }, select: { name: true } });
+          if (p) prevName = p.name;
+        }
+        let newName = 'None';
+        if (newPolicyId) {
+          const p = await tx.attendancePolicy.findUnique({ where: { id: newPolicyId }, select: { name: true } });
+          if (p) newName = p.name;
+        }
+
+        const eventType = prevPolicyId ? 'ATTENDANCE_POLICY_CHANGED' : 'ATTENDANCE_POLICY_ASSIGNED';
+        await tx.userTimelineEvent.create({
+          data: {
+            userId: targetId,
+            companyId: target.companyId,
+            eventType: eventType as any,
+            title: newPolicyId ? 'Attendance Policy Assigned' : 'Attendance Policy Removed',
+            description: newPolicyId 
+              ? `Assigned attendance policy changed from "${prevName}" to "${newName}"`
+              : `Assigned attendance policy override removed (previously "${prevName}")`,
+            previousValue: prevPolicyId || null,
+            newValue: newPolicyId || null,
+            effectiveDate,
+          },
         });
       }
 

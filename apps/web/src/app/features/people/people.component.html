@@ -1,0 +1,770 @@
+<div class="page">
+  <netro-page-header
+    title="People"
+    description="Everyone in your scope — their reporting line, their access, and what their day looks like today."
+  >
+    <div slot="actions" class="row row--nowrap">
+      <button type="button" class="btn btn--default btn--sm" (click)="load()" [disabled]="loading()">
+        <netro-icon name="refresh" [size]="13" [spin]="loading()" /> Refresh
+      </button>
+      <button type="button" class="btn btn--primary btn--sm" *ngIf="canCreate()" (click)="startCreate()">
+        <netro-icon name="user-plus" [size]="14" /> Add person
+      </button>
+    </div>
+  </netro-page-header>
+
+  <netro-panel [flush]="true" padding="none">
+    <netro-toolbar
+      [search]="search()"
+      searchPlaceholder="Name, employee ID or email"
+      searchLabel="Search the workforce directory"
+      (searchChange)="applySearch($event)"
+    >
+      <ng-container slot="filters">
+        <netro-filter-select
+          label="Role"
+          allLabel="All roles"
+          [options]="roleOptions()"
+          [value]="roleFilter()"
+          (valueChange)="applyRole($event)"
+        />
+        <netro-filter-select
+          label="Access"
+          allLabel="Any status"
+          [options]="statusOptions"
+          [value]="statusFilter()"
+          (valueChange)="applyStatus($event)"
+        />
+        <button type="button" class="btn btn--subtle btn--sm" *ngIf="activeFilters()" (click)="clearFilters()">
+          <netro-icon name="close" [size]="12" /> Clear
+        </button>
+      </ng-container>
+
+      <span slot="actions" class="text-micro text-subtle tnum">
+        {{ total() }} {{ total() === 1 ? 'person' : 'people' }}
+      </span>
+    </netro-toolbar>
+
+    @if (loading()) {
+      <netro-skeleton-rows [rows]="8" [cols]="5" />
+    } @else if (error()) {
+      <netro-state icon="x-circle" tone="risk" title="Could not load people" [body]="error()">
+        <button type="button" class="btn btn--default" (click)="load()">Try again</button>
+      </netro-state>
+    } @else if (!rows().length) {
+      <netro-state
+        icon="people"
+        [title]="activeFilters() ? 'No one matches these filters' : 'No people yet'"
+        [body]="
+          activeFilters()
+            ? 'Try widening the search, or clear the filters to see everyone in your scope.'
+            : 'Add your first team member to start tracking attendance and field activity.'
+        "
+      >
+        <button type="button" class="btn btn--default" *ngIf="activeFilters()" (click)="clearFilters()">
+          Clear filters
+        </button>
+        <button
+          type="button"
+          class="btn btn--primary"
+          *ngIf="canCreate() && !activeFilters()"
+          (click)="startCreate()"
+        >
+          Add person
+        </button>
+      </netro-state>
+    } @else {
+      <div class="table-scroll">
+        <table class="table">
+          <caption class="sr-only">Workforce directory</caption>
+          <thead>
+            <tr>
+              <th
+                scope="col"
+                class="is-sortable"
+                [attr.aria-sort]="sort.ariaFor('name')"
+                (click)="sort.toggle('name')"
+              >
+                <span class="th-inner">
+                  Person <netro-sort-icon [active]="sort.key() === 'name'" [dir]="sort.dir()" />
+                </span>
+              </th>
+              <th
+                scope="col"
+                class="is-sortable"
+                [attr.aria-sort]="sort.ariaFor('role')"
+                (click)="sort.toggle('role')"
+              >
+                <span class="th-inner">
+                  Role <netro-sort-icon [active]="sort.key() === 'role'" [dir]="sort.dir()" />
+                </span>
+              </th>
+              <th
+                scope="col"
+                class="is-sortable col-hide-md"
+                [attr.aria-sort]="sort.ariaFor('manager')"
+                (click)="sort.toggle('manager')"
+              >
+                <span class="th-inner">
+                  Reports to <netro-sort-icon [active]="sort.key() === 'manager'" [dir]="sort.dir()" />
+                </span>
+              </th>
+              <th
+                scope="col"
+                class="is-sortable"
+                [attr.aria-sort]="sort.ariaFor('shift')"
+                (click)="sort.toggle('shift')"
+              >
+                <span class="th-inner">
+                  Today <netro-sort-icon [active]="sort.key() === 'shift'" [dir]="sort.dir()" />
+                </span>
+              </th>
+              <th
+                scope="col"
+                class="is-sortable col-hide-sm"
+                [attr.aria-sort]="sort.ariaFor('status')"
+                (click)="sort.toggle('status')"
+              >
+                <span class="th-inner">
+                  Access <netro-sort-icon [active]="sort.key() === 'status'" [dir]="sort.dir()" />
+                </span>
+              </th>
+              <th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+
+          <tbody>
+            @for (person of rows(); track person.id) {
+              <tr class="is-clickable" tabindex="0" (click)="view(person)" (keydown.enter)="view(person)">
+                <td>
+                  <span class="identity">
+                    <netro-avatar
+                      [name]="person.name"
+                      [src]="person.profilePictureUrl"
+                      [seed]="person.id"
+                      size="sm"
+                      [presence]="onDuty(person) ? 'on' : 'none'"
+                    />
+                    <span class="identity__body">
+                      <span class="identity__name">{{ person.name }}</span>
+                      <span class="identity__meta">{{ person.employeeId || person.email || '—' }}</span>
+                    </span>
+                  </span>
+                </td>
+
+                <td>
+                  <div class="stack" style="gap: 2px">
+                    <netro-badge>{{ label(person.role) }}</netro-badge>
+                    <span class="cell-secondary cell-truncate">{{ designationOf(person) }}</span>
+                  </div>
+                </td>
+
+                <td class="col-hide-md">
+                  <span class="cell-secondary">{{ managerOf(person) }}</span>
+                  <span class="cell-secondary" *ngIf="reportsFor(person)" style="display: block">
+                    {{ reportsFor(person) }} direct {{ reportsFor(person) === 1 ? 'report' : 'reports' }}
+                  </span>
+                </td>
+
+                <td>
+                  <netro-status
+                    [tone]="shiftTone(person)"
+                    [live]="onDuty(person)"
+                    [suffix]="punchedAt(person)"
+                  >
+                    {{ shiftLabel(person) }}
+                  </netro-status>
+                </td>
+
+                <td class="col-hide-sm">
+                  <netro-badge [tone]="person.status === 'INACTIVE' ? 'risk' : 'ok'" [dot]="true">
+                    {{ person.status === 'INACTIVE' ? 'Deactivated' : 'Active' }}
+                  </netro-badge>
+                </td>
+
+                <td class="col-actions" (click)="$event.stopPropagation()">
+                  <span class="row-actions">
+                    <button
+                      type="button"
+                      class="btn btn--subtle btn--sm btn--icon"
+                      [attr.aria-label]="'Edit ' + person.name"
+                      *ngIf="canActOn(person)"
+                      (click)="startEdit(person)"
+                    >
+                      <netro-icon name="edit" [size]="14" />
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn--subtle btn--sm btn--icon"
+                      [attr.aria-label]="'Open workspace for ' + person.name"
+                      (click)="view(person)"
+                    >
+                      <netro-icon name="chevron-right" [size]="14" />
+                    </button>
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <netro-pager
+        [page]="page()"
+        [pageSize]="pageSize()"
+        [total]="total()"
+        noun="people"
+        (pageChange)="goToPage($event)"
+        (pageSizeChange)="setPageSize($event)"
+      />
+    }
+  </netro-panel>
+</div>
+
+<!-- ==========================================================================
+     EMPLOYEE WORKSPACE
+     ========================================================================== -->
+@if (viewing(); as person) {
+  <netro-drawer
+    eyebrow="Employee workspace"
+    [heading]="person.name"
+    [sub]="label(person.role) + ' · ' + designationOf(person)"
+    width="wide"
+    [hasFooter]="canActOn(person) || canResetFor(person)"
+    (closed)="closeView()"
+  >
+    <span slot="head-actions">
+      <netro-avatar
+        [name]="person.name"
+        [src]="person.profilePictureUrl"
+        [seed]="person.id"
+        size="lg"
+        [presence]="onDuty(person) ? 'on' : 'none'"
+      />
+    </span>
+
+    <div class="stack stack--lg">
+      <!-- Current state first: what is this person doing right now. -->
+      <section class="ws-now">
+        <netro-status [tone]="shiftTone(person)" [live]="onDuty(person)">
+          {{ shiftLabel(person) }}
+        </netro-status>
+        <netro-badge [tone]="person.status === 'INACTIVE' ? 'risk' : 'ok'" [dot]="true">
+          {{ person.status === 'INACTIVE' ? 'Access deactivated' : 'Access active' }}
+        </netro-badge>
+        <netro-badge [tone]="person.isGpsTracked === false ? 'neutral' : 'info'" icon="radar">
+          {{ person.isGpsTracked === false ? 'Location not tracked' : 'Location tracked on shift' }}
+        </netro-badge>
+      </section>
+
+      @if (shiftFor(person); as shift) {
+        <section class="ws-shift">
+          <div class="ws-fact">
+            <span class="ws-fact__label">Punched in</span>
+            <span class="ws-fact__value tnum">{{ shift.punchInTime | date: 'shortTime' }}</span>
+          </div>
+          <div class="ws-fact">
+            <span class="ws-fact__label">Punched out</span>
+            <span class="ws-fact__value tnum">
+              {{ shift.punchOutTime ? (shift.punchOutTime | date: 'shortTime') : 'Still on duty' }}
+            </span>
+          </div>
+          <div class="ws-fact">
+            <span class="ws-fact__label">{{ shift.punchOutTime ? 'Hours worked' : 'On duty for' }}</span>
+            <span class="ws-fact__value tnum">{{ shiftDuration(person) }}</span>
+          </div>
+        </section>
+      } @else {
+        <p class="text-small text-subtle">
+          No punch recorded today. If this is unexpected, they can raise a regularisation request from the
+          mobile app.
+        </p>
+      }
+
+      <section>
+        <p class="eyebrow" style="margin-bottom: 8px">Details</p>
+        <dl class="defs">
+          <div class="defs__row">
+            <dt class="defs__key">Employee ID</dt>
+            <dd class="defs__val mono">{{ person.employeeId || '—' }}</dd>
+          </div>
+          <div class="defs__row">
+            <dt class="defs__key">Work email</dt>
+            <dd class="defs__val">{{ person.email || '—' }}</dd>
+          </div>
+          <div class="defs__row">
+            <dt class="defs__key">Mobile</dt>
+            <dd class="defs__val">{{ person.phone || '—' }}</dd>
+          </div>
+          <div class="defs__row" *ngIf="person.personalEmail">
+            <dt class="defs__key">Personal email</dt>
+            <dd class="defs__val">{{ person.personalEmail }}</dd>
+          </div>
+          <div class="defs__row" *ngIf="person.secondaryPhone">
+            <dt class="defs__key">Alternate mobile</dt>
+            <dd class="defs__val">{{ person.secondaryPhone }}</dd>
+          </div>
+          <div class="defs__row">
+            <dt class="defs__key">Reports to</dt>
+            <dd class="defs__val">{{ managerOf(person) }}</dd>
+          </div>
+          <div class="defs__row" *ngIf="reportsFor(person)">
+            <dt class="defs__key">Direct reports</dt>
+            <dd class="defs__val tnum">{{ reportsFor(person) }}</dd>
+          </div>
+          <div class="defs__row" *ngIf="person.departmentName || person.department?.name">
+            <dt class="defs__key">Department</dt>
+            <dd class="defs__val">{{ person.departmentName || person.department?.name }}</dd>
+          </div>
+          <div class="defs__row">
+            <dt class="defs__key">Attendance policy</dt>
+            <dd class="defs__val">
+              <netro-badge tone="info">{{ policyNameOf(person) }}</netro-badge>
+            </dd>
+          </div>
+          <div class="defs__row" *ngIf="person.linkedinUrl">
+            <dt class="defs__key">LinkedIn</dt>
+            <dd class="defs__val">
+              <a [href]="person.linkedinUrl" target="_blank" rel="noopener noreferrer" class="link">{{ person.linkedinUrl }}</a>
+            </dd>
+          </div>
+          <div class="defs__row" *ngIf="person.twitterUrl">
+            <dt class="defs__key">Twitter / X</dt>
+            <dd class="defs__val">{{ person.twitterUrl }}</dd>
+          </div>
+          <div class="defs__row">
+            <dt class="defs__key">Joined</dt>
+            <dd class="defs__val">{{ person.createdAt ? (person.createdAt | date: 'mediumDate') : '—' }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section *ngIf="person.emergencyContactName || person.bloodGroup">
+        <p class="eyebrow" style="margin-bottom: 8px">Emergency contact</p>
+        <dl class="defs">
+          <div class="defs__row" *ngIf="person.emergencyContactName">
+            <dt class="defs__key">Contact</dt>
+            <dd class="defs__val">
+              <div class="stack stack--xs">
+                <span class="font-medium text-small">{{ person.emergencyContactName }}</span>
+                <span class="text-micro text-subtle">{{ person.emergencyContactPhone || 'No phone recorded' }}</span>
+              </div>
+            </dd>
+          </div>
+          <div class="defs__row" *ngIf="person.bloodGroup">
+            <dt class="defs__key">Blood group</dt>
+            <dd class="defs__val">
+              <netro-badge tone="neutral">{{ person.bloodGroup }}</netro-badge>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section>
+        <p class="eyebrow" style="margin-bottom: 10px">Professional history</p>
+        @if (historyLoading()) {
+          <netro-skeleton-rows [rows]="3" [cols]="2" />
+        } @else if (historyEvents().length) {
+          <netro-timeline [events]="historyEvents()" />
+        } @else {
+          <p class="text-small text-subtle">
+            No recorded changes to this person's role, designation or reporting line yet.
+          </p>
+        }
+      </section>
+    </div>
+
+    <div slot="footer" style="display: contents">
+      <button
+        type="button"
+        class="btn btn--subtle"
+        *ngIf="canResetFor(person)"
+        (click)="resetCredentials(person)"
+      >
+        <netro-icon name="key" [size]="14" /> Reset credentials
+      </button>
+      <button type="button" class="btn btn--default" (click)="viewShiftHistory(person)">
+        <netro-icon name="clock" [size]="14" /> View Shifts
+      </button>
+      <span class="spacer"></span>
+      <button
+        type="button"
+        [class]="person.status === 'INACTIVE' ? 'btn btn--default' : 'btn btn--danger-outline'"
+        *ngIf="canActOn(person)"
+        (click)="toggleActive(person)"
+      >
+        {{ person.status === 'INACTIVE' ? 'Reactivate' : 'Deactivate' }}
+      </button>
+      <button type="button" class="btn btn--primary" *ngIf="canActOn(person)" (click)="startEdit(person)">
+        <netro-icon name="edit" [size]="14" /> Edit details
+      </button>
+    </div>
+  </netro-drawer>
+}
+
+<!-- ==========================================================================
+     ADD / EDIT
+     ========================================================================== -->
+@if (editorOpen()) {
+  <netro-drawer
+    [eyebrow]="editing() ? 'Edit person' : 'Add to workforce'"
+    [heading]="editing()?.name || 'New person'"
+    sub="Fields marked with an asterisk are required."
+    width="wide"
+    [dismissOnScrim]="false"
+    (closed)="closeEditor()"
+  >
+    <form [formGroup]="form" class="stack stack--md" (ngSubmit)="submit()">
+
+      <!-- Section 1: Professional Identity -->
+      <div class="form-section-card">
+        <div class="form-section-card__head">
+          <div class="form-section-card__icon">💼</div>
+          <div class="form-section-card__info">
+            <h3 class="form-section-card__title">Professional Identity</h3>
+            <p class="form-section-card__desc">Personal details, designation, and login credentials.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <label class="field span-2" *ngIf="isSuperAdmin() && !editing()">
+            <span class="field__label">Target Tenant Company <span class="field__req">*</span></span>
+            <select class="select" formControlName="companyId" (change)="onCompanyChange()">
+              <option *ngFor="let c of companies()" [value]="c.id">{{ c.name }} [{{ c.code }}]</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Employee ID / Login Code <span class="field__req">*</span></span>
+            <input class="input" formControlName="employeeId" placeholder="e.g. NT-0142 or EMP001" />
+            <span class="field__hint" *ngIf="!errorFor('employeeId')">
+              {{ editing() ? 'Unique identifier cannot be changed.' : 'Doubles as their sign-in username.' }}
+            </span>
+            <span class="field__error" *ngIf="errorFor('employeeId')">
+              <netro-icon name="alert" [size]="12" /> {{ errorFor('employeeId') }}
+            </span>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Full Name <span class="field__req">*</span></span>
+            <input class="input" formControlName="name" placeholder="e.g. Jane Doe" [attr.aria-invalid]="!!errorFor('name')" />
+            <span class="field__error" *ngIf="errorFor('name')">
+              <netro-icon name="alert" [size]="12" /> {{ errorFor('name') }}
+            </span>
+          </label>
+
+          <div class="field span-2">
+            <span class="field__label">Designation / Job Title <span class="field__req">*</span></span>
+            <input
+              class="input"
+              formControlName="designationName"
+              placeholder="e.g. Senior Software Engineer, Field Agent..."
+              [attr.aria-invalid]="!!errorFor('designationName')"
+            />
+            <span class="field__error" *ngIf="errorFor('designationName')">
+              <netro-icon name="alert" [size]="12" /> {{ errorFor('designationName') }}
+            </span>
+            <div class="preset-chips">
+              <button
+                type="button"
+                class="chip-btn"
+                [class.chip-btn--active]="form.controls.designationName.value === p"
+                *ngFor="let p of designationPresets"
+                (click)="setDesignation(p)"
+              >
+                {{ p }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Promotion milestone toggle card when designation changes in Edit mode -->
+          <div class="promotion-card span-2" *ngIf="editing() && isDesignationChanged()">
+            <label class="promotion-label">
+              <input type="checkbox" formControlName="isPromotion" class="checkbox-input" />
+              <div class="promotion-info">
+                <span class="promotion-title">🎉 Mark as Promotion</span>
+                <span class="promotion-desc">Records a formal promotion milestone in this employee's career timeline.</span>
+              </div>
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="field__label">Official Work Email <span class="field__req">*</span></span>
+            <input
+              class="input"
+              type="email"
+              autocomplete="off"
+              formControlName="email"
+              placeholder="jane.doe@company.com"
+              [attr.aria-invalid]="!!errorFor('email')"
+            />
+            <span class="field__error" *ngIf="errorFor('email')">
+              <netro-icon name="alert" [size]="12" /> {{ errorFor('email') }}
+            </span>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Primary Mobile <span class="field__req">*</span></span>
+            <input class="input" formControlName="phone" placeholder="+91 9876543210" [attr.aria-invalid]="!!errorFor('phone')" />
+            <span class="field__error" *ngIf="errorFor('phone')">
+              <netro-icon name="alert" [size]="12" /> {{ errorFor('phone') }}
+            </span>
+          </label>
+
+          <label class="field" *ngIf="!editing()">
+            <span class="field__label">Password (Optional)</span>
+            <input
+              class="input"
+              type="password"
+              autocomplete="new-password"
+              formControlName="password"
+              placeholder="Default: Password123!"
+            />
+            <span class="field__hint">Leave blank to use default temporary access password.</span>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Personal Email (Optional)</span>
+            <input class="input" type="email" autocomplete="off" formControlName="personalEmail" placeholder="jane.personal@gmail.com" />
+            <span class="field__error" *ngIf="errorFor('personalEmail')">
+              <netro-icon name="alert" [size]="12" /> {{ errorFor('personalEmail') }}
+            </span>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Alternate Mobile (Optional)</span>
+            <input class="input" formControlName="secondaryPhone" placeholder="+91 9123456780" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Section 2: Role, Hierarchy & Attendance Policy -->
+      <div class="form-section-card">
+        <div class="form-section-card__head">
+          <div class="form-section-card__icon">🛡️</div>
+          <div class="form-section-card__info">
+            <h3 class="form-section-card__title">Role, Hierarchy & Attendance Policy</h3>
+            <p class="form-section-card__desc">Permissions, supervisor reporting line, and shift policy rules.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <label class="field" [class.span-2]="!needsSupervisor() || isManagerActor()">
+            <span class="field__label">Assigned Role <span class="field__req">*</span></span>
+            <select class="select" formControlName="role" (change)="onRoleChange()" [attr.disabled]="editing() && !canChangeRoleInEdit() ? true : null">
+              <option *ngFor="let r of displayedRoles()" [value]="r">{{ label(r) }}</option>
+            </select>
+            <span class="field__hint" *ngIf="editing() && !canChangeRoleInEdit()">
+              Role cannot be modified because target user rank equals or exceeds your role rank.
+            </span>
+            <span class="field__error" *ngIf="errorFor('role')">
+              <netro-icon name="alert" [size]="12" /> {{ errorFor('role') }}
+            </span>
+          </label>
+
+          <!-- Automatic Manager Assignment Notice -->
+          <div class="manager-auto-assign-card span-2" *ngIf="isManagerActor()">
+            <div class="manager-auto-assign-icon">👥</div>
+            <div class="manager-auto-assign-text">
+              <strong>Automatic Team Assignment</strong>
+              <p>As a Manager, this employee will be automatically assigned to report directly to your team.</p>
+            </div>
+          </div>
+
+          <!-- Supervisor Selection for non-managers when role needs supervisor -->
+          <label class="field" *ngIf="needsSupervisor() && !isManagerActor()">
+            <span class="field__label">Reports to (Supervisor)</span>
+            <select class="select" formControlName="managerId">
+              <option value="">Unassigned (Company Pool)</option>
+              <option *ngIf="api.user()?.id" [value]="api.user()?.id">★ Assign to myself ({{ api.user()?.name }})</option>
+              <option *ngFor="let s of supervisors()" [value]="s.id">
+                {{ s.name }} ({{ s.employeeId }} · {{ label(s.role) }})
+              </option>
+            </select>
+            <span class="field__error" *ngIf="errorFor('managerId')">
+              <netro-icon name="alert" [size]="12" /> {{ errorFor('managerId') }}
+            </span>
+          </label>
+
+          <label class="field span-2">
+            <span class="field__label">Attendance Policy</span>
+            <select class="select" formControlName="attendancePolicyId">
+              <option value="">Inherit Default (Designation > Department > Company Default)</option>
+              <option *ngFor="let pol of policies()" [value]="pol.id">{{ pol.name }}</option>
+            </select>
+            <span class="field__hint">Overrides company-level default rules for this employee.</span>
+          </label>
+
+          <!-- Modern GPS Toggle Card -->
+          <div class="gps-toggle-card span-2" [class.gps-toggle-card--disabled]="!canToggleGps()">
+            <div class="gps-toggle-left">
+              <div class="gps-toggle-badge">
+                <netro-icon name="pin" [size]="16" />
+              </div>
+              <div class="gps-toggle-text">
+                <span class="gps-toggle-title">Track Location During Shifts</span>
+                <span class="gps-toggle-desc" *ngIf="isCompanyGpsDisabled()">
+                  ⚠️ Disabled because GPS tracking module is not enabled for this company.
+                </span>
+                <span class="gps-toggle-desc" *ngIf="!isCompanyGpsDisabled() && !canToggleGps()">
+                  ⚠️ Only administrators of higher role rank can enable or disable location tracking.
+                </span>
+                <span class="gps-toggle-desc" *ngIf="!isCompanyGpsDisabled() && canToggleGps()">
+                  {{ form.controls.isGpsTracked.value ? 'Records background GPS coordinates while punched in and displays live route on operations map.' : 'Simple Punch-In / Punch-Out mode only (No GPS coordinates recorded).' }}
+                </span>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              class="toggle-switch"
+              formControlName="isGpsTracked"
+              [attr.disabled]="!canToggleGps() ? true : null"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: Emergency Contact & Personal -->
+      <div class="form-section-card">
+        <div class="form-section-card__head">
+          <div class="form-section-card__icon">🆘</div>
+          <div class="form-section-card__info">
+            <h3 class="form-section-card__title">Emergency Contact & Personal</h3>
+            <p class="form-section-card__desc">Required for safety compliance and field tracking.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <label class="field">
+            <span class="field__label">Emergency Contact Name <span class="field__req">*</span></span>
+            <input
+              class="input"
+              formControlName="emergencyContactName"
+              placeholder="e.g. Spouse / Parent / Relative Name"
+              [attr.aria-invalid]="!!errorFor('emergencyContactName')"
+            />
+            <span class="field__error" *ngIf="errorFor('emergencyContactName')">
+              <netro-icon name="alert" [size]="12" /> {{ errorFor('emergencyContactName') }}
+            </span>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Emergency Contact Phone <span class="field__req">*</span></span>
+            <input
+              class="input"
+              formControlName="emergencyContactPhone"
+              placeholder="e.g. +91 9876543210"
+              [attr.aria-invalid]="!!errorFor('emergencyContactPhone')"
+            />
+            <span class="field__error" *ngIf="errorFor('emergencyContactPhone')">
+              <netro-icon name="alert" [size]="12" /> {{ errorFor('emergencyContactPhone') }}
+            </span>
+          </label>
+
+          <div class="field span-2">
+            <span class="field__label">Blood Group (Optional)</span>
+            <div class="blood-chips">
+              <button
+                type="button"
+                class="chip-btn"
+                [class.chip-btn--active]="form.controls.bloodGroup.value === bg"
+                *ngFor="let bg of bloodGroups"
+                (click)="setBloodGroup(bg)"
+              >
+                {{ bg }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: Professional & Social Links -->
+      <div class="form-section-card">
+        <div class="form-section-card__head">
+          <div class="form-section-card__icon">🔗</div>
+          <div class="form-section-card__info">
+            <h3 class="form-section-card__title">Professional & Social Links (Optional)</h3>
+            <p class="form-section-card__desc">Public professional profiles and handles.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <label class="field">
+            <span class="field__label">LinkedIn Profile URL</span>
+            <input class="input" formControlName="linkedinUrl" placeholder="https://linkedin.com/in/..." />
+          </label>
+
+          <label class="field">
+            <span class="field__label">Twitter / X Handle</span>
+            <input class="input" formControlName="twitterUrl" placeholder="@handle" />
+          </label>
+        </div>
+      </div>
+
+    </form>
+
+    <div slot="footer" style="display: contents">
+      <button type="button" class="btn btn--subtle" (click)="closeEditor()">Cancel</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--primary" [disabled]="saving()" (click)="submit()">
+        <netro-icon [name]="saving() ? 'spinner' : 'check'" [size]="14" [spin]="saving()" />
+        {{ editing() ? 'Save changes' : 'Add person' }}
+      </button>
+    </div>
+  </netro-drawer>
+}
+
+<!-- ==========================================================================
+     REASSIGN DIRECT REPORTS DRAWER (MANAGER REMOVAL / DEACTIVATION)
+     ========================================================================== -->
+@if (reassignOpen()) {
+  <netro-drawer
+    eyebrow="Direct reports detected"
+    [heading]="'Reassign reports for ' + reassignTarget()?.name"
+    [sub]="(reassignTarget()?.subordinateCount || directReports(reassignTarget()!)) + ' direct reports must be reassigned before deactivation.'"
+    width="wide"
+    (closed)="closeReassign()"
+  >
+    <div class="stack stack--lg">
+      <section class="stack stack--sm">
+        <label class="field">
+          <span class="field__label">Reassignment Strategy</span>
+          <select
+            class="select"
+            [value]="reassignStrategy()"
+            (change)="reassignStrategy.set($any($event.target).value)"
+          >
+            <option value="move-to-unassigned">Move all direct reports to Unassigned</option>
+            <option value="move-to-manager">Reassign all to another replacement manager</option>
+          </select>
+        </label>
+
+        <label class="field" *ngIf="reassignStrategy() === 'move-to-manager'">
+          <span class="field__label">Replacement Manager <span class="field__req">*</span></span>
+          <select
+            class="select"
+            [value]="replacementManagerId()"
+            (change)="replacementManagerId.set($any($event.target).value)"
+          >
+            <option value="">Select replacement manager…</option>
+            <option *ngFor="let m of candidateManagers()" [value]="m.id">{{ m.name }} ({{ label(m.role) }})</option>
+          </select>
+        </label>
+      </section>
+    </div>
+
+    <div slot="footer" style="display: contents">
+      <button type="button" class="btn btn--subtle" (click)="closeReassign()">Cancel</button>
+      <span class="spacer"></span>
+      <button
+        type="button"
+        class="btn btn--primary"
+        [disabled]="reassigning() || (reassignStrategy() === 'move-to-manager' && !replacementManagerId())"
+        (click)="submitReassign()"
+      >
+        <netro-icon [name]="reassigning() ? 'spinner' : 'check'" [size]="14" [spin]="reassigning()" />
+        Reassign & proceed
+      </button>
+    </div>
+  </netro-drawer>
+}

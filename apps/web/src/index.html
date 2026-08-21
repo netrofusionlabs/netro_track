@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>NetroTrack — Field Workforce Management Portal</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="images/appIconClean.png">
+  <!-- Modern Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Google Maps Places API for Frontend Location Search & Autocomplete -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAdBK76lgXtiyvqPj8s0SfHoy0PGY6UD3E&libraries=places" async defer></script>
+</head>
+<body>
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark') {
+        document.body.classList.add('dark-theme');
+      }
+    })();
+  </script>
+  <app-root></app-root>
+</body>
+</html>

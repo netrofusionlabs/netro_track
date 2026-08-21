@@ -1,0 +1,141 @@
+/* Position on the left, the people it describes on the right. Neither is much
+   use without the other, so they stay side by side until there is no room. */
+.live-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: var(--s-4);
+  align-items: start;
+}
+
+@media (max-width: 1180px) {
+  .live-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.quiet-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 3px;
+}
+
+.linkish {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: var(--t-small);
+  font-weight: 500;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.linkish:hover {
+  text-decoration-thickness: 2px;
+}
+
+.board {
+  list-style: none;
+  max-height: 520px;
+  overflow: auto;
+}
+
+.board__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line-subtle);
+  cursor: pointer;
+  min-width: 0;
+  transition: background-color var(--dur-1) var(--ease);
+}
+
+.board__row:last-child {
+  border-bottom: none;
+}
+
+.board__row:hover {
+  background: var(--surface-hover);
+}
+
+.board__row:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.board__row.is-focused {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.board__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.board__name {
+  font: var(--t-body-md);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board__aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex: none;
+}
+
+.board__distance {
+  font: var(--t-micro);
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Shared with the employee workspace: current state above the details. */
+.ws-now {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-4);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.route-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line-subtle);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.ws-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: var(--s-3);
+  background: var(--surface-sunken);
+}
+
+.ws-fact__label {
+  font: var(--t-micro);
+  text-transform: uppercase;
+  letter-spacing: var(--track-eyebrow);
+  color: var(--fg-subtle);
+}
+
+.ws-fact__value {
+  font: var(--t-body-md);
+}

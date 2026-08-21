@@ -7,6 +7,8 @@ import { SplashScreen } from './src/shared/components/SplashScreen';
 import { useAuthStore } from './src/features/auth/stores/authStore';
 import { useConsentStore } from './src/shared/stores/consentStore';
 import RootNavigator from './src/navigation/index';
+import { startSyncEngine } from './src/shared/utils/syncEngine';
+import { OfflineBanner } from './src/shared/components/OfflineBanner';
 
 const SPLASH_BACKGROUND = '#E8ECF0';
 
@@ -37,12 +39,25 @@ function useStoresHydrated(): boolean {
 function App() {
   const hydrated = useStoresHydrated();
 
+  useEffect(() => {
+    if (hydrated) {
+      startSyncEngine();
+    }
+  }, [hydrated]);
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
         <QueryProvider>
           <StatusBar barStyle="dark-content" backgroundColor={SPLASH_BACKGROUND} />
-          {hydrated ? <RootNavigator /> : <SplashScreen />}
+          {hydrated ? (
+            <>
+              <OfflineBanner />
+              <RootNavigator />
+            </>
+          ) : (
+            <SplashScreen />
+          )}
         </QueryProvider>
       </ThemeProvider>
     </SafeAreaProvider>

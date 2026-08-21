@@ -1,0 +1,122 @@
+<div class="page">
+  <netro-page-header title="Products" description="The catalogue field teams discuss on visits and sell as orders.">
+    <div slot="actions" class="row row--nowrap">
+      <netro-badge tone="neutral">Coming Soon</netro-badge>
+    </div>
+  </netro-page-header>
+
+  <netro-alert tone="info" heading="Feature Coming Soon">
+    The Product Catalog & Inventory module is currently under active development and will be released in an upcoming platform update.
+  </netro-alert>
+
+  <netro-panel [flush]="true" padding="none">
+    <netro-toolbar [search]="search()" searchPlaceholder="Name, SKU or description" searchLabel="Search the catalogue" (searchChange)="applySearch($event)">
+      <span slot="actions" class="text-micro text-subtle tnum">{{ rows().length }} {{ rows().length === 1 ? 'product' : 'products' }}</span>
+    </netro-toolbar>
+
+    @if (loading()) {
+      <netro-skeleton-rows [rows]="8" [cols]="4" />
+    } @else if (error()) {
+      <netro-state icon="x-circle" tone="risk" title="Could not load products" [body]="error()">
+        <button type="button" class="btn btn--default" (click)="load()">Try again</button>
+      </netro-state>
+    } @else if (!rows().length) {
+      <netro-state icon="box" [title]="search() ? 'No product matches that search' : 'Catalogue is empty'" body="Add the first SKU so visits can tag what was discussed and orders can pick a line item.">
+        <button type="button" class="btn btn--primary" *ngIf="canModify() && !search()" (click)="startCreate()">Add product</button>
+      </netro-state>
+    } @else {
+      <div class="table-scroll">
+        <table class="table">
+          <caption class="sr-only">Product catalogue</caption>
+          <thead>
+            <tr>
+              <th scope="col">Product</th>
+              <th scope="col">SKU</th>
+              <th scope="col" class="num">Price</th>
+              <th scope="col" class="col-hide-sm">Status</th>
+              <th scope="col" class="col-actions" *ngIf="canModify()"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of rows(); track p.id) {
+              <tr class="is-clickable" tabindex="0" (click)="view(p)" (keydown.enter)="view(p)">
+                <td>
+                  <span class="cell-strong">{{ p.name }}</span>
+                  <span class="cell-secondary" style="display: block">{{ p.unit || p.description || '' }}</span>
+                </td>
+                <td class="mono">{{ p.sku || '—' }}</td>
+                <td class="num tnum">{{ money(p) }}</td>
+                <td class="col-hide-sm">
+                  <netro-badge [tone]="p.isActive === false ? 'neutral' : 'ok'" [dot]="true">
+                    {{ p.isActive === false ? 'Inactive' : 'Active' }}
+                  </netro-badge>
+                </td>
+                <td class="col-actions" *ngIf="canModify()" (click)="$event.stopPropagation()">
+                  <button type="button" class="btn btn--subtle btn--sm btn--icon" [attr.aria-label]="'Edit ' + p.name" (click)="startEdit(p)">
+                    <netro-icon name="edit" [size]="14" />
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </netro-panel>
+</div>
+
+@if (viewing(); as p) {
+  <netro-drawer eyebrow="Product" [heading]="p.name" [sub]="p.sku || 'No SKU'" [hasFooter]="canModify()" (closed)="closeView()">
+    <dl class="defs">
+      <div class="defs__row"><dt class="defs__key">Price</dt><dd class="defs__val tnum">{{ money(p) }}</dd></div>
+      <div class="defs__row"><dt class="defs__key">Unit</dt><dd class="defs__val">{{ p.unit || '—' }}</dd></div>
+      <div class="defs__row"><dt class="defs__key">Status</dt><dd class="defs__val">{{ p.isActive === false ? 'Inactive' : 'Active' }}</dd></div>
+      <div class="defs__row" *ngIf="p.description"><dt class="defs__key">Description</dt><dd class="defs__val">{{ p.description }}</dd></div>
+    </dl>
+    <div slot="footer" style="display: contents">
+      <button type="button" class="btn btn--danger-outline" (click)="remove(p)">Delete</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--primary" (click)="startEdit(p)"><netro-icon name="edit" [size]="14" /> Edit</button>
+    </div>
+  </netro-drawer>
+}
+
+@if (editorOpen()) {
+  <netro-drawer [eyebrow]="editing() ? 'Edit product' : 'Add product'" [heading]="editing()?.name || 'New product'" [dismissOnScrim]="false" (closed)="closeEditor()">
+    <form [formGroup]="form" class="form-grid" (ngSubmit)="submit()">
+      <label class="field span-2">
+        <span class="field__label">Name <span class="field__req">*</span></span>
+        <input class="input" formControlName="name" />
+        <span class="field__error" *ngIf="errorFor('name')"><netro-icon name="alert" [size]="12" /> {{ errorFor('name') }}</span>
+      </label>
+      <label class="field">
+        <span class="field__label">SKU</span>
+        <input class="input" formControlName="sku" placeholder="e.g. SKU-SEED-12" />
+      </label>
+      <label class="field">
+        <span class="field__label">Unit price</span>
+        <input class="input" type="number" min="0" step="0.01" formControlName="price" />
+      </label>
+      <label class="field">
+        <span class="field__label">Unit</span>
+        <input class="input" formControlName="unit" placeholder="e.g. bag, litre" />
+      </label>
+      <label class="check" style="align-self: end">
+        <input type="checkbox" formControlName="isActive" />
+        <span class="check__text">Active in the catalogue</span>
+      </label>
+      <label class="field span-2">
+        <span class="field__label">Description</span>
+        <textarea class="textarea" rows="3" formControlName="description"></textarea>
+      </label>
+    </form>
+    <div slot="footer" style="display: contents">
+      <button type="button" class="btn btn--subtle" (click)="closeEditor()">Cancel</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--primary" [disabled]="saving()" (click)="submit()">
+        <netro-icon [name]="saving() ? 'spinner' : 'check'" [size]="14" [spin]="saving()" />
+        {{ editing() ? 'Save changes' : 'Add product' }}
+      </button>
+    </div>
+  </netro-drawer>
+}

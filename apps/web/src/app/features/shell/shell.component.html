@@ -1,0 +1,262 @@
+<div class="shell" [class.shell--rail-collapsed]="railCollapsed()">
+  <!-- ============================================================
+       LEFT RAIL — the whole information architecture, one click deep
+       ============================================================ -->
+  <aside
+    class="rail"
+    [class.is-open]="mobileNavOpen()"
+    id="netro-rail"
+    aria-label="Primary"
+  >
+    <div class="rail__brand">
+      <a routerLink="/dashboard" class="rail__brand-link" aria-label="NetroTrack home">
+        <netro-brandmark [size]="26" [showWord]="!railCollapsed()" />
+      </a>
+      <button
+        type="button"
+        class="btn btn--subtle btn--sm btn--icon rail__collapse"
+        [attr.aria-label]="railCollapsed() ? 'Expand navigation' : 'Collapse navigation'"
+        [attr.aria-expanded]="!railCollapsed()"
+        (click)="toggleRail()"
+      >
+        <netro-icon name="panel-left" [size]="15" />
+      </button>
+    </div>
+
+    <div class="rail__tenant" *ngIf="!railCollapsed()" [attr.title]="'Organization: ' + tenantName()">
+      <span class="rail__tenant-icon">
+        <img *ngIf="companyLogoUrl(); else defaultBuilding" [src]="companyLogoUrl()" alt="" class="rail__tenant-logo" />
+        <ng-template #defaultBuilding>
+          <netro-icon name="building" [size]="14" />
+        </ng-template>
+      </span>
+      <div class="rail__tenant-info truncate">
+        <span class="rail__tenant-name truncate">{{ tenantName() }}</span>
+        <span class="rail__tenant-tag" *ngIf="user()?.companyCode">{{ user()?.companyCode }}</span>
+      </div>
+    </div>
+
+    <nav class="rail__nav">
+      @for (group of nav.groups(); track group.label) {
+        <p class="rail__group" *ngIf="!railCollapsed()">{{ group.label }}</p>
+        <div class="rail__group-rule" *ngIf="railCollapsed()" aria-hidden="true"></div>
+
+        @for (item of group.items; track item.route) {
+          @if (item.disabled) {
+            <button
+              type="button"
+              class="navlink navlink--disabled"
+              (click)="onDisabledClick(item)"
+              [attr.title]="(railCollapsed() ? item.label + ' — ' : '') + 'Feature Coming Soon (Yet to release)'"
+            >
+              <netro-icon [name]="item.icon" [size]="17" class="navlink__icon" />
+              <span class="navlink__label" *ngIf="!railCollapsed()">{{ item.label }}</span>
+              <span class="navlink__soon" *ngIf="!railCollapsed()">Soon</span>
+            </button>
+          } @else {
+            <a
+              class="navlink"
+              [routerLink]="item.route"
+              routerLinkActive="is-active"
+              [attr.title]="railCollapsed() ? item.label + ' — ' + item.hint : item.hint"
+            >
+              <netro-icon [name]="item.icon" [size]="17" class="navlink__icon" />
+              <span class="navlink__label" *ngIf="!railCollapsed()">{{ item.label }}</span>
+              @if (badgeFor(item); as count) {
+                <span
+                  class="count-pill count-pill--attention navlink__badge"
+                  [attr.aria-label]="count + ' awaiting decision'"
+                >{{ count }}</span>
+              }
+            </a>
+          }
+        }
+      }
+    </nav>
+
+    <div class="rail__foot">
+      <a
+        class="navlink"
+        routerLink="/profile"
+        routerLinkActive="is-active"
+        [attr.title]="railCollapsed() ? 'My profile' : null"
+      >
+        <netro-avatar
+          [name]="user()?.name"
+          [src]="user()?.profilePictureUrl"
+          [seed]="user()?.id"
+          size="xs"
+          presence="on"
+        />
+        <span class="navlink__label navlink__label--stack" *ngIf="!railCollapsed()">
+          <span class="truncate">{{ user()?.name || 'Loading…' }}</span>
+          <span class="text-micro text-subtle truncate">{{ roleLabel() }}</span>
+        </span>
+      </a>
+    </div>
+  </aside>
+
+  <div class="rail-scrim" *ngIf="mobileNavOpen()" (click)="mobileNavOpen.set(false)"></div>
+
+  <!-- ============================================================
+       HEADER — orientation, live state, global entry points
+       ============================================================ -->
+  <header class="topbar">
+    <button
+      type="button"
+      class="btn btn--subtle btn--icon topbar__menu"
+      aria-label="Open navigation"
+      aria-controls="netro-rail"
+      [attr.aria-expanded]="mobileNavOpen()"
+      (click)="mobileNavOpen.set(true)"
+    >
+      <netro-icon name="menu" [size]="18" />
+    </button>
+
+    <div class="topbar__context">
+      <p class="topbar__where">{{ currentItem()?.label || 'Dashboard' }}</p>
+      <p class="topbar__hint">
+        <span class="topbar__tenant-pill">{{ tenantName() }}</span>
+        <ng-container *ngIf="currentItem()?.hint"> · {{ currentItem()?.hint }}</ng-container>
+      </p>
+    </div>
+
+    <button type="button" class="omnibox" (click)="paletteOpen.set(true)">
+      <netro-icon name="search" [size]="15" />
+      <span class="omnibox__text">Search or jump to…</span>
+      <span class="kbd omnibox__kbd">⌘K</span>
+    </button>
+
+    <span class="spacer"></span>
+
+    <!-- Netro Pulse: the live operational read-out, always in the same place -->
+    <div class="pulsebar" *ngIf="pulse.hasScope()" [attr.title]="syncedLabel()">
+      <netro-status tone="ok" [live]="!pulse.offline()">
+        {{ pulse.onDuty().length }} on duty
+      </netro-status>
+      <span class="divider--v" aria-hidden="true"></span>
+      <span class="pulsebar__stat">
+        <netro-icon name="pin" [size]="12" />
+        {{ pulse.visitsToday() ?? '—' }} visits
+      </span>
+    </div>
+
+    <a
+      class="btn btn--subtle btn--icon topbar__action"
+      routerLink="/approvals"
+      [attr.aria-label]="pulse.pendingApprovals() + ' approvals awaiting decision'"
+      *ngIf="nav.canReview()"
+    >
+      <netro-icon name="approve" [size]="17" />
+      <span class="topbar__dot" *ngIf="pulse.pendingApprovals() > 0" aria-hidden="true"></span>
+    </a>
+
+    <button
+      type="button"
+      class="btn btn--subtle btn--icon"
+      [attr.aria-label]="'Appearance: ' + theme.choice() + '. Change appearance'"
+      (click)="theme.cycle()"
+    >
+      <netro-icon [name]="theme.resolved() === 'dark' ? 'moon' : 'sun'" [size]="17" />
+    </button>
+
+    <div class="account">
+      <button
+        type="button"
+        class="account__trigger"
+        [attr.aria-expanded]="accountOpen()"
+        aria-haspopup="menu"
+        (click)="accountOpen.set(!accountOpen())"
+      >
+        <netro-avatar
+          [name]="user()?.name"
+          [src]="user()?.profilePictureUrl"
+          [seed]="user()?.id"
+          size="sm"
+        />
+        <netro-icon name="chevron-down" [size]="13" class="text-subtle" />
+      </button>
+
+      @if (accountOpen()) {
+        <div class="account__backdrop" (click)="accountOpen.set(false)"></div>
+        <div class="menu account__menu" role="menu">
+          <div class="account__id">
+            <netro-avatar
+              [name]="user()?.name"
+              [src]="user()?.profilePictureUrl"
+              [seed]="user()?.id"
+              size="md"
+            />
+            <div class="stack" style="gap: 1px; min-width: 0">
+              <span class="truncate" style="font: var(--t-body-md)">{{ user()?.name }}</span>
+              <span class="text-micro text-subtle truncate">{{ user()?.email || user()?.phone }}</span>
+              <span class="badge" style="margin-top: 4px; align-self: flex-start">{{ roleShort() }}</span>
+            </div>
+          </div>
+          <div class="menu__sep"></div>
+          <a class="menu__item" routerLink="/profile" role="menuitem" (click)="accountOpen.set(false)">
+            <netro-icon name="user" [size]="15" /> My profile
+          </a>
+          <a class="menu__item" routerLink="/settings" role="menuitem" (click)="accountOpen.set(false)">
+            <netro-icon name="settings" [size]="15" /> Settings
+          </a>
+          <button type="button" class="menu__item" role="menuitem" (click)="paletteOpen.set(true); accountOpen.set(false)">
+            <netro-icon name="command" [size]="15" /> Command palette
+            <span class="shortcut">⌘K</span>
+          </button>
+          <div class="menu__sep"></div>
+          <button type="button" class="menu__item menu__item--danger" role="menuitem" (click)="signOut()">
+            <netro-icon name="logout" [size]="15" /> Sign out
+          </button>
+        </div>
+      }
+    </div>
+  </header>
+
+  <!-- ============================================================
+       WORKING SURFACE
+       ============================================================ -->
+  <main class="canvas" id="main">
+    @if (api.bootstrapping()) {
+      <div class="page" aria-busy="true">
+        <netro-skeleton variant="title" width="240px" />
+        <netro-skeleton variant="text" width="380px" />
+        <div class="metrics">
+          <netro-skeleton variant="block" height="88px" />
+          <netro-skeleton variant="block" height="88px" />
+          <netro-skeleton variant="block" height="88px" />
+          <netro-skeleton variant="block" height="88px" />
+        </div>
+        <netro-skeleton variant="block" height="280px" />
+      </div>
+    } @else {
+      <router-outlet />
+    }
+  </main>
+
+  <!-- ============================================================
+       SMALL SCREENS — the handful of destinations used on the move
+       ============================================================ -->
+  <nav class="dock" aria-label="Quick navigation">
+    @for (item of nav.items().slice(0, 4); track item.route) {
+      <a class="dock__item" [routerLink]="item.route" routerLinkActive="is-active">
+        <netro-icon [name]="item.icon" [size]="19" />
+        <span>{{ item.label }}</span>
+        @if (badgeFor(item); as count) {
+          <span class="dock__dot" aria-hidden="true"></span>
+        }
+      </a>
+    }
+    <button type="button" class="dock__item" (click)="mobileNavOpen.set(true)">
+      <netro-icon name="menu" [size]="19" />
+      <span>More</span>
+    </button>
+  </nav>
+</div>
+
+<netro-toast-host />
+<netro-confirm-host />
+
+@if (paletteOpen()) {
+  <netro-command-palette (dismissed)="paletteOpen.set(false)" />
+}

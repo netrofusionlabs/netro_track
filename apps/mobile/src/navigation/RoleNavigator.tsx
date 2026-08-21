@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Platform, StyleSheet, Alert } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,7 +24,6 @@ import { UserManagementScreen } from '../features/employees/screens/UserManageme
 import { AddUserScreen } from '../features/employees/screens/AddUserScreen';
 import { EditUserScreen } from '../features/employees/screens/EditUserScreen';
 import { CompanyManagementScreen } from '../features/companies/screens/CompanyManagementScreen';
-import { CompanySetupDashboardScreen } from '../features/companies/screens/CompanySetupDashboardScreen';
 import { CompanyWizardScreen } from '../features/companies/screens/CompanyWizardScreen';
 import { EmployeeListScreen } from '../features/employees/EmployeeListScreen';
 import { EmployeeDetailScreen } from '../features/employees/EmployeeDetailScreen';
@@ -32,6 +31,12 @@ import { TeamMapScreen } from '../features/tracking/TeamMapScreen';
 import { RoutePlaybackScreen } from '../features/tracking/RoutePlaybackScreen';
 import { ProfileScreen } from '../features/profile/screens/ProfileScreen';
 import { OrgChartScreen } from '../features/employees/screens/OrgChartScreen';
+import { AttendancePoliciesScreen } from '../features/attendance/AttendancePoliciesScreen';
+import { AttendancePolicyDetailScreen } from '../features/attendance/AttendancePolicyDetailScreen';
+import { EditAttendancePolicyScreen } from '../features/attendance/EditAttendancePolicyScreen';
+import { PunchFormScreen } from '../features/attendance/PunchFormScreen';
+import { NewRegularizationScreen } from '../features/attendance/NewRegularizationScreen';
+import { ManagerRegularizationsScreen } from '../features/attendance/ManagerRegularizationsScreen';
 
 // ── Dashboards ────────────────────────────────────────────────────────────────
 import { EmployeeDashboard } from '../features/dashboard/screens/EmployeeDashboard';
@@ -114,11 +119,6 @@ function EmployeesStackScreen() {
         options={{ headerShown: false }}
       />
       <EmployeesStack.Screen
-        name="CompanySetupDashboard"
-        component={CompanySetupDashboardScreen}
-        options={{ headerShown: false }}
-      />
-      <EmployeesStack.Screen
         name="CompanyWizard"
         component={CompanyWizardScreen}
         options={{ headerShown: false }}
@@ -146,6 +146,26 @@ function EmployeesStackScreen() {
       <EmployeesStack.Screen
         name="OrgChart"
         component={OrgChartScreen}
+        options={{ headerShown: false }}
+      />
+      <EmployeesStack.Screen
+        name="AttendancePolicies"
+        component={AttendancePoliciesScreen}
+        options={{ headerShown: false }}
+      />
+      <EmployeesStack.Screen
+        name="ManagerRegularizations"
+        component={ManagerRegularizationsScreen}
+        options={{ headerShown: false }}
+      />
+      <EmployeesStack.Screen
+        name="AttendancePolicyDetail"
+        component={AttendancePolicyDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <EmployeesStack.Screen
+        name="EditAttendancePolicy"
+        component={EditAttendancePolicyScreen}
         options={{ headerShown: false }}
       />
     </EmployeesStack.Navigator>
@@ -178,6 +198,17 @@ function AttendanceStackScreen() {
         component={RoutePlaybackScreen}
         options={{ title: 'Route Playback', headerShown: false }}
       />
+      <AttendanceStack.Screen
+        name="PunchForm"
+        component={PunchFormScreen}
+        options={{ headerShown: false }}
+      />
+      <AttendanceStack.Screen
+        name="NewRegularization"
+        component={NewRegularizationScreen}
+        options={{ headerShown: false }}
+      />
+
     </AttendanceStack.Navigator>
   );
 }
@@ -210,8 +241,17 @@ function CustomBottomTabBar({ state, descriptors, navigation, insets, theme }: a
         }
 
         const isFocused = state.index === index;
+        const isUnreleased = route.name === 'Visits' || route.name === 'Sales' || route.name === 'Inspections' || route.name === 'Reports' || route.name === 'Customers' || route.name === 'Products';
 
         const onPress = () => {
+          if (isUnreleased) {
+            Alert.alert(
+              'Feature Coming Soon',
+              `${label} is currently in active development and will be released in an upcoming update.`
+            );
+            return;
+          }
+
           const event = navigation.emit({
             type: 'tabPress',
             target: route.key,
@@ -219,14 +259,25 @@ function CustomBottomTabBar({ state, descriptors, navigation, insets, theme }: a
           });
 
           if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
+            if (route.name === 'Employees') {
+              navigation.navigate('Employees', { screen: 'UserManagement' });
+            } else if (route.name === 'Attendance') {
+              navigation.navigate('Attendance', { screen: 'AttendanceToday' });
+            } else {
+              navigation.navigate(route.name);
+            }
           } else if (isFocused && !event.defaultPrevented) {
             // Pop to top of the stack if the tab is already focused
             const state = navigation.getState();
             const tabRoute = state.routes[index];
             if (tabRoute.state && tabRoute.state.index > 0) {
+              const rootScreenName =
+                route.name === 'Employees' ? 'UserManagement' :
+                route.name === 'Attendance' ? 'AttendanceToday' :
+                tabRoute.state.routes[0].name;
+
               navigation.navigate(route.name, {
-                screen: tabRoute.state.routes[0].name,
+                screen: rootScreenName,
               });
             }
           }
@@ -234,7 +285,7 @@ function CustomBottomTabBar({ state, descriptors, navigation, insets, theme }: a
 
         const label = options.tabBarLabel ?? route.name;
         const activeColor = theme.colors.brand.primary;
-        const inactiveColor = theme.colors.text.secondary;
+        const inactiveColor = isUnreleased ? theme.colors.text.tertiary : theme.colors.text.secondary;
         const iconName = ROUTE_ICON_MAP[route.name] ?? 'home';
 
         return (
@@ -251,6 +302,7 @@ function CustomBottomTabBar({ state, descriptors, navigation, insets, theme }: a
               paddingHorizontal: 2,
               borderRadius: theme.borderRadius.md,
               backgroundColor: isFocused ? theme.colors.brand.primaryLight : 'transparent',
+              opacity: isUnreleased ? 0.6 : 1,
             }}
             activeOpacity={0.8}
           >
@@ -268,6 +320,7 @@ function CustomBottomTabBar({ state, descriptors, navigation, insets, theme }: a
                   fontWeight: isFocused ? '600' : '500',
                   marginTop: 2,
                   textAlign: 'center',
+                  fontSize: isUnreleased ? 10 : 11,
                 },
               ]}
             >
@@ -322,8 +375,12 @@ function InspectionsStackScreen() {
 function FieldEmployeeTabs() {
   const tabBar = useRoleTabBar();
   return (
-    <Tab.Navigator tabBar={tabBar} screenOptions={{ headerShown: false }}>
-      <Tab.Screen name="Home" component={EmployeeDashboard} options={{ tabBarLabel: 'Home' }} />
+    <Tab.Navigator tabBar={tabBar} screenOptions={{ headerShown: false }} backBehavior="history">
+      <Tab.Screen
+        name="Home"
+        component={EmployeeDashboard}
+        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Home' }}
+      />
       <Tab.Screen name="Attendance" component={AttendanceStackScreen} options={{ tabBarLabel: 'Attendance' }} />
       <Tab.Screen name="Visits" component={VisitsStackScreen} options={{ tabBarLabel: 'Visits' }} />
       <Tab.Screen name="Sales" component={SalesStackScreen} options={{ tabBarLabel: 'Sales' }} />
@@ -348,7 +405,11 @@ function FieldEmployeeTabs() {
         component={OrgChartScreen}
         options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Org Chart' }}
       />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Profile' }}
+      />
     </Tab.Navigator>
   );
 }
@@ -356,8 +417,12 @@ function FieldEmployeeTabs() {
 function ManagerTabs() {
   const tabBar = useRoleTabBar();
   return (
-    <Tab.Navigator tabBar={tabBar} screenOptions={{ headerShown: false }}>
-      <Tab.Screen name="Home" component={ManagerDashboard} options={{ tabBarLabel: 'Dashboard' }} />
+    <Tab.Navigator tabBar={tabBar} screenOptions={{ headerShown: false }} backBehavior="history">
+      <Tab.Screen
+        name="Home"
+        component={ManagerDashboard}
+        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Dashboard' }}
+      />
       <Tab.Screen name="TeamMap" component={TeamMapScreen} options={{ tabBarLabel: 'Live Map' }} />
       <Tab.Screen name="Employees" component={EmployeesStackScreen} options={{ tabBarLabel: 'Agents' }} />
       <Tab.Screen name="Reports" component={ReportsScreen} options={{ tabBarLabel: 'Reports' }} />
@@ -386,7 +451,11 @@ function ManagerTabs() {
         component={OrgChartScreen}
         options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Org Chart' }}
       />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Profile' }}
+      />
     </Tab.Navigator>
   );
 }
@@ -394,8 +463,12 @@ function ManagerTabs() {
 function AdminTabs() {
   const tabBar = useRoleTabBar();
   return (
-    <Tab.Navigator tabBar={tabBar} screenOptions={{ headerShown: false }}>
-      <Tab.Screen name="Home" component={AdminDashboard} options={{ tabBarLabel: 'Dashboard' }} />
+    <Tab.Navigator tabBar={tabBar} screenOptions={{ headerShown: false }} backBehavior="history">
+      <Tab.Screen
+        name="Home"
+        component={AdminDashboard}
+        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Dashboard' }}
+      />
       <Tab.Screen name="TeamMap" component={TeamMapScreen} options={{ tabBarLabel: 'Live Map' }} />
       <Tab.Screen name="Employees" component={EmployeesStackScreen} options={{ tabBarLabel: 'Workforce' }} />
       <Tab.Screen name="Customers" component={CustomerListScreen} options={{ tabBarLabel: 'Clients' }} />
@@ -425,7 +498,11 @@ function AdminTabs() {
         component={OrgChartScreen}
         options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Org Chart' }}
       />
-      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Profile' }}
+      />
     </Tab.Navigator>
   );
 }

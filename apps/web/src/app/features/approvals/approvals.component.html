@@ -1,0 +1,288 @@
+<div class="page">
+  <netro-page-header
+    title="Approvals"
+    description="Regularization requests change what an attendance record says. Every decision here is recorded against your name."
+  >
+    <div slot="actions">
+      <button type="button" class="btn btn--default btn--sm" (click)="load()" [disabled]="loading()">
+        <netro-icon name="refresh" [size]="13" [spin]="loading()" /> Refresh
+      </button>
+    </div>
+
+    <netro-tabs [tabs]="tabs()" [value]="status()" label="Request status" (valueChange)="setStatus($event)" />
+  </netro-page-header>
+
+  <netro-panel [flush]="true" padding="none">
+    @if (selectionCount() > 0) {
+      <div class="bulkbar">
+        <span class="bulkbar__count">
+          {{ selectionCount() }} {{ selectionCount() === 1 ? 'request' : 'requests' }} selected
+        </span>
+        <button type="button" class="btn btn--subtle btn--sm" (click)="clearSelection()">
+          <netro-icon name="close" [size]="12" /> Clear
+        </button>
+        <span class="toolbar__spacer"></span>
+        <button type="button" class="btn btn--danger-outline btn--sm" [disabled]="working()" (click)="bulk('REJECTED')">
+          Reject selected
+        </button>
+        <button type="button" class="btn btn--positive btn--sm" [disabled]="working()" (click)="bulk('APPROVED')">
+          <netro-icon name="check" [size]="13" /> Approve selected
+        </button>
+      </div>
+    } @else {
+      <netro-toolbar
+        [search]="search()"
+        searchPlaceholder="Search by person, employee ID or reason"
+        searchLabel="Search approval requests"
+        (searchChange)="search.set($event)"
+      >
+        <span slot="actions" class="text-micro text-subtle">
+          {{ visible().length }} {{ visible().length === 1 ? 'request' : 'requests' }}
+        </span>
+      </netro-toolbar>
+    }
+
+    @if (loading()) {
+      <netro-skeleton-rows [rows]="6" [cols]="5" />
+    } @else if (error()) {
+      <netro-state icon="x-circle" tone="risk" title="Could not load approvals" [body]="error()!">
+        <button type="button" class="btn btn--default" (click)="load()">Try again</button>
+      </netro-state>
+    } @else if (!visible().length) {
+      <netro-state
+        [icon]="status() === 'PENDING' ? 'check-circle' : 'approve'"
+        [title]="
+          search()
+            ? 'No request matches that search'
+            : status() === 'PENDING'
+              ? 'The queue is clear'
+              : 'Nothing here yet'
+        "
+        [body]="
+          search()
+            ? 'Try a different name, employee ID or keyword from the reason.'
+            : status() === 'PENDING'
+              ? 'Every regularization request in your scope has been decided.'
+              : 'Decided requests will appear here once you have reviewed some.'
+        "
+      >
+        <button type="button" class="btn btn--default" *ngIf="search()" (click)="search.set('')">
+          Clear search
+        </button>
+      </netro-state>
+    } @else {
+      <div class="table-scroll">
+        <table class="table">
+          <caption class="sr-only">
+            Regularization requests, {{ status() | lowercase }}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col" class="col-select" *ngIf="canDecide()">
+                <label class="check">
+                  <input
+                    type="checkbox"
+                    [checked]="allSelected()"
+                    [indeterminate]="someSelected()"
+                    (change)="toggleAll()"
+                  />
+                  <span class="sr-only">Select all visible requests</span>
+                </label>
+              </th>
+              <th scope="col">Employee</th>
+              <th scope="col">Date</th>
+              <th scope="col">Change requested</th>
+              <th scope="col">Reason</th>
+              <th scope="col">Raised</th>
+              <th scope="col" class="col-actions">Review</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (request of visible(); track request.id) {
+              <tr
+                class="is-clickable"
+                [class.is-selected]="isSelected(request.id)"
+                tabindex="0"
+                (click)="open(request)"
+                (keydown.enter)="open(request)"
+                (keydown.space)="open(request); $event.preventDefault()"
+              >
+                <td class="col-select" *ngIf="canDecide()" (click)="$event.stopPropagation()">
+                  <label class="check">
+                    <input type="checkbox" [checked]="isSelected(request.id)" (change)="toggleRow(request.id)" />
+                    <span class="sr-only">Select request from {{ request.user?.name }}</span>
+                  </label>
+                </td>
+
+                <td>
+                  <span class="identity">
+                    <netro-avatar [name]="request.user?.name" [seed]="request.userId" size="sm" />
+                    <span class="identity__body">
+                      <span class="identity__name">{{ request.user?.name || 'Unknown' }}</span>
+                      <span class="identity__meta" *ngIf="request.user?.employeeId">
+                        {{ request.user?.employeeId }}
+                      </span>
+                    </span>
+                  </span>
+                </td>
+
+                <td>
+                  <span class="cell-strong">{{ day(request.date) }}</span>
+                  <span class="cell-secondary" style="display: block">{{ kindOf(request) }}</span>
+                </td>
+
+                <td>
+                  <span class="delta">
+                    <span class="delta__from">{{ time(request.originalPunchIn) }} – {{ time(request.originalPunchOut) }}</span>
+                    <netro-icon name="arrow-right" [size]="12" class="delta__arrow" />
+                    <span class="delta__to">
+                      {{ time(request.requestedPunchIn) }} – {{ time(request.requestedPunchOut) }}
+                    </span>
+                  </span>
+                </td>
+
+                <td class="cell-truncate" [title]="request.reason">{{ request.reason }}</td>
+
+                <td class="cell-secondary">{{ ago(request.createdAt) }}</td>
+
+                <td class="col-actions">
+                  @if (request.status === 'PENDING') {
+                    <button type="button" class="btn btn--default btn--sm" (click)="$event.stopPropagation(); open(request)">
+                      Review
+                    </button>
+                  } @else {
+                    <netro-badge [tone]="toneFor(request.status)" [dot]="true">
+                      {{ request.status | titlecase }}
+                    </netro-badge>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </netro-panel>
+</div>
+
+<!-- ============================================================
+     REVIEW DRAWER — the full case for one request
+     ============================================================ -->
+@if (reviewing(); as request) {
+  <netro-drawer
+    eyebrow="Regularization request"
+    [heading]="request.user?.name || 'Request'"
+    [sub]="kindOf(request) + ' · ' + day(request.date)"
+    width="wide"
+    [hasFooter]="request.status === 'PENDING'"
+    [dismissOnScrim]="false"
+    (closed)="close()"
+  >
+    <div class="stack">
+      <section>
+        <p class="eyebrow" style="margin-bottom: 8px">What is being claimed</p>
+        <div class="compare">
+          <div class="compare__head">
+            <span>Field</span>
+            <span>Recorded</span>
+            <span>Requested</span>
+          </div>
+          @for (change of changesFor(request); track change.label) {
+            <div class="compare__row" [ngClass]="{ 'compare__row--changed': change.changed }">
+              <span class="compare__label">{{ change.label }}</span>
+              <span class="compare__from">{{ change.from }}</span>
+              <span class="compare__to">
+                {{ change.to }}
+                <netro-icon *ngIf="change.changed" name="arrow-right" [size]="11" class="compare__mark" />
+              </span>
+            </div>
+          }
+        </div>
+        <p class="text-micro text-subtle" style="margin-top: 8px">
+          Approving writes the requested values onto the attendance record
+          @if (!request.attendanceId) {
+            , creating a record for a day that currently has none
+          }
+          . Resulting shift length: <strong>{{ requestedSpan(request) }}</strong>.
+        </p>
+      </section>
+
+      <section>
+        <p class="eyebrow" style="margin-bottom: 6px">Employee's reason</p>
+        <blockquote class="quote">{{ request.reason }}</blockquote>
+      </section>
+
+      <dl class="defs">
+        <div class="defs__row">
+          <dt class="defs__key">Employee</dt>
+          <dd class="defs__val">
+            {{ request.user?.name }}
+            <span class="text-subtle" *ngIf="request.user?.employeeId">· {{ request.user?.employeeId }}</span>
+          </dd>
+        </div>
+        <div class="defs__row">
+          <dt class="defs__key">Attendance date</dt>
+          <dd class="defs__val">{{ day(request.date) }}</dd>
+        </div>
+        <div class="defs__row">
+          <dt class="defs__key">Raised</dt>
+          <dd class="defs__val">{{ ago(request.createdAt) }}</dd>
+        </div>
+        <div class="defs__row">
+          <dt class="defs__key">Status</dt>
+          <dd class="defs__val">
+            <netro-badge [tone]="toneFor(request.status)" [dot]="true">
+              {{ request.status | titlecase }}
+            </netro-badge>
+          </dd>
+        </div>
+        <div class="defs__row" *ngIf="request.approver">
+          <dt class="defs__key">Decided by</dt>
+          <dd class="defs__val">{{ request.approver.name }}</dd>
+        </div>
+        <div class="defs__row" *ngIf="request.remarks">
+          <dt class="defs__key">Reviewer note</dt>
+          <dd class="defs__val">{{ request.remarks }}</dd>
+        </div>
+      </dl>
+
+      @if (request.status === 'PENDING') {
+        <label class="field">
+          <span class="field__label">
+            Note to the employee
+            <span class="text-micro text-subtle">— required when rejecting</span>
+          </span>
+          <textarea
+            class="textarea"
+            rows="3"
+            placeholder="Explain the decision, or add context for the audit trail."
+            [ngModel]="remarks()"
+            (ngModelChange)="remarks.set($event)"
+          ></textarea>
+        </label>
+      }
+    </div>
+
+    <div slot="footer" style="display: contents">
+      <button type="button" class="btn btn--subtle" (click)="close()">Cancel</button>
+      <span class="spacer"></span>
+      <button
+        type="button"
+        class="btn btn--danger-outline"
+        [disabled]="working()"
+        (click)="decide(request, 'REJECTED')"
+      >
+        Reject
+      </button>
+      <button
+        type="button"
+        class="btn btn--positive"
+        data-autofocus
+        [disabled]="working()"
+        (click)="decide(request, 'APPROVED')"
+      >
+        <netro-icon name="check" [size]="14" /> Approve and correct record
+      </button>
+    </div>
+  </netro-drawer>
+}

@@ -1,0 +1,435 @@
+/* ==========================================================================
+   PUNCH CONSOLE
+   The one thing an employee comes here to do, so it gets the calmest surface
+   on the page and the largest single number: how long they have been working.
+   ========================================================================== */
+
+.console {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-5);
+}
+
+/* An open shift tints the console rather than shouting: the state is already
+   carried by the running clock and the live dot. */
+.console--live {
+  background: linear-gradient(180deg, var(--ok-bg), transparent 70%);
+}
+
+.console__clock {
+  font: 600 34px/1 var(--font-sans);
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+
+.console__clock--idle {
+  color: var(--fg-faint);
+}
+
+.console__since {
+  font: var(--t-small);
+  color: var(--fg-subtle);
+  margin-top: -6px;
+}
+
+.console__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  width: 100%;
+  padding-top: var(--s-2);
+}
+
+.console netro-alert,
+.console button {
+  width: 100%;
+}
+
+/* ---- Policy read-out ----------------------------------------------------- */
+
+.console__policy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: var(--s-4) var(--s-5);
+  border-top: 1px solid var(--line-subtle);
+  background: var(--surface-sunken);
+}
+
+.console__policy-name {
+  font: var(--t-body-md);
+  color: var(--fg);
+}
+
+.reqs {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: var(--s-3);
+}
+
+.req {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: var(--t-small);
+  color: var(--fg-muted);
+  min-width: 0;
+}
+
+.req__glyph {
+  color: var(--fg-faint);
+}
+
+/* Evidence the browser cannot capture is the only thing worth colouring here. */
+.req__glyph--warn {
+  color: var(--warn-fg);
+}
+
+.req__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.req__status {
+  font: var(--t-micro);
+  color: var(--fg-faint);
+}
+
+/* ==========================================================================
+   MY REQUESTS
+   ========================================================================== */
+
+.requests {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.request {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border-bottom: 1px solid var(--line-subtle);
+  align-items: start;
+}
+
+.request:last-child {
+  border-bottom: none;
+}
+
+.request__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--fg-faint);
+  margin-top: 1px;
+}
+
+.request__mark--ok {
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
+  color: var(--ok-fg);
+}
+
+.request__mark--warn {
+  background: var(--warn-bg);
+  border-color: var(--warn-border);
+  color: var(--warn-fg);
+}
+
+.request__mark--risk {
+  background: var(--risk-bg);
+  border-color: var(--risk-border);
+  color: var(--risk-fg);
+}
+
+.request__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.request__title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font: var(--t-body-md);
+  flex-wrap: wrap;
+}
+
+.request__delta {
+  font: var(--t-small);
+  color: var(--fg-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.request__reason {
+  font: var(--t-small);
+  color: var(--fg-subtle);
+  line-height: 1.5;
+}
+
+.request__note {
+  font: var(--t-small);
+  color: var(--fg-muted);
+  background: var(--surface-inset);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--r-md);
+  padding: 7px 9px;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.request__age {
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   ROSTER
+   ========================================================================== */
+
+.roster-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border-bottom: 1px solid var(--line-subtle);
+  background: var(--surface-sunken);
+}
+
+.band-wrap {
+  padding-top: var(--s-1);
+}
+
+.exceptions {
+  padding: var(--s-4);
+  border-top: 1px solid var(--line-subtle);
+  background: var(--surface-sunken);
+}
+
+/* Absent people are a list of names, not a table: there is nothing to compare,
+   only somebody to chase. */
+.absent {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--s-2) var(--s-4);
+}
+
+.absent__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  font: var(--t-small);
+  color: var(--fg-muted);
+}
+
+/* ==========================================================================
+   CORRECTION REQUEST
+   ========================================================================== */
+
+.recorded {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-3);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--r-md);
+  background: var(--surface-inset);
+}
+
+.recorded__label {
+  font: var(--t-micro);
+  text-transform: uppercase;
+  letter-spacing: var(--track-eyebrow);
+  color: var(--fg-faint);
+}
+
+.recorded__value {
+  font: var(--t-body-md);
+  color: var(--fg);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Shared shift-fact strip, matching the employee workspace in People. */
+.ws-shift {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line-subtle);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.ws-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-sunken);
+}
+
+.ws-fact__label {
+  font: var(--t-micro);
+  text-transform: uppercase;
+  letter-spacing: var(--track-eyebrow);
+  color: var(--fg-subtle);
+}
+
+.ws-fact__value {
+  font: var(--t-body-md);
+  color: var(--fg);
+}
+
+@media (max-width: 640px) {
+  .ws-shift {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .request {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+
+  .request__age {
+    grid-column: 2;
+  }
+}
+
+/* ==========================================================================
+   EVIDENCE CHIPS & LIGHTBOX
+   ========================================================================== */
+
+.evidence-action-row {
+  width: 100%;
+}
+
+.evidence-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  font: var(--t-small);
+  width: 100%;
+}
+
+.evidence-chip--attached {
+  background: var(--ok-bg);
+  border: 1px solid var(--ok-border);
+  color: var(--ok-fg);
+}
+
+.btn-chip-action {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.btn-chip-action:hover {
+  color: var(--risk-fg);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.evidence-thumb-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.evidence-thumb {
+  width: 72px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--line-subtle);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.evidence-thumb:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(6px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.lightbox-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-image {
+  max-width: 100%;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: -16px;
+  right: -16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  background: #ffffff;
+  color: #0f172a;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s;
+}
+
+.lightbox-close:hover {
+  transform: scale(1.1);
+}
+

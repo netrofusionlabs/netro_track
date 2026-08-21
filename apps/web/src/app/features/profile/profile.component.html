@@ -1,0 +1,162 @@
+<div class="page">
+  <netro-page-header title="My profile" description="How you appear in NetroTrack, your credentials, reporting line, and account preferences." />
+
+  <div class="workspace">
+    <div class="workspace__main">
+      <netro-panel heading="Identity" icon="user">
+        <div class="profile-id">
+          <label class="photo" [class.is-busy]="uploading()">
+            <netro-avatar [name]="u()?.name" [src]="u()?.profilePictureUrl" [seed]="u()?.id" size="2xl" />
+            <input class="sr-only" type="file" accept="image/*" (change)="onFile($event)" />
+            <span class="photo__hint">{{ uploading() ? 'Uploading…' : 'Change photo' }}</span>
+          </label>
+          <div class="stack stack--sm">
+            <p class="profile-name">{{ u()?.name }}</p>
+            <div class="row row--nowrap row--center" style="gap: 6px">
+              <netro-badge>{{ label(u()?.role) }}</netro-badge>
+              <netro-badge *ngIf="u()?.bloodGroup" tone="neutral">{{ u()?.bloodGroup }}</netro-badge>
+            </div>
+            <p class="text-small text-subtle">{{ u()?.company?.name || 'Platform Administrator' }}</p>
+          </div>
+        </div>
+        <netro-alert tone="risk" *ngIf="uploadError()" [dismissible]="true" (dismissed)="uploadError.set(null)">{{ uploadError() }}</netro-alert>
+        
+        <dl class="defs" style="margin-top: var(--s-5)">
+          <div class="defs__row"><dt class="defs__key">Employee ID</dt><dd class="defs__val mono">{{ u()?.employeeId || '—' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Work email</dt><dd class="defs__val">{{ u()?.email || '—' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Mobile</dt><dd class="defs__val">{{ u()?.phone || '—' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Job title</dt><dd class="defs__val">{{ u()?.designationName || u()?.designation?.name || '—' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Reports to</dt><dd class="defs__val">{{ u()?.managerName || u()?.manager?.name || '—' }}</dd></div>
+          <div class="defs__row" *ngIf="u()?.personalEmail"><dt class="defs__key">Personal email</dt><dd class="defs__val">{{ u()?.personalEmail }}</dd></div>
+          <div class="defs__row" *ngIf="u()?.secondaryPhone"><dt class="defs__key">Alternate mobile</dt><dd class="defs__val">{{ u()?.secondaryPhone }}</dd></div>
+          <div class="defs__row" *ngIf="u()?.emergencyContactName">
+            <dt class="defs__key">Emergency contact</dt>
+            <dd class="defs__val">
+              <span class="font-medium">{{ u()?.emergencyContactName }}</span>
+              <span class="text-micro text-subtle" style="display: block">{{ u()?.emergencyContactPhone || 'No phone recorded' }}</span>
+            </dd>
+          </div>
+        </dl>
+      </netro-panel>
+
+      <!-- Company Overview (if tenant employee/admin) -->
+      <netro-panel heading="Company & Workspace" icon="building" *ngIf="u()?.company">
+        <div class="row row--nowrap row--center" style="gap: 12px; margin-bottom: 12px">
+          <img *ngIf="u()?.company?.companyLogoUrl || u()?.company?.logoUrl" [src]="u()?.company?.companyLogoUrl || u()?.company?.logoUrl" alt="Company Logo" class="profile-company-logo" />
+          <div>
+            <h4 class="font-medium text-body-md">{{ u()?.company?.name }}</h4>
+            <p class="text-micro text-subtle mono">Code: {{ u()?.company?.code || '—' }} · {{ u()?.company?.industry || 'General' }}</p>
+          </div>
+        </div>
+        <p class="text-small text-subtle">
+          {{ u()?.company?.addressLine1 || '' }} {{ u()?.company?.city || '' }} {{ u()?.company?.state || '' }} {{ u()?.company?.country || '' }}
+        </p>
+      </netro-panel>
+
+      <!-- Professional Career Timeline -->
+      <netro-panel heading="Professional History" icon="arrow-up-right">
+        @if (historyLoading()) {
+          <netro-skeleton-rows [rows]="3" [cols]="2" />
+        } @else if (timelineEvents().length) {
+          <netro-timeline [events]="timelineEvents()" />
+        } @else {
+          <p class="text-small text-subtle">No recorded changes to your role, designation or reporting line yet.</p>
+        }
+      </netro-panel>
+    </div>
+
+    <aside class="workspace__rail">
+      <!-- Quick MPIN Setup -->
+      <netro-panel heading="Device MPIN" icon="key" description="4–6 digits. Used for faster unlock on this browser.">
+        <form [formGroup]="mpinForm" class="stack" (ngSubmit)="saveMpin()">
+          <label class="field">
+            <span class="field__label">New MPIN</span>
+            <input class="input" type="password" inputmode="numeric" maxlength="6" formControlName="mpin" autocomplete="new-password" />
+          </label>
+          <label class="field">
+            <span class="field__label">Confirm MPIN</span>
+            <input class="input" type="password" inputmode="numeric" maxlength="6" formControlName="confirm" autocomplete="new-password" />
+            <span class="field__error" *ngIf="mpinForm.hasError('mismatch') && mpinForm.controls.confirm.touched">MPINs do not match.</span>
+          </label>
+          <button type="submit" class="btn btn--primary" [disabled]="savingMpin()">
+            <netro-icon [name]="savingMpin() ? 'spinner' : 'check'" [size]="14" [spin]="savingMpin()" /> Save MPIN
+          </button>
+        </form>
+      </netro-panel>
+
+      <!-- Change Password -->
+      <netro-panel heading="Change Password" icon="shield" description="Update your primary NetroTrack account password.">
+        <form [formGroup]="passwordForm" class="stack" (ngSubmit)="savePassword()">
+          <label class="field">
+            <span class="field__label">New Password</span>
+            <input class="input" type="password" formControlName="newPassword" autocomplete="new-password" placeholder="At least 8 characters" />
+          </label>
+          <label class="field">
+            <span class="field__label">Confirm Password</span>
+            <input class="input" type="password" formControlName="confirmPassword" autocomplete="new-password" placeholder="Re-type new password" />
+            <span class="field__error" *ngIf="passwordForm.hasError('mismatch') && passwordForm.controls.confirmPassword.touched">Passwords do not match.</span>
+          </label>
+          <button type="submit" class="btn btn--default" [disabled]="savingPassword()">
+            <netro-icon [name]="savingPassword() ? 'spinner' : 'check'" [size]="14" [spin]="savingPassword()" /> Update Password
+          </button>
+        </form>
+      </netro-panel>
+
+      <!-- Legal & Governance -->
+      <netro-panel heading="Legal & Governance" icon="policy">
+        <div class="stack stack--sm">
+          <p class="text-small text-subtle">Read the platform terms, security standards, and privacy commitments.</p>
+          <div class="row" style="gap: 8px">
+            <button type="button" class="btn btn--subtle btn--sm" (click)="openLegal('terms')">
+              Terms of Service
+            </button>
+            <button type="button" class="btn btn--subtle btn--sm" (click)="openLegal('privacy')">
+              Privacy Policy
+            </button>
+          </div>
+        </div>
+      </netro-panel>
+    </aside>
+  </div>
+</div>
+
+<!-- ==========================================================================
+     TERMS / PRIVACY DRAWER
+     ========================================================================== -->
+@if (legalModal()) {
+  <netro-drawer
+    [eyebrow]="legalModal() === 'terms' ? 'Terms of Service' : 'Privacy Policy'"
+    [heading]="legalModal() === 'terms' ? 'NetroTrack Terms of Service' : 'NetroTrack Privacy & Data Policy'"
+    sub="Version 1.2 · Effective January 2026"
+    width="wide"
+    (closed)="closeLegal()"
+  >
+    <div class="stack stack--md text-small">
+      @if (legalModal() === 'terms') {
+        <h4 class="font-bold">1. Multi-Tenant Platform Use</h4>
+        <p>NetroTrack is an enterprise workforce management SaaS platform designed for authorized commercial operations, GPS workforce tracking, attendance policy enforcement, and visit logging.</p>
+        
+        <h4 class="font-bold">2. Location Tracking & Consent</h4>
+        <p>Location tracking is active strictly during active duty/shift hours as governed by your organization's attendance policy. No background tracking occurs when you are clocked out.</p>
+
+        <h4 class="font-bold">3. Security & Access Governance</h4>
+        <p>You are responsible for maintaining the confidentiality of your sign-in credentials and MPIN. Unauthorized account sharing is strictly prohibited.</p>
+      } @else {
+        <h4 class="font-bold">1. Information Collection & Purpose</h4>
+        <p>NetroTrack collects employee identity, shift logs, geocoded punch coordinates, and customer visit records solely for operational field management and payroll computation.</p>
+
+        <h4 class="font-bold">2. Data Isolation & Tenant Partitioning</h4>
+        <p>Every tenant's data is strictly partitioned via multi-tenant isolation architectures. Customer records, attendance evidence, and workforce profiles are never shared across tenants.</p>
+
+        <h4 class="font-bold">3. Data Retention & Erasure</h4>
+        <p>Shift records and GPS traces are stored encrypted in accordance with enterprise data retention standards and local labor laws.</p>
+      }
+    </div>
+
+    <div slot="footer" style="display: contents">
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--primary" (click)="closeLegal()">Close</button>
+    </div>
+  </netro-drawer>
+}
+

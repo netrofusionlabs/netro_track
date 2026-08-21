@@ -22,6 +22,7 @@ export const createUserSchema = z.object({
   designationName: z.string().min(1, 'Designation / Job Title is required'),
   companyId: z.string().uuid('Invalid company ID').optional(),
   isGpsTracked: z.boolean().optional(),
+  attendancePolicyId: z.string().uuid('Invalid policy ID').optional().nullable(),
 });
 
 export const updateUserSchema = z.object({
@@ -44,6 +45,7 @@ export const updateUserSchema = z.object({
   departmentId: z.string().uuid('Invalid department ID').optional().nullable(),
   designationId: z.string().uuid('Invalid designation ID').optional().nullable(),
   designationName: z.string().optional().nullable(),
+  attendancePolicyId: z.string().uuid('Invalid policy ID').optional().nullable(),
   isPromotion: z.boolean().optional(),
   effectiveDate: z.string().optional(),
 });

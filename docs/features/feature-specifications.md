@@ -88,3 +88,12 @@
 - Create client admin for each company
 - Company usage statistics
 - Platform-wide analytics
+
+### 11. Attendance Regularization
+- Policy-driven request workflow allowing employees to correct past dates.
+- Support for correcting existing completed punches or regularizing missed days.
+- Validation checks enforcing window limit (days) and monthly limit thresholds.
+- Odometer/meter logging without image upload requirements (manual text/number input).
+- Organizational manager reporting hierarchy integration for approval routes.
+- Single and bulk manager review interfaces with comments and remarks.
+- Immutable audit log preserving original recorded times.

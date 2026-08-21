@@ -1,0 +1,372 @@
+/* ==========================================================================
+   NETROTRACK DESIGN SYSTEM — FOUNDATIONS
+   The operating system for field workforce operations.
+
+   Identity notes
+   --------------
+   Neutrals carry a faint cool-teal cast (hue 205) so surfaces read as
+   instrumentation rather than generic office grey. The brand hue is a deep
+   signal cyan (hue 194) — deliberately separated from the semantic green
+   (hue 150) so "brand" and "healthy" are never confused. Semantic hues are
+   spaced far apart so status is legible at a glance and never relies on
+   colour alone (every status also carries a glyph or label).
+
+   Surfaces are flat and bordered. Elevation is reserved for things that
+   genuinely float (popovers, drawers, dialogs). Radii are small and precise.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ---- Neutral ramp (cool-teal cast) ---- */
+  --n-0:   hsl(200, 40%, 99%);
+  --n-25:  hsl(202, 33%, 97.5%);
+  --n-50:  hsl(203, 30%, 96%);
+  --n-100: hsl(204, 26%, 93%);
+  --n-150: hsl(205, 22%, 89%);
+  --n-200: hsl(205, 20%, 85%);
+  --n-300: hsl(205, 15%, 72%);
+  --n-400: hsl(205, 12%, 58%);
+  --n-500: hsl(205, 12%, 46%);
+  --n-600: hsl(206, 15%, 36%);
+  --n-700: hsl(207, 20%, 26%);
+  --n-800: hsl(208, 26%, 17%);
+  --n-900: hsl(209, 32%, 12%);
+  --n-950: hsl(210, 36%, 8%);
+
+  /* ---- Brand: Signal Cyan ---- */
+  --brand-50:  hsl(192, 70%, 95%);
+  --brand-100: hsl(192, 65%, 88%);
+  --brand-200: hsl(193, 62%, 76%);
+  --brand-300: hsl(193, 60%, 60%);
+  --brand-400: hsl(194, 68%, 44%);
+  --brand-500: hsl(194, 88%, 32%);
+  --brand-600: hsl(195, 92%, 26%);
+  --brand-700: hsl(196, 90%, 21%);
+  --brand-800: hsl(197, 84%, 16%);
+
+  /* ---- Semantic ---- */
+  --ok-fg:     hsl(150, 68%, 26%);
+  --ok-bg:     hsl(150, 52%, 94%);
+  --ok-border: hsl(150, 42%, 80%);
+  --ok-solid:  hsl(150, 62%, 33%);
+
+  --warn-fg:     hsl(28, 88%, 33%);
+  --warn-bg:     hsl(38, 92%, 93%);
+  --warn-border: hsl(36, 75%, 78%);
+  --warn-solid:  hsl(34, 92%, 45%);
+
+  --risk-fg:     hsl(354, 72%, 40%);
+  --risk-bg:     hsl(354, 84%, 96%);
+  --risk-border: hsl(354, 62%, 86%);
+  --risk-solid:  hsl(354, 70%, 46%);
+
+  --info-fg:     var(--brand-600);
+  --info-bg:     var(--brand-50);
+  --info-border: var(--brand-200);
+  --info-solid:  var(--brand-500);
+
+  /* Neutral / dormant state (offline, inactive, not-started) */
+  --idle-fg:     var(--n-600);
+  --idle-bg:     var(--n-100);
+  --idle-border: var(--n-200);
+  --idle-solid:  var(--n-400);
+
+  /* ---- Semantic surface aliases ---- */
+  --canvas:        var(--n-50);
+  --surface:       #ffffff;
+  --surface-sunken: var(--n-25);
+  --surface-raised: #ffffff;
+  --surface-inset: var(--n-50);
+  --surface-hover: var(--n-50);
+  --surface-active: var(--brand-50);
+
+  --line:        var(--n-150);
+  --line-strong: var(--n-200);
+  --line-subtle: var(--n-100);
+
+  --fg:         var(--n-900);
+  --fg-muted:   var(--n-600);
+  --fg-subtle:  var(--n-500);
+  --fg-faint:   var(--n-400);
+  --fg-onbrand: #ffffff;
+
+  --accent:       var(--brand-600);
+  --accent-hover: var(--brand-700);
+  --accent-soft:  var(--brand-50);
+  --accent-line:  var(--brand-200);
+  --focus-ring:   hsl(194, 90%, 40%);
+  --focus-halo:   hsl(194, 90%, 40%, 0.18);
+  --beacon-halo:  hsl(150, 62%, 33%, 0.32);
+
+  /* ---- Typography ---- */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  --t-display: 600 24px/1.2 var(--font-sans);
+  --t-title:   600 18px/1.3 var(--font-sans);
+  --t-heading: 600 15px/1.35 var(--font-sans);
+  --t-body:    400 13.5px/1.5 var(--font-sans);
+  --t-body-md: 500 13.5px/1.5 var(--font-sans);
+  --t-small:   400 12.5px/1.45 var(--font-sans);
+  --t-micro:   500 11.5px/1.4 var(--font-sans);
+
+  --track-eyebrow: 0.07em;
+  --track-tight: -0.011em;
+
+  /* ---- Space scale (4px base) ---- */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-10: 40px;
+  --s-12: 48px; --s-16: 64px;
+
+  /* ---- Radius: small + precise ---- */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 9px;
+  --r-xl: 12px;
+  --r-pill: 999px;
+
+  /* ---- Elevation: reserved for floating surfaces only ---- */
+  --e-1: 0 1px 2px hsl(207 25% 20% / 0.05);
+  --e-2: 0 2px 4px hsl(207 25% 20% / 0.06), 0 1px 2px hsl(207 25% 20% / 0.04);
+  --e-3: 0 8px 20px -6px hsl(207 30% 18% / 0.14), 0 2px 6px hsl(207 30% 18% / 0.06);
+  --e-4: 0 24px 48px -12px hsl(207 34% 14% / 0.24), 0 4px 12px hsl(207 30% 18% / 0.08);
+
+  /* ---- Motion ---- */
+  --dur-1: 90ms;
+  --dur-2: 150ms;
+  --dur-3: 240ms;
+  --ease: cubic-bezier(0.2, 0, 0.15, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ---- Layout ---- */
+  --layout-rail: 244px;
+  --layout-rail-collapsed: 60px;
+  --layout-topbar: 52px;
+  --page-max: 1560px;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --n-0:   hsl(210, 34%, 7%);
+  --n-25:  hsl(210, 32%, 9%);
+  --n-50:  hsl(210, 30%, 11%);
+  --n-100: hsl(209, 26%, 14%);
+  --n-150: hsl(209, 23%, 18%);
+  --n-200: hsl(208, 20%, 22%);
+  --n-300: hsl(207, 16%, 32%);
+  --n-400: hsl(206, 14%, 46%);
+  --n-500: hsl(205, 14%, 58%);
+  --n-600: hsl(205, 16%, 68%);
+  --n-700: hsl(204, 20%, 78%);
+  --n-800: hsl(203, 26%, 88%);
+  --n-900: hsl(202, 34%, 95%);
+  --n-950: hsl(200, 40%, 98%);
+
+  --brand-50:  hsl(197, 60%, 14%);
+  --brand-100: hsl(196, 58%, 19%);
+  --brand-200: hsl(195, 54%, 27%);
+  --brand-300: hsl(194, 52%, 38%);
+  --brand-400: hsl(193, 62%, 50%);
+  --brand-500: hsl(192, 74%, 58%);
+  --brand-600: hsl(191, 82%, 64%);
+  --brand-700: hsl(190, 86%, 72%);
+  --brand-800: hsl(190, 90%, 82%);
+
+  --ok-fg:     hsl(150, 60%, 66%);
+  --ok-bg:     hsl(152, 42%, 13%);
+  --ok-border: hsl(152, 34%, 24%);
+  --ok-solid:  hsl(150, 56%, 42%);
+
+  --warn-fg:     hsl(40, 88%, 66%);
+  --warn-bg:     hsl(34, 48%, 13%);
+  --warn-border: hsl(34, 40%, 25%);
+  --warn-solid:  hsl(36, 84%, 50%);
+
+  --risk-fg:     hsl(354, 82%, 72%);
+  --risk-bg:     hsl(354, 44%, 14%);
+  --risk-border: hsl(354, 38%, 27%);
+  --risk-solid:  hsl(354, 68%, 52%);
+
+  --idle-fg:     var(--n-600);
+  --idle-bg:     var(--n-150);
+  --idle-border: var(--n-200);
+  --idle-solid:  var(--n-400);
+
+  --canvas:         hsl(210, 36%, 6%);
+  --surface:        hsl(210, 30%, 9.5%);
+  --surface-sunken: hsl(211, 34%, 7.5%);
+  --surface-raised: hsl(209, 26%, 12%);
+  --surface-inset:  hsl(210, 30%, 8%);
+  --surface-hover:  hsl(209, 26%, 13%);
+  --surface-active: hsl(197, 50%, 15%);
+
+  --line:        hsl(209, 20%, 18%);
+  --line-strong: hsl(208, 18%, 24%);
+  --line-subtle: hsl(210, 22%, 14%);
+
+  --fg:        var(--n-900);
+  --fg-muted:  var(--n-600);
+  --fg-subtle: var(--n-500);
+  --fg-faint:  var(--n-400);
+
+  --accent:       var(--brand-600);
+  --accent-hover: var(--brand-700);
+  --accent-soft:  var(--brand-50);
+  --accent-line:  var(--brand-200);
+  --focus-ring:   hsl(192, 80%, 56%);
+  --focus-halo:   hsl(192, 80%, 56%, 0.22);
+  --beacon-halo:  hsl(150, 56%, 42%, 0.34);
+
+  --e-1: 0 1px 2px hsl(210 50% 2% / 0.4);
+  --e-2: 0 2px 6px hsl(210 50% 2% / 0.45);
+  --e-3: 0 10px 24px -6px hsl(210 60% 2% / 0.6), 0 2px 6px hsl(210 50% 2% / 0.4);
+  --e-4: 0 28px 56px -14px hsl(210 60% 1% / 0.75), 0 6px 16px hsl(210 50% 2% / 0.5);
+}
+
+/* ==========================================================================
+   RESET
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+* { margin: 0; padding: 0; }
+
+html, body { height: 100%; }
+
+body {
+  background: var(--canvas);
+  color: var(--fg);
+  font: var(--t-body);
+  letter-spacing: var(--track-tight);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6 { font-weight: 600; letter-spacing: -0.018em; color: var(--fg); }
+
+a { color: inherit; text-decoration: none; }
+
+button, input, select, textarea { font: inherit; letter-spacing: inherit; color: inherit; }
+
+button { background: none; border: none; cursor: pointer; }
+
+img, svg { display: block; max-width: 100%; }
+
+svg { flex: none; }
+
+table { border-collapse: collapse; border-spacing: 0; }
+
+[hidden] { display: none !important; }
+
+/* Numerals align in columns everywhere they carry meaning. */
+.tnum, td, th, .metric-value, time { font-variant-numeric: tabular-nums; }
+
+/* ==========================================================================
+   FOCUS — always visible, never removed
+   ========================================================================== */
+
+:focus { outline: none; }
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--s-4);
+  top: -100px;
+  z-index: 1000;
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  padding: var(--s-2) var(--s-4);
+  font: var(--t-body-md);
+  box-shadow: var(--e-3);
+  transition: top var(--dur-2) var(--ease);
+}
+.skip-link:focus { top: var(--s-4); }
+
+/* ==========================================================================
+   SCROLLBARS
+   ========================================================================== */
+
+* { scrollbar-width: thin; scrollbar-color: var(--n-300) transparent; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--n-300);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--r-pill);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--n-400); background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* ==========================================================================
+   MOTION — communicates state change, nothing else
+   ========================================================================== */
+
+@keyframes netro-fade-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes netro-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes netro-scale-in {
+  from { opacity: 0; transform: scale(0.98) translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes netro-slide-left {
+  from { transform: translateX(100%); }
+  to   { transform: none; }
+}
+@keyframes netro-spin { to { transform: rotate(360deg); } }
+@keyframes netro-shimmer {
+  from { background-position: -160% 0; }
+  to   { background-position: 260% 0; }
+}
+/* Presence beacon — the Netro Pulse signature. Communicates "live data". */
+@keyframes netro-beacon {
+  0%   { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  70%  { box-shadow: 0 0 0 5px transparent; opacity: 1; }
+  100% { box-shadow: 0 0 0 0 transparent; opacity: 1; }
+}
+
+.enter { animation: netro-fade-up var(--dur-3) var(--ease-out) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   PRINT
+   ========================================================================== */
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+}

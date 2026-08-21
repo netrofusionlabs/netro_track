@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
@@ -25,6 +24,7 @@ import {
   Section,
   SyncIndicator,
 } from '../../shared/components';
+import { getQueue } from '../../shared/utils/offlineQueue';
 import {
   useAttendanceToday,
   useAttendanceSummary,
@@ -49,6 +49,7 @@ type AttendanceStackParamList = {
   AttendanceToday: undefined;
   AttendanceHistory: undefined;
   RoutePlayback: RoutePlaybackParams;
+  PunchForm: { punchType: 'in' | 'out' };
 };
 
 function parseDate(iso: string | null | undefined): Date | null {
@@ -106,6 +107,7 @@ export function AttendanceScreen() {
   const navigation = useNavigation<StackNavigationProp<AttendanceStackParamList>>();
   const userId = useAuthStore((s) => s.user?.id);
   const role = useAuthStore((s) => s.user?.role);
+  const userGpsEnabled = useAuthStore((s) => s.user?.isGpsTracked !== false);
 
   const [filterMode, setFilterMode] = useState<FilterMode>('monthly');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -153,9 +155,14 @@ export function AttendanceScreen() {
   useEffect(() => {
     void requestLocationPermission();
     if (record && !record.punchOutTime && record.id) {
-      void startTracking(record.id);
+      // Only resume live tracking if the user has GPS enabled AND the policy requires/allows it
+      const punchInGps = (record as any).policySnapshot?.punchInConfig?.gps;
+      const policyAllowsGps = punchInGps === 'REQUIRED' || punchInGps === 'OPTIONAL';
+      if (userGpsEnabled && policyAllowsGps) {
+        void startTracking(record.id);
+      }
     }
-  }, [record]);
+  }, [record, userGpsEnabled]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -173,26 +180,8 @@ export function AttendanceScreen() {
   const isPunchedOut = !!record && !!record.punchOutTime;
 
   const handlePunch = useCallback(() => {
-    if (!isPunchedIn) {
-      punchIn.mutate(undefined, {
-        onSuccess: () => void onRefresh(),
-        onError: (err) => Alert.alert('Punch In Failed', err.message),
-      });
-    } else {
-      Alert.alert('Punch Out', 'Are you sure you want to punch out?', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Punch Out',
-          style: 'destructive',
-          onPress: () =>
-            punchOut.mutate(undefined, {
-              onSuccess: () => void onRefresh(),
-              onError: (e) => Alert.alert('Punch Out Failed', e.message),
-            }),
-        },
-      ]);
-    }
-  }, [isPunchedIn, punchIn, punchOut, onRefresh]);
+    navigation.navigate('PunchForm', { punchType: isPunchedIn ? 'out' : 'in' });
+  }, [navigation, isPunchedIn]);
 
   const isMutating = punchIn.isPending || punchOut.isPending;
 
@@ -235,7 +224,7 @@ export function AttendanceScreen() {
               label={isPunchedIn ? 'Punched In' : isPunchedOut ? 'Shift Complete' : 'Not Punched In'}
               size="md"
             />
-            <SyncIndicator state={isPunchedIn ? 'synced' : 'pending'} />
+            <SyncIndicator state={(record?.id?.startsWith('local_') || getQueue('attendance').length > 0) ? 'pending' : 'synced'} />
           </View>
 
           {isTodayLoading && <ActivityIndicator style={{ marginVertical: 10 }} color={theme.colors.brand.primary} />}

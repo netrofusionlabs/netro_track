@@ -1,0 +1,306 @@
+<div class="page">
+  <netro-page-header [title]="greeting()" [description]="today">
+    <div slot="actions" class="row row--nowrap">
+      <span class="text-micro text-subtle" style="white-space: nowrap">{{ syncLabel() }}</span>
+      <button
+        type="button"
+        class="btn btn--default btn--sm"
+        (click)="refresh()"
+        [disabled]="pulse.loading()"
+      >
+        <netro-icon name="refresh" [size]="13" [spin]="pulse.loading()" />
+        Refresh
+      </button>
+    </div>
+  </netro-page-header>
+
+  <netro-alert tone="warn" *ngIf="pulse.offline()" heading="Live data is unavailable">
+    NetroTrack could not reach the operations API on the last refresh. The figures below are the last
+    known state and may be out of date.
+  </netro-alert>
+
+  <!-- ==========================================================
+       EMPLOYEE — my day comes first, everything else is context
+       ========================================================== -->
+  @if (!canSeeTeam()) {
+    <section class="workspace">
+      <div class="workspace__main">
+        <netro-panel [heading]="pulse.loading() && !pulse.loaded() ? 'Connecting to shift status…' : (ownShift() ? 'Your shift is running' : 'Currently off duty')" icon="clock">
+          <div slot="actions" *ngIf="pulse.loaded()">
+            <a class="btn btn--primary btn--sm" routerLink="/attendance">
+              {{ ownShift() ? 'Punch out' : 'Punch in' }}
+            </a>
+          </div>
+
+          @if (pulse.loading() && !pulse.loaded()) {
+            <div class="stack stack--sm" style="padding: var(--s-3) 0">
+              <netro-skeleton width="180px" height="40px" />
+              <netro-skeleton width="240px" height="18px" />
+              <div class="row" style="gap: var(--s-6); margin-top: var(--s-3)">
+                <netro-skeleton width="120px" height="16px" />
+                <netro-skeleton width="140px" height="16px" />
+              </div>
+            </div>
+          } @else {
+            @if (ownShift(); as shift) {
+              <div class="shift">
+                <div class="shift__clock">
+                  <span class="shift__elapsed tnum">{{ ownShiftClock() }}</span>
+                  <netro-status tone="ok" [live]="true">On duty since {{ since(shift) }}</netro-status>
+                </div>
+                <dl class="defs shift__facts">
+                  <div class="defs__row">
+                    <dt class="defs__key">Started</dt>
+                    <dd class="defs__val">{{ since(shift) }}</dd>
+                  </div>
+                  <div class="defs__row" *ngIf="shift.isGeofenceValid !== null && shift.isGeofenceValid !== undefined">
+                    <dt class="defs__key">Punch location</dt>
+                    <dd class="defs__val">
+                      <netro-status [tone]="shift.isGeofenceValid ? 'ok' : 'warn'">
+                        {{ shift.isGeofenceValid ? 'Within assigned branch' : 'Away from assigned branch' }}
+                      </netro-status>
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            } @else {
+              <p class="text-small text-muted" style="line-height: 1.6">
+                You are currently off duty. Punch in to record your shift start time, location, and attendance.
+              </p>
+            }
+          }
+        </netro-panel>
+
+        <netro-panel heading="Your activity today" icon="pulse" [padding]="'tight'">
+          <div slot="actions">
+            <button type="button" class="btn btn--subtle btn--sm" (click)="onComingSoon('Customer Visits')">
+              Log a visit (Soon)
+            </button>
+          </div>
+          <netro-activity-feed
+            [entries]="activity()"
+            emptyText="You have not logged a visit, order or inspection today."
+          />
+        </netro-panel>
+      </div>
+
+      <aside class="workspace__rail">
+        <netro-panel heading="Quick actions" icon="sparkle">
+          <div class="stack stack--sm">
+            <button type="button" class="quick quick--disabled" (click)="onComingSoon('Customer Visits')">
+              <netro-icon name="pin" [size]="15" /> Log a customer visit
+              <span class="navlink__soon">Soon</span>
+            </button>
+            <button type="button" class="quick quick--disabled" (click)="onComingSoon('Sales Orders')">
+              <netro-icon name="orders" [size]="15" /> Record a sales order
+              <span class="navlink__soon">Soon</span>
+            </button>
+            <button type="button" class="quick quick--disabled" (click)="onComingSoon('Site Inspections')">
+              <netro-icon name="inspect" [size]="15" /> Submit an inspection
+              <span class="navlink__soon">Soon</span>
+            </button>
+            <a class="quick" routerLink="/attendance">
+              <netro-icon name="note" [size]="15" /> Request a regularization
+              <netro-icon name="chevron-right" [size]="13" class="quick__go" />
+            </a>
+          </div>
+        </netro-panel>
+
+        <netro-panel heading="Your requests" icon="approve">
+          @if (pulse.pendingApprovals() > 0) {
+            <p class="text-small text-muted">
+              {{ pulse.pendingApprovals() }} regularization
+              {{ pulse.pendingApprovals() === 1 ? 'request is' : 'requests are' }} awaiting a decision from
+              your manager.
+            </p>
+            <a class="btn btn--default btn--sm" routerLink="/attendance" style="margin-top: 12px">
+              View requests
+            </a>
+          } @else {
+            <p class="text-small text-subtle">Nothing pending. Your attendance record is up to date.</p>
+          }
+        </netro-panel>
+      </aside>
+    </section>
+  }
+
+  <!-- ==========================================================
+       TEAM / ORGANISATION / PLATFORM
+       ========================================================== -->
+  @if (canSeeTeam()) {
+    @if (busy()) {
+      <div class="metrics" aria-busy="true">
+        <netro-skeleton variant="block" height="92px" />
+        <netro-skeleton variant="block" height="92px" />
+        <netro-skeleton variant="block" height="92px" />
+        <netro-skeleton variant="block" height="92px" />
+      </div>
+      <netro-skeleton variant="block" height="260px" />
+    } @else {
+      <!-- The four numbers an operator checks before anything else -->
+      <div class="metrics">
+        <netro-metric
+          label="On duty now"
+          [value]="onDuty().length"
+          icon="pulse"
+          [caption]="closed().length + ' shifts closed today'"
+          route="/attendance"
+        />
+        <netro-metric
+          label="Attendance"
+          [value]="attendanceRate() === null ? '—' : attendanceRate()!"
+          [unit]="attendanceRate() === null ? null : '%'"
+          icon="people"
+          [hasFoot]="true"
+          [tone]="(attendanceRate() ?? 100) < 70 ? 'attention' : 'neutral'"
+        >
+          <netro-meter
+            [value]="roster().length"
+            [max]="expectedHeadcount() || 1"
+            [tone]="(attendanceRate() ?? 100) < 70 ? 'warn' : 'ok'"
+            [label]="'Attendance coverage'"
+            style="flex: 1"
+          />
+        </netro-metric>
+        <netro-metric
+          label="Field visits"
+          [value]="pulse.visitsToday() ?? '—'"
+          icon="pin"
+          caption="Logged today"
+          route="/visits"
+        />
+        <netro-metric
+          label="Booked today"
+          [value]="revenueLabel()"
+          icon="orders"
+          [caption]="pulse.state().sales.length + ' orders'"
+          route="/orders"
+        />
+      </div>
+
+      <!-- Exceptions: the only part of the page that demands action -->
+      @if (exceptions().length) {
+        <section class="stack stack--sm">
+          <div class="section-head">
+            <h2 class="section-head__title">Needs attention</h2>
+            <span class="section-head__meta">{{ exceptions().length }} open</span>
+          </div>
+          @for (item of exceptions(); track item.id) {
+            <div class="exception" [ngClass]="'exception--' + item.tone">
+              <netro-icon [name]="item.tone === 'risk' ? 'x-circle' : 'alert'" [size]="16" class="exception__glyph" />
+              <div class="exception__body">
+                <p class="exception__title">{{ item.title }}</p>
+                <p class="exception__note">{{ item.body }}</p>
+              </div>
+              <a class="btn btn--default btn--sm" [routerLink]="item.route">{{ item.cta }}</a>
+            </div>
+          }
+        </section>
+      } @else {
+        <netro-alert tone="ok" heading="No exceptions">
+          Every shift is accounted for and nothing is waiting on a decision.
+        </netro-alert>
+      }
+
+      <section class="workspace workspace--wide-rail">
+        <div class="workspace__main">
+          <!-- The Netro Pulse band: presence over time, from real punches -->
+          <netro-panel
+            heading="Today's pulse"
+            description="Punch sessions across the working day. Coloured bars are shifts still running."
+            icon="pulse"
+          >
+            <div slot="actions">
+              <a class="btn btn--subtle btn--sm" routerLink="/attendance">Full attendance</a>
+            </div>
+            <netro-pulse-band [records]="roster()" [limit]="9" />
+          </netro-panel>
+
+          <netro-panel heading="Field activity" icon="radar" padding="tight">
+            <div slot="actions">
+              <a class="btn btn--subtle btn--sm" routerLink="/live">Live operations</a>
+            </div>
+            <netro-activity-feed [entries]="activity()" />
+          </netro-panel>
+        </div>
+
+        <aside class="workspace__rail">
+          <netro-panel heading="On duty" icon="people" padding="tight">
+            <div slot="actions">
+              <span class="count-pill">{{ onDuty().length }}</span>
+            </div>
+
+            @if (onDuty().length) {
+              <ul class="roster">
+                @for (record of onDuty().slice(0, 7); track record.id) {
+                  <li class="roster__row">
+                    <netro-identity
+                      [name]="record.user?.name"
+                      [seed]="record.userId"
+                      [src]="record.user?.profilePictureUrl"
+                      [meta]="record.user?.designationName || record.user?.employeeId || ''"
+                      size="sm"
+                      presence="on"
+                    />
+                    <span class="roster__time tnum">
+                      {{ shiftLength(record) }}
+                      <small>since {{ since(record) }}</small>
+                    </span>
+                  </li>
+                }
+              </ul>
+              <a
+                class="btn btn--subtle btn--sm btn--block"
+                routerLink="/attendance"
+                *ngIf="onDuty().length > 7"
+                style="margin-top: 8px"
+              >
+                View all {{ onDuty().length }}
+              </a>
+            } @else {
+              <netro-state
+                icon="clock"
+                title="Nobody on duty"
+                body="No open shifts in your scope right now."
+                [inline]="true"
+              />
+            }
+          </netro-panel>
+
+          @if (isPlatform()) {
+            <netro-panel heading="Tenants" icon="globe">
+              <div slot="actions">
+                <a class="btn btn--subtle btn--sm" routerLink="/companies">Manage</a>
+              </div>
+              <div class="fact-grid">
+                <div class="fact">
+                  <span class="fact__label">Companies</span>
+                  <span class="fact__value tnum">{{ tenants().length }}</span>
+                </div>
+                <div class="fact">
+                  <span class="fact__label">Active</span>
+                  <span class="fact__value tnum">{{ activeTenants() }}</span>
+                </div>
+              </div>
+            </netro-panel>
+          }
+
+          <netro-panel heading="Approvals" icon="approve" *ngIf="canReview()">
+            @if (pulse.pendingApprovals() > 0) {
+              <p class="text-small text-muted" style="line-height: 1.6">
+                {{ pulse.pendingApprovals() }}
+                {{ pulse.pendingApprovals() === 1 ? 'request' : 'requests' }} pending. Each one is an
+                attendance record that is currently wrong.
+              </p>
+              <a class="btn btn--primary btn--sm btn--block" routerLink="/approvals" style="margin-top: 12px">
+                Open review queue
+              </a>
+            } @else {
+              <p class="text-small text-subtle">The queue is clear.</p>
+            }
+          </netro-panel>
+        </aside>
+      </section>
+    }
+  }
+</div>

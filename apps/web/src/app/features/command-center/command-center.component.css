@@ -1,0 +1,164 @@
+:host {
+  display: block;
+}
+
+/* ---- Exceptions ---------------------------------------------------------
+   Deliberately not cards: a flat bordered row reads as a list of problems to
+   work through rather than as decoration. ---------------------------------- */
+
+.exception {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--warn-border);
+  background: var(--warn-bg);
+  border-radius: var(--r-lg);
+  min-width: 0;
+}
+.exception--risk {
+  border-color: var(--risk-border);
+  background: var(--risk-bg);
+}
+.exception__glyph {
+  color: var(--warn-fg);
+  flex: none;
+}
+.exception--risk .exception__glyph {
+  color: var(--risk-fg);
+}
+.exception__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.exception__title {
+  font: var(--t-body-md);
+  color: var(--warn-fg);
+}
+.exception--risk .exception__title {
+  color: var(--risk-fg);
+}
+.exception__note {
+  font: var(--t-small);
+  color: var(--fg-muted);
+}
+.exception .btn {
+  flex: none;
+}
+
+@media (max-width: 640px) {
+  .exception {
+    flex-wrap: wrap;
+  }
+  .exception .btn {
+    width: 100%;
+  }
+}
+
+/* ---- Own shift ---------------------------------------------------------- */
+
+.shift {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.shift__clock {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.shift__elapsed {
+  font: 600 40px/1 var(--font-mono);
+  letter-spacing: -0.03em;
+  color: var(--fg);
+}
+.shift__facts {
+  margin-top: 2px;
+}
+
+/* ---- Quick actions ------------------------------------------------------ */
+
+.quick {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--fg-muted);
+  font: var(--t-body-md);
+  transition:
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
+}
+.quick:hover {
+  border-color: var(--accent-line);
+  color: var(--fg);
+}
+.quick--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+.quick--disabled:hover {
+  border-color: var(--line);
+  color: var(--fg-muted);
+}
+.quick__go {
+  margin-left: auto;
+  color: var(--fg-faint);
+}
+.navlink__soon {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-inset);
+  color: var(--fg-faint);
+  border: 1px solid var(--line-subtle);
+}
+
+/* ---- On-duty roster ----------------------------------------------------- */
+
+.roster {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+.roster__row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line-subtle);
+  min-width: 0;
+}
+.roster__row:last-child {
+  border-bottom: none;
+}
+.roster__row netro-identity {
+  flex: 1;
+  min-width: 0;
+}
+.roster__time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  flex: none;
+  font: var(--t-body-md);
+  color: var(--fg);
+}
+.roster__time small {
+  font: var(--t-micro);
+  color: var(--fg-faint);
+}

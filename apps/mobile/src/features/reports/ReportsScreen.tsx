@@ -286,7 +286,24 @@ export function ReportsScreen({ navigation }: Props = {}) {
 
   return (
     <SafeAreaView edges={[]} style={[styles.container, { backgroundColor: theme.colors.surface.background }]}>
-      <ScreenHeader title="Reports" subtitle={`${startDate} — ${endDate}`} />
+      <ScreenHeader
+        title="Reports"
+        subtitle={`${startDate} — ${endDate}`}
+        onBackPress={() => {
+          if (navigation) {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              const parent = navigation.getParent();
+              if (parent && parent.canGoBack()) {
+                parent.goBack();
+              } else {
+                navigation.navigate('Home');
+              }
+            }
+          }
+        }}
+      />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Date Range Presets */}

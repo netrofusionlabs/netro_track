@@ -7,7 +7,7 @@ import { useCreateCompany, useCompanyDetail, useUpdateCompany } from '../hooks/u
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CompanyWizardSchema, CreateCompanyWizardInput } from '@netrotrack/shared';
+import { CompanyWizardSchema } from '@netrotrack/shared';
 import { CompanyFormFields } from '../components/CompanyFormFields';
 import { usePermissions } from '../../../shared/hooks/usePermissions';
 
@@ -35,7 +35,7 @@ export function CompanyWizardScreen() {
         zipCode: '', country: 'India', timezone: 'Asia/Kolkata', currency: 'INR', taxId: '', registrationNumber: '',
       },
       admin: { name: '', email: '', mobile: '', password: '', confirmPassword: '' },
-      modules: { attendance: false, leave: false, shift: false, gps: true, payroll: false, expense: false, asset: false, performance: false, recruitment: false }
+      modules: { attendance: false, leave: false, shift: false, gps: true, payroll: false, expense: false, asset: false, performance: false, recruitment: false, regularization: false }
     }
   });
 
@@ -52,6 +52,7 @@ export function CompanyWizardScreen() {
         asset: false,
         performance: false,
         recruitment: false,
+        regularization: false,
       };
 
       if (Array.isArray(company.modules)) {
@@ -136,17 +137,33 @@ export function CompanyWizardScreen() {
 
   const onSubmit = async (data: any) => {
     try {
+      const cleanModules = {
+        attendance: !!data.modules?.attendance,
+        gps: !!data.modules?.gps && !!data.modules?.attendance,
+        regularization: !!data.modules?.regularization && !!data.modules?.attendance,
+        leave: false,
+        shift: false,
+        payroll: false,
+        expense: false,
+        asset: false,
+        performance: false,
+        recruitment: false,
+      };
+
       if (isEditMode) {
         await updateCompanyMutation.mutateAsync({
           id: companyId,
           payload: {
             ...data.company,
-            isGpsEnabled: data.modules?.gps,
-            modules: data.modules,
+            isGpsEnabled: cleanModules.gps,
+            modules: cleanModules,
           }
         });
       } else {
-        await createCompanyMutation.mutateAsync(data);
+        await createCompanyMutation.mutateAsync({
+          ...data,
+          modules: cleanModules,
+        });
       }
       setStep(6); // Success step
     } catch (err: any) {
@@ -156,7 +173,17 @@ export function CompanyWizardScreen() {
   };
 
   const toggleModule = (key: string) => {
-    setValue(`modules.${key}`, !modulesData[key as keyof typeof modulesData]);
+    const nextVal = !modulesData[key as keyof typeof modulesData];
+    setValue(`modules.${key}`, nextVal);
+
+    if (key === 'attendance') {
+      if (nextVal) {
+        setValue('modules.regularization', true);
+      } else {
+        setValue('modules.regularization', false);
+        setValue('modules.gps', false);
+      }
+    }
   };
 
   const renderModuleToggle = (key: string, title: string, desc: string) => (
@@ -301,12 +328,15 @@ export function CompanyWizardScreen() {
           {step === 4 && (
             <Card variant="outlined" style={styles.cardContent}>
               <Text style={[typography.headingMd, { color: theme.colors.text.primary, marginBottom: 16 }]}>HRMS Modules</Text>
-              {renderModuleToggle('gps', 'GPS Tracking', 'Track live locations & routes')}
               {renderModuleToggle('attendance', 'Attendance', 'Punch-in/out and timesheets')}
-              {renderModuleToggle('leave', 'Leave Management', 'Manage time-off requests')}
-              {renderModuleToggle('shift', 'Shift Planning', 'Rosters and shift rotations')}
-              {renderModuleToggle('payroll', 'Payroll', 'Salary and compensation')}
-              {renderModuleToggle('expense', 'Expenses', 'Reimbursements and claims')}
+              
+              {/* Indented Sub-Modules for Attendance */}
+              {!!modulesData.attendance && (
+                <View style={{ marginLeft: 20, borderLeftWidth: 2, borderLeftColor: theme.colors.brand.primaryLight, paddingLeft: 16, marginTop: 8, gap: 8 }}>
+                  {renderModuleToggle('gps', 'GPS Tracking', 'Track live locations & routes')}
+                  {renderModuleToggle('regularization', 'Attendance Regularization', 'Allow employees to submit regularization requests for missed punches')}
+                </View>
+              )}
             </Card>
           )}
 
@@ -339,7 +369,19 @@ export function CompanyWizardScreen() {
               <View style={[styles.summarySection, { borderBottomWidth: 0 }]}>
                 <Text style={styles.summaryTitle}>Active Modules</Text>
                 <Text style={styles.summaryValue}>
-                  {Object.entries(modulesData).filter(([_, v]) => v).map(([k]) => k.toUpperCase()).join(', ') || 'None'}
+                  {(() => {
+                    const active = [];
+                    if (modulesData.attendance) {
+                      active.push('ATTENDANCE');
+                      if (modulesData.gps) {
+                        active.push('GPS TRACKING');
+                      }
+                      if (modulesData.regularization) {
+                        active.push('REGULARIZATION');
+                      }
+                    }
+                    return active.join(', ') || 'None';
+                  })()}
                 </Text>
               </View>
             </Card>
@@ -359,7 +401,7 @@ export function CompanyWizardScreen() {
                   : 'The multi-tenant workspace has been successfully provisioned. You can now configure organizational structures.'}
               </Text>
               <Button 
-                label={isEditMode ? "Done" : "Go to Company Setup"} 
+                label="Done" 
                 variant="primary" 
                 size="lg"
                 fullWidth
@@ -369,7 +411,6 @@ export function CompanyWizardScreen() {
                       index: 0,
                       routes: [{ name: 'CompanyManagement' }],
                     });
-                    navigation.navigate('CompanySetupDashboard');
                   } else {
                     if (navigation.canGoBack()) {
                       navigation.goBack();

@@ -27,6 +27,7 @@ import {
   Plus,
   UserPlus,
   LogOut,
+  LogIn,
   X,
   RotateCw,
   Pencil,
@@ -95,6 +96,7 @@ export type AppIconName =
   | 'add'
   | 'addUser'
   | 'logout'
+  | 'login'
   | 'close'
   | 'refresh'
   | 'edit'
@@ -168,6 +170,7 @@ const ICON_MAP: Record<string, React.ComponentType<LucideProps>> = {
   add: Plus,
   addUser: UserPlus,
   logout: LogOut,
+  login: LogIn,
   close: X,
   refresh: RotateCw,
   edit: Pencil,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../shared/theme/ThemeProvider';
 import {
   ScreenHeader,
@@ -15,6 +16,7 @@ import { useCustomers } from './hooks/useCustomers';
 import { useRefreshOnFocus } from '../../shared/utils/useRefreshOnFocus';
 
 export function CustomerListScreen() {
+  const navigation = useNavigation<any>();
   const theme = useTheme();
   const { data: customers = [], isLoading, refetch } = useCustomers();
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,6 +40,20 @@ export function CustomerListScreen() {
         <ScreenHeader
           title="Customers"
           subtitle={`${customers.length} total clients`}
+          onBackPress={() => {
+            if (navigation) {
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                const parent = navigation.getParent();
+                if (parent && parent.canGoBack()) {
+                  parent.goBack();
+                } else {
+                  navigation.navigate('Home');
+                }
+              }
+            }
+          }}
         />
 
         <SearchInput

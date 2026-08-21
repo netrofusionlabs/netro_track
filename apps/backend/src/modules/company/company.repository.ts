@@ -96,14 +96,15 @@ export class CompanyRepository {
       // 3. Create Modules
       const modulesToCreate = [
         { module: ModuleType.ATTENDANCE, isEnabled: payload.modules.attendance },
-        { module: ModuleType.LEAVE, isEnabled: payload.modules.leave },
-        { module: ModuleType.SHIFT, isEnabled: payload.modules.shift },
+        { module: ModuleType.LEAVE, isEnabled: false },
+        { module: ModuleType.SHIFT, isEnabled: false },
         { module: ModuleType.GPS, isEnabled: payload.modules.gps },
-        { module: ModuleType.PAYROLL, isEnabled: payload.modules.payroll },
-        { module: ModuleType.EXPENSE, isEnabled: payload.modules.expense },
-        { module: ModuleType.ASSET, isEnabled: payload.modules.asset },
-        { module: ModuleType.PERFORMANCE, isEnabled: payload.modules.performance },
-        { module: ModuleType.RECRUITMENT, isEnabled: payload.modules.recruitment },
+        { module: ModuleType.REGULARIZATION, isEnabled: payload.modules.regularization ?? payload.modules.attendance },
+        { module: ModuleType.PAYROLL, isEnabled: false },
+        { module: ModuleType.EXPENSE, isEnabled: false },
+        { module: ModuleType.ASSET, isEnabled: false },
+        { module: ModuleType.PERFORMANCE, isEnabled: false },
+        { module: ModuleType.RECRUITMENT, isEnabled: false },
       ];
 
       await tx.companyModule.createMany({
@@ -150,20 +151,21 @@ export class CompanyRepository {
         for (const [modKey, isEnabled] of Object.entries(payload.modules)) {
           const modType = modKey.toUpperCase() as ModuleType;
           if (Object.values(ModuleType).includes(modType)) {
+            const finalEnabled = (modType === ModuleType.ATTENDANCE || modType === ModuleType.GPS || modType === ModuleType.REGULARIZATION) ? Boolean(isEnabled) : false;
             const existing = await tx.companyModule.findFirst({
               where: { companyId: id, module: modType },
             });
             if (existing) {
               await tx.companyModule.update({
                 where: { id: existing.id },
-                data: { isEnabled: Boolean(isEnabled) },
+                data: { isEnabled: finalEnabled },
               });
             } else {
               await tx.companyModule.create({
                 data: {
                   companyId: id,
                   module: modType,
-                  isEnabled: Boolean(isEnabled),
+                  isEnabled: finalEnabled,
                 },
               });
             }

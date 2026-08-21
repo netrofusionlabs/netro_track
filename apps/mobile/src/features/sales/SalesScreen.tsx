@@ -81,6 +81,20 @@ export function SalesScreen({ route, navigation }: Props = {}) {
           subtitle={`${sales.length} total transactions`}
           actionLabel={(!viewOnly && '+ Record') || undefined}
           onAction={!viewOnly ? handleNew : undefined}
+          onBackPress={() => {
+            if (navigation) {
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                const parent = navigation.getParent();
+                if (parent && parent.canGoBack()) {
+                  parent.goBack();
+                } else {
+                  navigation.navigate('Home');
+                }
+              }
+            }
+          }}
         />
 
         {isLoading && <LoadingState message="Loading sales records..." />}

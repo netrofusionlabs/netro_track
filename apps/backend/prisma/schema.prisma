@@ -44,6 +44,23 @@ enum ModuleType {
   ASSET
   PERFORMANCE
   RECRUITMENT
+  REGULARIZATION
+}
+
+enum PolicyType {
+  ATTENDANCE
+  LEAVE
+  EXPENSE
+  TRACKING
+  VISIT
+  INSPECTION
+}
+
+enum PolicyTargetType {
+  COMPANY
+  DEPARTMENT
+  DESIGNATION
+  USER
 }
 
 model Company {
@@ -70,11 +87,14 @@ model Company {
   isGpsEnabled  Boolean       @default(true) @map("is_gps_enabled")
   logoFileId    String?       @unique @map("logo_file_id") @db.Uuid
   status        CompanyStatus @default(ACTIVE)
+  defaultAttendancePolicyId String? @map("default_attendance_policy_id") @db.Uuid
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
   deletedAt     DateTime?     @map("deleted_at")
 
   logoFile       File?               @relation("CompanyLogo", fields: [logoFileId], references: [id], onDelete: SetNull)
+  defaultAttendancePolicy AttendancePolicy? @relation("DefaultPolicy", fields: [defaultAttendancePolicyId], references: [id], onDelete: SetNull)
+  attendancePolicies AttendancePolicy[] @relation("CompanyPolicies")
   users          User[]
   branches       Branch[]
   departments    Department[]
@@ -87,6 +107,8 @@ model Company {
   timelineEvents UserTimelineEvent[]
   uploadedFiles  File[]              @relation("CompanyTenantFiles")
   modules        CompanyModule[]
+  regularizations AttendanceRegularization[]
+  policyAssignments PolicyAssignment[]
 
   @@map("companies")
 }
@@ -129,6 +151,7 @@ model User {
   branchId              String?    @map("branch_id") @db.Uuid
   departmentId          String?    @map("department_id") @db.Uuid
   designationId         String?    @map("designation_id") @db.Uuid
+  attendancePolicyId    String?    @map("attendance_policy_id") @db.Uuid
   profilePictureFileId  String?    @unique @map("profile_picture_file_id") @db.Uuid
   createdAt             DateTime   @default(now()) @map("created_at")
   updatedAt             DateTime   @updatedAt @map("updated_at")
@@ -141,6 +164,7 @@ model User {
   branch              Branch?             @relation(fields: [branchId], references: [id])
   department          Department?         @relation(fields: [departmentId], references: [id])
   designation         Designation?        @relation(fields: [designationId], references: [id])
+  attendancePolicy    AttendancePolicy?   @relation(fields: [attendancePolicyId], references: [id], onDelete: SetNull)
   profilePicture      File?               @relation("UserProfilePicture", fields: [profilePictureFileId], references: [id], onDelete: SetNull)
   devices             Device[]
   sessions            Session[]
@@ -152,6 +176,8 @@ model User {
   timelineEvents      UserTimelineEvent[] @relation("UserTimelineEvents")
   actedTimelineEvents UserTimelineEvent[] @relation("ActorTimelineEvents")
   uploadedFiles       File[]              @relation("UserUploadedFiles")
+  regularizations     AttendanceRegularization[] @relation("regularization_user")
+  approvedRegularizations AttendanceRegularization[] @relation("regularization_approver")
 
   @@unique([companyId, employeeId])
   @@map("users")
@@ -250,12 +276,14 @@ model Department {
   branchId  String?   @map("branch_id") @db.Uuid
   name      String
   isActive  Boolean   @default(true) @map("is_active")
+  attendancePolicyId String? @map("attendance_policy_id") @db.Uuid
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   company Company @relation(fields: [companyId], references: [id])
   branch  Branch? @relation(fields: [branchId], references: [id])
+  attendancePolicy AttendancePolicy? @relation(fields: [attendancePolicyId], references: [id], onDelete: SetNull)
   users   User[]
 
   @@map("departments")
@@ -266,11 +294,13 @@ model Designation {
   companyId String    @map("company_id") @db.Uuid
   name      String
   isActive  Boolean   @default(true) @map("is_active")
+  attendancePolicyId String? @map("attendance_policy_id") @db.Uuid
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   company Company @relation(fields: [companyId], references: [id])
+  attendancePolicy AttendancePolicy? @relation(fields: [attendancePolicyId], references: [id], onDelete: SetNull)
   users   User[]
 
   @@map("designations")
@@ -287,12 +317,18 @@ model Attendance {
   punchOutLatitude  Decimal?  @map("punch_out_latitude") @db.Decimal(10, 7)
   punchOutLongitude Decimal?  @map("punch_out_longitude") @db.Decimal(10, 7)
   workingHours      Decimal?  @map("working_hours") @db.Decimal(5, 2)
+  attendancePolicyId String?  @map("attendance_policy_id") @db.Uuid
+  policySnapshot     Json?    @map("policy_snapshot")
+  punchInEvidence    Json?    @map("punch_in_evidence")
+  punchOutEvidence   Json?    @map("punch_out_evidence")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
   company      Company       @relation(fields: [companyId], references: [id])
   user         User          @relation(fields: [userId], references: [id])
+  attendancePolicy AttendancePolicy? @relation(fields: [attendancePolicyId], references: [id], onDelete: SetNull)
   gpsLocations GpsLocation[]
+  regularizations AttendanceRegularization[]
 
   @@map("attendances")
 }
@@ -371,6 +407,43 @@ model Inspection {
   @@map("inspections")
 }
 
+enum RegularizationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model AttendanceRegularization {
+  id               String               @id @default(uuid()) @db.Uuid
+  companyId        String               @map("company_id") @db.Uuid
+  userId           String               @map("user_id") @db.Uuid
+  attendanceId     String?              @map("attendance_id") @db.Uuid
+  date             DateTime             @map("date") @db.Date
+  requestedPunchIn DateTime?            @map("requested_punch_in")
+  requestedPunchOut DateTime?           @map("requested_punch_out")
+  originalPunchIn  DateTime?            @map("original_punch_in")
+  originalPunchOut DateTime?            @map("original_punch_out")
+  requestedPunchInOdometer  Int?       @map("requested_punch_in_odometer")
+  requestedPunchOutOdometer Int?       @map("requested_punch_out_odometer")
+  originalPunchInOdometer   Int?       @map("original_punch_in_odometer")
+  originalPunchOutOdometer  Int?       @map("original_punch_out_odometer")
+  reason           String
+  status           RegularizationStatus @default(PENDING)
+  approvedBy       String?              @map("approved_by") @db.Uuid
+  remarks          String?
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user       User        @relation("regularization_user", fields: [userId], references: [id], onDelete: Cascade)
+  approver   User?       @relation("regularization_approver", fields: [approvedBy], references: [id], onDelete: SetNull)
+  attendance Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
+
+  @@map("attendance_regularizations")
+  @@index([companyId])
+  @@index([userId])
+}
+
 model SaleItem {
   id         String  @id @default(uuid()) @db.Uuid
   saleId     String  @map("sale_id") @db.Uuid
@@ -446,6 +519,10 @@ enum TimelineEventType {
   LOCATION_CHANGED
   DEPARTMENT_CHANGED
   COMPANY_CHANGED
+  ATTENDANCE_POLICY_ASSIGNED
+  ATTENDANCE_POLICY_CHANGED
+  POLICY_ASSIGNED
+  POLICY_CHANGED
 }
 
 model UserTimelineEvent {
@@ -495,4 +572,52 @@ model File {
 
   @@index([tenantId])
   @@map("files")
+}
+
+model AttendancePolicy {
+  id             String     @id @default(uuid()) @db.Uuid
+  companyId      String     @map("company_id") @db.Uuid
+  type           PolicyType @default(ATTENDANCE)
+  name           String
+  description    String?
+  isActive       Boolean    @default(true) @map("is_active")
+  config         Json       @default("{}")
+  punchInConfig  Json       @map("punch_in_config")
+  punchOutConfig Json       @map("punch_out_config")
+  regularizationConfig Json? @map("regularization_config")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  deletedAt      DateTime?  @map("deleted_at")
+
+  company Company @relation("CompanyPolicies", fields: [companyId], references: [id], onDelete: Cascade)
+
+  defaultForCompanies Company[]          @relation("DefaultPolicy")
+  departments         Department[]
+  designations        Designation[]
+  users               User[]
+  attendances         Attendance[]
+  policyAssignments   PolicyAssignment[]
+
+  @@index([companyId])
+  @@index([companyId, type])
+  @@map("attendance_policies")
+}
+
+model PolicyAssignment {
+  id         String           @id @default(uuid()) @db.Uuid
+  companyId  String           @map("company_id") @db.Uuid
+  policyId   String           @map("policy_id") @db.Uuid
+  policyType PolicyType       @map("policy_type")
+  targetType PolicyTargetType @map("target_type")
+  targetId   String           @map("target_id") @db.Uuid
+  createdAt  DateTime         @default(now()) @map("created_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  policy  AttendancePolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, policyType, targetType, targetId])
+  @@index([companyId, policyType])
+  @@index([targetType, targetId])
+  @@map("policy_assignments")
 }

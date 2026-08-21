@@ -195,4 +195,91 @@ export class AttendanceController {
       next(error);
     }
   };
+
+  public requestRegularization = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const companyId = req.user!.companyId;
+      const userId = req.user!.id;
+      const record = await this.attendanceService.requestRegularization(companyId, userId, req.body);
+      res.status(201).json({
+        success: true,
+        message: 'Regularization request submitted successfully',
+        data: record,
+        meta: { timestamp: new Date().toISOString() }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public getRegularizations = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const companyId = req.user!.companyId;
+      const userId = req.user!.id;
+      const role = req.user!.role;
+      const status = req.query.status as 'PENDING' | 'APPROVED' | 'REJECTED' | undefined;
+
+      const records = await this.attendanceService.getRegularizations(companyId, userId, role, status);
+      res.status(200).json({
+        success: true,
+        message: 'Regularization requests retrieved successfully',
+        data: records,
+        meta: { timestamp: new Date().toISOString() }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public reviewRegularization = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const companyId = req.user!.companyId;
+      const reviewerId = req.user!.id;
+      const { id } = req.params;
+      const { action, remarks } = req.body;
+
+      if (!action || (action !== 'APPROVED' && action !== 'REJECTED')) {
+        res.status(400).json({ success: false, message: 'Action must be APPROVED or REJECTED' });
+        return;
+      }
+
+      const result = await this.attendanceService.reviewRegularization(companyId, reviewerId, id, action, remarks);
+      res.status(200).json({
+        success: true,
+        message: `Regularization request ${action.toLowerCase()} successfully`,
+        data: result,
+        meta: { timestamp: new Date().toISOString() }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public bulkReviewRegularizations = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const companyId = req.user!.companyId;
+      const reviewerId = req.user!.id;
+      const { ids, action, remarks } = req.body;
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        res.status(400).json({ success: false, message: 'Invalid or empty list of regularization IDs' });
+        return;
+      }
+
+      if (!action || (action !== 'APPROVED' && action !== 'REJECTED')) {
+        res.status(400).json({ success: false, message: 'Action must be APPROVED or REJECTED' });
+        return;
+      }
+
+      const results = await this.attendanceService.bulkReviewRegularizations(companyId, reviewerId, ids, action, remarks);
+      res.status(200).json({
+        success: true,
+        message: `Bulk processed ${ids.length} regularization requests successfully`,
+        data: results,
+        meta: { timestamp: new Date().toISOString() }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

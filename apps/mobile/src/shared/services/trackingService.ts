@@ -13,9 +13,10 @@
  */
 import { Platform, AppState, AppStateStatus, NativeModules } from 'react-native';
 import { requestLocationPermission } from '../utils/locationPermissions';
-import { appendGpsPoints, drainBuffer, GpsPoint, getBufferSize } from '../utils/gpsBuffer';
+import { appendGpsPoints, drainBuffer, GpsPoint, getBufferSize, clearGpsBuffer } from '../utils/gpsBuffer';
 import { api } from '../services/api';
 import { emitLocationUpdate } from './socketService';
+import { useAuthStore } from '../../features/auth/stores/authStore';
 
 export interface GeolocationResponse {
   coords: {
@@ -165,6 +166,15 @@ function onLocationSuccess(position: GeolocationResponse): void {
 let isSyncing = false;
 
 export async function syncNow(): Promise<void> {
+  // If this user's GPS tracking is disabled, discard any stale buffered points and skip upload
+  if (useAuthStore.getState().user?.isGpsTracked === false) {
+    if (getBufferSize() > 0) {
+      clearGpsBuffer();
+      console.info('[trackingService] GPS tracking disabled — cleared local buffer, skipping sync');
+    }
+    return;
+  }
+
   if (isSyncing) return;
   isSyncing = true;
 
@@ -259,6 +269,12 @@ const backgroundOptions = {
  * Call immediately upon successful punch-in.
  */
 export async function startTracking(attendanceId: string): Promise<void> {
+  // Hard guard: never start tracking for users with GPS disabled
+  if (useAuthStore.getState().user?.isGpsTracked === false) {
+    console.info('[trackingService] startTracking skipped — GPS tracking disabled for this user');
+    return;
+  }
+
   if (state.isTracking) return;
   state.isTracking = true;
   state.attendanceId = attendanceId;

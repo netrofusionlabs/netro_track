@@ -1,0 +1,138 @@
+<div class="page">
+  <netro-page-header
+    title="Inspections"
+    description="Site quality checks from the field — observations, recommendations, and where they were recorded."
+  >
+    <div slot="actions" class="row row--nowrap">
+      <netro-badge tone="neutral">Coming Soon</netro-badge>
+    </div>
+  </netro-page-header>
+
+  <netro-alert tone="info" heading="Feature Coming Soon">
+    The Site Inspections module is currently under active development and will be released in an upcoming platform update.
+  </netro-alert>
+
+  <netro-panel [flush]="true" padding="none">
+    <netro-toolbar [search]="search()" searchPlaceholder="Site, category or person" searchLabel="Search inspections" (searchChange)="applySearch($event)">
+      <span slot="actions" class="text-micro text-subtle tnum">{{ rows().length }} {{ rows().length === 1 ? 'inspection' : 'inspections' }}</span>
+    </netro-toolbar>
+
+    @if (loading()) {
+      <netro-skeleton-rows [rows]="8" [cols]="5" />
+    } @else if (error()) {
+      <netro-state icon="x-circle" tone="risk" title="Could not load inspections" [body]="error()">
+        <button type="button" class="btn btn--default" (click)="load()">Try again</button>
+      </netro-state>
+    } @else if (!rows().length) {
+      <netro-state icon="inspect" [title]="search() ? 'No inspection matches that search' : 'No inspections recorded'" body="Log a site check while you are there so the location is attached to the observation.">
+        <button type="button" class="btn btn--primary" *ngIf="!search()" (click)="startCreate()">New inspection</button>
+      </netro-state>
+    } @else {
+      <div class="table-scroll">
+        <table class="table">
+          <caption class="sr-only">Field inspections</caption>
+          <thead>
+            <tr>
+              <th scope="col">Site</th>
+              <th scope="col">Category</th>
+              <th scope="col">Logged by</th>
+              <th scope="col" class="col-hide-md">Observation</th>
+              <th scope="col" class="col-hide-sm">When</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.id) {
+              <tr class="is-clickable" tabindex="0" (click)="view(row)" (keydown.enter)="view(row)">
+                <td><span class="cell-strong">{{ row.siteName }}</span></td>
+                <td><netro-badge>{{ label(row.category) }}</netro-badge></td>
+                <td>
+                  <span class="identity">
+                    <netro-avatar [name]="row.user?.name" [seed]="row.userId" size="xs" />
+                    <span class="identity__name">{{ row.user?.name || '—' }}</span>
+                  </span>
+                </td>
+                <td class="col-hide-md cell-truncate">{{ note(row) }}</td>
+                <td class="col-hide-sm tnum">{{ when(row) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </netro-panel>
+</div>
+
+@if (viewing(); as row) {
+  <netro-drawer eyebrow="Inspection" [heading]="row.siteName" [sub]="label(row.category) + ' · ' + when(row)" [hasFooter]="false" (closed)="closeView()">
+    <div class="stack stack--lg">
+      <section class="ws-shift">
+        <div class="ws-fact">
+          <span class="ws-fact__label">Logged by</span>
+          <span class="ws-fact__value">{{ row.user?.name || '—' }}</span>
+        </div>
+        <div class="ws-fact">
+          <span class="ws-fact__label">When</span>
+          <span class="ws-fact__value tnum">{{ row.createdAt | date: 'short' }}</span>
+        </div>
+        <div class="ws-fact">
+          <span class="ws-fact__label">Category</span>
+          <span class="ws-fact__value">{{ label(row.category) }}</span>
+        </div>
+      </section>
+      <dl class="defs">
+        <div class="defs__row">
+          <dt class="defs__key">Observation</dt>
+          <dd class="defs__val">{{ note(row) }}</dd>
+        </div>
+        <div class="defs__row" *ngIf="advice(row) !== '—'">
+          <dt class="defs__key">Recommendation</dt>
+          <dd class="defs__val">{{ advice(row) }}</dd>
+        </div>
+        <div class="defs__row">
+          <dt class="defs__key">Location</dt>
+          <dd class="defs__val">
+            @if (maps(row.latitude, row.longitude); as href) {
+              <a [href]="href" target="_blank" rel="noopener" class="text-brand">
+                {{ row.latitude }}, {{ row.longitude }} <netro-icon name="external" [size]="11" />
+              </a>
+            } @else {
+              Not captured
+            }
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </netro-drawer>
+}
+
+@if (editorOpen()) {
+  <netro-drawer eyebrow="Field inspection" heading="New inspection" sub="Location is captured when you save." [dismissOnScrim]="false" (closed)="closeEditor()">
+    <div class="stack stack--lg">
+      <label class="field">
+        <span class="field__label">Site / customer name <span class="field__req">*</span></span>
+        <input class="input" [ngModel]="siteName()" (ngModelChange)="siteName.set($event)" placeholder="e.g. Hyderabad retail centre" />
+      </label>
+      <label class="field">
+        <span class="field__label">Category</span>
+        <select class="select" [ngModel]="category()" (ngModelChange)="category.set($event)">
+          <option *ngFor="let c of categories" [value]="c.value">{{ c.label }}</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field__label">Observation <span class="field__req">*</span></span>
+        <textarea class="textarea" rows="4" [ngModel]="observation()" (ngModelChange)="observation.set($event)" placeholder="What you saw, measured or were told."></textarea>
+      </label>
+      <label class="field">
+        <span class="field__label">Recommendation</span>
+        <textarea class="textarea" rows="3" [ngModel]="recommendation()" (ngModelChange)="recommendation.set($event)" placeholder="Follow-up, correction, or next visit."></textarea>
+      </label>
+    </div>
+    <div slot="footer" style="display: contents">
+      <button type="button" class="btn btn--subtle" (click)="closeEditor()">Cancel</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--primary" [disabled]="saving()" (click)="submit()">
+        <netro-icon [name]="saving() ? 'spinner' : 'check'" [size]="14" [spin]="saving()" /> Submit inspection
+      </button>
+    </div>
+  </netro-drawer>
+}

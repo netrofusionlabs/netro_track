@@ -1,0 +1,574 @@
+/* ==========================================================================
+   Shell layout
+   A fixed rail and header with a single scrolling canvas. The frame is
+   position-stable across routes so navigation never shifts the user's anchor.
+   ========================================================================== */
+
+:host {
+  display: block;
+}
+
+.shell {
+  --rail: var(--layout-rail);
+  display: grid;
+  grid-template-columns: var(--rail) minmax(0, 1fr);
+  grid-template-rows: var(--layout-topbar) minmax(0, 1fr);
+  grid-template-areas:
+    'rail topbar'
+    'rail canvas';
+  height: 100vh;
+  height: 100dvh;
+  background: var(--canvas);
+}
+
+.shell--rail-collapsed {
+  --rail: var(--layout-rail-collapsed);
+}
+
+/* ==========================================================================
+   Left rail
+   ========================================================================== */
+
+.rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface-sunken);
+  border-right: 1px solid var(--line);
+  transition: width var(--dur-3) var(--ease);
+}
+
+.rail__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: var(--layout-topbar);
+  padding: 0 var(--s-3);
+  flex: none;
+}
+.rail__brand-link {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  border-radius: var(--r-md);
+  padding: 3px;
+  margin-left: -3px;
+}
+.rail__collapse {
+  margin-left: auto;
+  color: var(--fg-faint);
+}
+.shell--rail-collapsed .rail__collapse {
+  display: none;
+}
+/* Collapsed rail reveals the expander on hover so the affordance is not lost */
+.shell--rail-collapsed .rail:hover .rail__collapse {
+  display: inline-flex;
+  position: absolute;
+  left: calc(var(--layout-rail-collapsed) - 30px);
+  top: 14px;
+  z-index: 3;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+}
+.rail {
+  position: relative;
+}
+
+.rail__tenant {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 var(--s-3) var(--s-3);
+  padding: 6px 10px;
+  border-radius: var(--r-md);
+  background: var(--surface-inset);
+  border: 1px solid var(--line-subtle);
+  min-width: 0;
+}
+
+.rail__tenant-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+}
+
+.rail__tenant-logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  object-fit: contain;
+}
+
+.rail__tenant-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.rail__tenant-name {
+  font: 600 12px/1.2 var(--font-sans);
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+
+.rail__tenant-tag {
+  font: 500 10px/1 var(--font-mono);
+  color: var(--fg-faint);
+  margin-top: 2px;
+}
+
+.rail__nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--s-2) var(--s-4);
+  scrollbar-width: thin;
+}
+
+.rail__group {
+  padding: var(--s-4) var(--s-2) 5px;
+  font: var(--t-micro);
+  text-transform: uppercase;
+  letter-spacing: var(--track-eyebrow);
+  color: var(--fg-faint);
+}
+.rail__nav > .rail__group:first-child {
+  padding-top: var(--s-1);
+}
+
+.rail__group-rule {
+  height: 1px;
+  background: var(--line-subtle);
+  margin: var(--s-3) var(--s-2);
+}
+.rail__nav > .rail__group-rule:first-child {
+  display: none;
+}
+
+.navlink {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  height: 34px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-md);
+  color: var(--fg-muted);
+  font: var(--t-body-md);
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease);
+}
+.navlink:hover {
+  background: var(--surface-hover);
+  color: var(--fg);
+}
+.navlink__icon {
+  flex: none;
+  color: var(--fg-faint);
+  transition: color var(--dur-1) var(--ease);
+}
+.navlink:hover .navlink__icon {
+  color: var(--fg-muted);
+}
+.navlink__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.navlink__label--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  line-height: 1.25;
+}
+.navlink__badge {
+  margin-left: auto;
+}
+
+/* Active state carries a colour, a weight change and an edge marker, so it
+   survives both greyscale printing and colour-vision differences. */
+.navlink.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 550;
+}
+.navlink.is-active .navlink__icon {
+  color: var(--accent);
+}
+.navlink.is-active::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--s-2) * -1);
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--accent);
+}
+
+.navlink--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+.navlink--disabled:hover {
+  background: var(--surface-hover);
+  color: var(--fg-muted);
+}
+.navlink__soon {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-inset);
+  color: var(--fg-faint);
+  border: 1px solid var(--line-subtle);
+}
+
+.shell--rail-collapsed .navlink {
+  justify-content: center;
+  padding: 0;
+}
+.shell--rail-collapsed .navlink__badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  font-size: 9.5px;
+  margin: 0;
+}
+
+.rail__foot {
+  flex: none;
+  padding: var(--s-2);
+  border-top: 1px solid var(--line-subtle);
+}
+.rail__foot .navlink {
+  height: 42px;
+}
+
+.rail-scrim {
+  display: none;
+}
+
+/* ==========================================================================
+   Header
+   ========================================================================== */
+
+.topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+
+.topbar__menu {
+  display: none;
+}
+
+.topbar__context {
+  display: none;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0;
+}
+.topbar__where {
+  font: var(--t-body-md);
+  line-height: 1.2;
+}
+.topbar__hint {
+  font: var(--t-micro);
+  color: var(--fg-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.omnibox {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 30px;
+  width: min(320px, 34vw);
+  padding: 0 8px 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface-inset);
+  color: var(--fg-faint);
+  transition:
+    border-color var(--dur-1) var(--ease),
+    background-color var(--dur-1) var(--ease);
+}
+.omnibox:hover {
+  border-color: var(--n-300);
+  background: var(--surface);
+}
+.omnibox__text {
+  flex: 1;
+  text-align: left;
+  font: var(--t-body);
+  color: var(--fg-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.omnibox__kbd {
+  flex: none;
+}
+
+.pulsebar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-inset);
+  white-space: nowrap;
+}
+.pulsebar__stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: var(--t-small);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.topbar__action {
+  position: relative;
+}
+.topbar__dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warn-solid);
+  border: 1.5px solid var(--surface);
+}
+
+/* Account menu */
+.account {
+  position: relative;
+}
+.account__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 3px;
+  border-radius: var(--r-md);
+  transition: background-color var(--dur-1) var(--ease);
+}
+.account__trigger:hover {
+  background: var(--surface-hover);
+}
+.account__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+.account__menu {
+  position: absolute;
+  z-index: 41;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 250px;
+}
+.account__id {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-3) 8px var(--s-2);
+  min-width: 0;
+}
+
+/* ==========================================================================
+   Canvas
+   ========================================================================== */
+
+.canvas {
+  grid-area: canvas;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+  scroll-behavior: smooth;
+}
+
+.dock {
+  display: none;
+}
+
+/* ==========================================================================
+   Responsive
+   Tablet trades the label rail for an icon rail; phones move navigation into
+   an overlay plus a dock of the destinations people actually use on the move.
+   ========================================================================== */
+
+@media (max-width: 1180px) {
+  .shell {
+    --rail: var(--layout-rail-collapsed);
+  }
+  .rail__group,
+  .navlink__label,
+  .rail__tenant {
+    display: none;
+  }
+  .navlink {
+    justify-content: center;
+    padding: 0;
+  }
+  .rail__collapse {
+    display: none;
+  }
+  .omnibox {
+    width: 240px;
+  }
+}
+
+@media (max-width: 900px) {
+  .pulsebar {
+    display: none;
+  }
+  .omnibox__text,
+  .omnibox__kbd {
+    display: none;
+  }
+  .omnibox {
+    width: 34px;
+    justify-content: center;
+    padding: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'topbar'
+      'canvas';
+  }
+
+  .rail {
+    position: fixed;
+    z-index: 402;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 268px;
+    transform: translateX(-100%);
+    transition: transform var(--dur-3) var(--ease-out);
+    box-shadow: var(--e-4);
+    background: var(--surface);
+  }
+  .rail.is-open {
+    transform: none;
+  }
+  /* Inside the overlay the rail is always the full labelled version */
+  .rail .rail__group,
+  .rail .navlink__label,
+  .rail .rail__tenant {
+    display: flex;
+  }
+  .rail .rail__group {
+    display: block;
+  }
+  .rail .navlink {
+    justify-content: flex-start;
+    padding: 0 var(--s-2);
+  }
+  .rail .rail__collapse {
+    display: none;
+  }
+
+  .rail-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 401;
+    background: hsl(209 34% 10% / 0.42);
+    animation: netro-fade var(--dur-2) var(--ease);
+  }
+
+  .topbar__menu {
+    display: inline-flex;
+  }
+  .topbar__context {
+    display: flex;
+    flex: 1;
+  }
+  .omnibox {
+    display: none;
+  }
+
+  .canvas {
+    padding-bottom: 58px;
+  }
+
+  .dock {
+    display: flex;
+    position: fixed;
+    z-index: 300;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 58px;
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+  }
+  .dock__item {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--fg-subtle);
+    font: var(--t-micro);
+    min-width: 0;
+  }
+  .dock__item span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 2px;
+  }
+  .dock__item.is-active {
+    color: var(--accent);
+  }
+  .dock__dot {
+    position: absolute;
+    top: 8px;
+    right: calc(50% - 14px);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--warn-solid);
+  }
+}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
 import {
@@ -25,6 +26,7 @@ interface Product {
 }
 
 export function ProductsScreen() {
+  const navigation = useNavigation<any>();
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -53,6 +55,20 @@ export function ProductsScreen() {
         <ScreenHeader
           title="Product Catalog"
           subtitle={`${products.length} registered items`}
+          onBackPress={() => {
+            if (navigation) {
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                const parent = navigation.getParent();
+                if (parent && parent.canGoBack()) {
+                  parent.goBack();
+                } else {
+                  navigation.navigate('Home');
+                }
+              }
+            }
+          }}
         />
 
         <SearchInput

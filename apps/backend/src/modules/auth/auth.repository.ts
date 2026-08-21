@@ -1,8 +1,8 @@
 import { prisma } from '../../shared/config/prisma';
-import { User, Device, Session, Company } from '@prisma/client';
+import { User, Device, Session, Company, CompanyModule } from '@prisma/client';
 
 export type UserWithCompany = User & {
-  company?: Company | null;
+  company?: (Company & { modules?: CompanyModule[] }) | null;
   manager?: { id: string; name: string; employeeId: string } | null;
   designation?: { id: string; name: string } | null;
 };
@@ -27,7 +27,7 @@ export class AuthRepository {
         deletedAt: null,
       },
       include: {
-        company: { include: { logoFile: { select: { objectKey: true } } } },
+        company: { include: { logoFile: { select: { objectKey: true } }, modules: true } },
         manager: { select: { id: true, name: true, employeeId: true } },
         designation: { select: { id: true, name: true } },
         profilePicture: { select: { objectKey: true } },
@@ -43,7 +43,7 @@ export class AuthRepository {
         deletedAt: null,
       },
       include: {
-        company: { include: { logoFile: { select: { objectKey: true } } } },
+        company: { include: { logoFile: { select: { objectKey: true } }, modules: true } },
         manager: { select: { id: true, name: true, employeeId: true } },
         designation: { select: { id: true, name: true } },
         profilePicture: { select: { objectKey: true } },
@@ -55,7 +55,7 @@ export class AuthRepository {
     return prisma.user.findFirst({
       where: { id, deletedAt: null },
       include: {
-        company: { include: { logoFile: { select: { objectKey: true } } } },
+        company: { include: { logoFile: { select: { objectKey: true } }, modules: true } },
         manager: { select: { id: true, name: true, employeeId: true } },
         designation: { select: { id: true, name: true } },
         profilePicture: { select: { objectKey: true } },
@@ -113,5 +113,40 @@ export class AuthRepository {
       where: { id: userId },
       data: { mpinHash }
     });
+  }
+
+  public async findEligibleDemoUsers(): Promise<UserWithCompany[]> {
+    return prisma.user.findMany({
+      where: {
+        deletedAt: null,
+        status: 'ACTIVE',
+      },
+      include: {
+        company: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            logoFile: { select: { objectKey: true } },
+          },
+        },
+        designation: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        manager: {
+          select: {
+            id: true,
+            name: true,
+            employeeId: true,
+          },
+        },
+      },
+      orderBy: [
+        { name: 'asc' },
+      ],
+    }) as unknown as UserWithCompany[];
   }
 }

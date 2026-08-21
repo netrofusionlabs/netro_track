@@ -114,7 +114,7 @@ export function UserDetailSheet({
               }}
             >
               <AppIcon name="profile" color={theme.colors.brand.primary} size={20} />
-              <Text style={[typography.bodyMd, { color: theme.colors.text.primary, marginLeft: 12 }]}>
+              <Text style={[typography.bodyMd, { color: theme.colors.text.primary, marginLeft: 12, flex: 1 }]}>
                 View Full Profile & Activity
               </Text>
             </TouchableOpacity>
@@ -129,7 +129,7 @@ export function UserDetailSheet({
                 }}
               >
                 <AppIcon name="document" color={theme.colors.brand.primary} size={20} />
-                <Text style={[typography.bodyMd, { color: theme.colors.brand.primary, marginLeft: 12, fontWeight: '600' }]}>
+                <Text style={[typography.bodyMd, { color: theme.colors.brand.primary, marginLeft: 12, fontWeight: '600', flex: 1 }]}>
                   {user.role === 'SUPER_ADMIN' || user.role === 'MASTER_SUPER_ADMIN' || user.role === 'COMPANY_ADMIN'
                     ? 'Edit User Details'
                     : 'Edit User & Reassign Supervisor'}
@@ -147,7 +147,7 @@ export function UserDetailSheet({
                 }}
               >
                 <AppIcon name="lock" color={theme.colors.brand.primary} size={20} />
-                <Text style={[typography.bodyMd, { color: theme.colors.brand.primary, marginLeft: 12, fontWeight: '600' }]}>
+                <Text style={[typography.bodyMd, { color: theme.colors.brand.primary, marginLeft: 12, fontWeight: '600', flex: 1 }]}>
                   Reset Password & MPIN to Default
                 </Text>
               </TouchableOpacity>
@@ -163,7 +163,7 @@ export function UserDetailSheet({
                 }}
               >
                 <AppIcon name="employees" color={theme.colors.semantic.warning} size={20} />
-                <Text style={[typography.bodyMd, { color: theme.colors.semantic.warning, marginLeft: 12, fontWeight: '600' }]}>
+                <Text style={[typography.bodyMd, { color: theme.colors.semantic.warning, marginLeft: 12, fontWeight: '600', flex: 1 }]}>
                   Remove Manager (Reassign Employees)
                 </Text>
               </TouchableOpacity>
@@ -179,7 +179,7 @@ export function UserDetailSheet({
                 }}
               >
                 <AppIcon name="close" color={theme.colors.semantic.error} size={20} />
-                <Text style={[typography.bodyMd, { color: theme.colors.semantic.error, marginLeft: 12 }]}>
+                <Text style={[typography.bodyMd, { color: theme.colors.semantic.error, marginLeft: 12, flex: 1 }]}>
                   Deactivate User Account
                 </Text>
               </TouchableOpacity>
@@ -195,7 +195,7 @@ export function UserDetailSheet({
                 }}
               >
                 <AppIcon name="success" color={theme.colors.semantic.success} size={20} />
-                <Text style={[typography.bodyMd, { color: theme.colors.semantic.success, marginLeft: 12 }]}>
+                <Text style={[typography.bodyMd, { color: theme.colors.semantic.success, marginLeft: 12, flex: 1 }]}>
                   Reactivate User Account
                 </Text>
               </TouchableOpacity>

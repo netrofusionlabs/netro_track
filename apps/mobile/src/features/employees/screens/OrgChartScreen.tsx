@@ -11,6 +11,7 @@ import {
   Pressable,
   RefreshControl,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
 import { AppIcon } from '../../../shared/components/AppIcon';
@@ -259,6 +260,7 @@ function UserPopoverModal({
 }
 
 export function OrgChartScreen() {
+  const navigation = useNavigation<any>();
   const theme = useTheme();
   const queryClient = useQueryClient();
   // Fetch initial Root Leadership from server (Redis cached 1-hr TTL)
@@ -311,6 +313,20 @@ export function OrgChartScreen() {
       <ScreenHeader
         title="Organization Chart"
         subtitle="Visual company hierarchy & reporting tree"
+        onBackPress={() => {
+          if (navigation) {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              const parent = navigation.getParent();
+              if (parent && parent.canGoBack()) {
+                parent.goBack();
+              } else {
+                navigation.navigate('Home');
+              }
+            }
+          }
+        }}
       />
 
       <View style={styles.container}>

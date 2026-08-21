@@ -21,7 +21,6 @@ import {
   StatusBadge,
   Avatar,
   AppIcon,
-  Button,
 } from '../../../shared/components';
 import { usePermissions } from '../../../shared/hooks/usePermissions';
 import { useRefreshOnFocus } from '../../../shared/utils/useRefreshOnFocus';
@@ -91,7 +90,7 @@ export function UserManagementScreen({ navigation }: { navigation: any }) {
     tab: activeTab !== 'ALL' ? activeTab : undefined,
   });
 
-  const users = paginatedData?.items || [];
+  const users = useMemo(() => paginatedData?.items || [], [paginatedData?.items]);
   const pagination = paginatedData?.pagination || {
     page: 1,
     pageSize: 15,
@@ -213,6 +212,20 @@ export function UserManagementScreen({ navigation }: { navigation: any }) {
         actionLabel={permissions.canCreateUsers ? "Add User" : undefined}
         actionIcon={permissions.canCreateUsers ? "addUser" : undefined}
         onAction={permissions.canCreateUsers ? () => navigation.navigate('AddUser') : undefined}
+        onBackPress={() => {
+          if (navigation) {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              const parent = navigation.getParent();
+              if (parent && parent.canGoBack()) {
+                parent.goBack();
+              } else {
+                navigation.navigate('Home');
+              }
+            }
+          }
+        }}
       />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -330,6 +343,30 @@ export function UserManagementScreen({ navigation }: { navigation: any }) {
               >
                 <AppIcon name="edit" size={16} color={theme.colors.brand.primary} />
               </TouchableOpacity>
+            </View>
+          </Card>
+        )}
+
+        {/* Company Admin Settings Panel */}
+        {(permissions.isCompanyAdmin || permissions.isHr) && (
+          <Card
+            variant="outlined"
+            onPress={() => navigation.navigate('AttendancePolicies')}
+            style={styles.quickActionCard}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={[styles.quickActionIconContainer, { backgroundColor: theme.colors.brand.secondary }]}>
+                <AppIcon name="attendance" size={20} color={theme.colors.brand.primary} />
+              </View>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]}>
+                  Attendance / Punch Policies
+                </Text>
+                <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 1 }]}>
+                  Configure selfie, GPS & vehicle requirements
+                </Text>
+              </View>
+              <AppIcon name="chevronRight" size={16} color={theme.colors.text.tertiary} />
             </View>
           </Card>
         )}
@@ -673,6 +710,16 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionCard: {
+    marginBottom: 12,
+  },
+  quickActionIconContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },

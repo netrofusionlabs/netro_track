@@ -2,12 +2,14 @@ import { z } from 'zod';
 
 export const punchInSchema = z.object({
   latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180)
+  longitude: z.number().min(-180).max(180),
+  evidence: z.record(z.any()).optional()
 });
 
 export const punchOutSchema = z.object({
   latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180)
+  longitude: z.number().min(-180).max(180),
+  evidence: z.record(z.any()).optional()
 });
 
 export type PunchInInput = z.infer<typeof punchInSchema>;

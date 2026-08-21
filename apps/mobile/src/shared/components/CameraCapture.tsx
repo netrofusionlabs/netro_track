@@ -30,7 +30,8 @@ export function CameraCapture({ onPhotoCaptured, onCancel }: CameraCaptureProps)
       setIsCapturing(true);
       try {
         const photo = await camera.current.takePhoto({
-          flash: 'auto'
+          // Only use auto-flash when the device actually has a flash unit
+          flash: device?.hasFlash ? 'auto' : 'off',
         });
         onPhotoCaptured(`file://${photo.path}`);
       } catch (e) {

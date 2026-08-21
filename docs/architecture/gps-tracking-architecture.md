@@ -178,24 +178,35 @@ async insertBatch(companyId: string, points: GpsPoint[]) {
 
 ## 5. Platform-Specific Implementation
 
-### Android
+### Android (Hybrid Native-JS Bridge Architecture)
 
-| Component | Technology |
-|-----------|-----------|
-| Background Service | Foreground Service with persistent notification |
-| Location Provider | Google Fused Location Provider |
-| Wake Lock | Partial wake lock during tracking |
-| Battery Optimization | Exclude from Doze mode (request user permission) |
+To survive aggressive Android Doze Mode throttling and React Native JS thread destruction when the app is swiped away from the Recents menu, NetroTrack uses a hybrid native location service:
+
+| Component | Technology | Description |
+|-----------|-----------|-------------|
+| **Background Service** | `LocationForegroundService` (Kotlin) | Persistent native Android Service running in a separate thread. |
+| **Foreground Service Type** | `foregroundServiceType="location"` | Declared in manifest for compliance with Android 14+. |
+| **Notification visibility** | `IMPORTANCE_DEFAULT` + `POST_NOTIFICATIONS` | Shows a silent ongoing notification in the shade. Requires runtime permission on Android 13+. |
+| **Task Persistence** | `android:stopWithTask="false"` + `START_STICKY` | Keeps the GPS service running even if the user swipes away the main app process. |
+| **Local Cache** | Native `SharedPreferences` | Buffers location points as JSON arrays on disk when backgrounded. Max 720 points limit. |
+| **JS Bridge** | `LocationModule` (RN NativeModule) | Provides start/stop methods and `drainNativeBuffer()` to pull cached points into JS. |
 
 ```
-Android Requirements:
-• ACCESS_FINE_LOCATION
-• ACCESS_COARSE_LOCATION
-• ACCESS_BACKGROUND_LOCATION (Android 10+)
-• FOREGROUND_SERVICE
-• FOREGROUND_SERVICE_LOCATION (Android 14+)
-• POST_NOTIFICATIONS (Android 13+)
+Android Permission Checklist:
+• android.permission.ACCESS_FINE_LOCATION
+• android.permission.ACCESS_COARSE_LOCATION
+• android.permission.ACCESS_BACKGROUND_LOCATION (Android 10+ / API 29+)
+• android.permission.FOREGROUND_SERVICE
+• android.permission.FOREGROUND_SERVICE_LOCATION (Android 14+ / API 34+)
+• android.permission.POST_NOTIFICATIONS (Android 13+ / API 33+)
 ```
+
+#### Sync & Recovery Pipeline
+1. When in **foreground**, the JS `backgroundSyncTask` loop handles captures and direct Axios API syncs every 10 seconds.
+2. When the app is **minimized**, JS triggers `setBackgroundMode(true)` on the native bridge.
+3. The Kotlin `LocationListener` starts capturing GPS fixes and writing them to the SharedPreferences buffer on-disk.
+4. If the app is **swiped away**, the service survives and continues logging to SharedPreferences.
+5. On **reopening**, the JS layer calls `drainNativeBuffer()`, retrieving all points from SharedPreferences, appending them to the MMKV local database, and invoking `syncNow()` to upload the complete batch, eliminating database tracking gaps.
 
 ### iOS
 

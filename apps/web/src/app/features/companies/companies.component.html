@@ -1,0 +1,678 @@
+<div class="page">
+  <netro-page-header title="Companies" description="Tenant companies on the NetroTrack platform — profile, administrators, workforce, and licensed capabilities.">
+    <div slot="actions" class="row row--nowrap">
+      <button type="button" class="btn btn--default btn--sm" (click)="load()" [disabled]="loading()">
+        <netro-icon name="refresh" [size]="13" [spin]="loading()" /> Refresh
+      </button>
+      <button type="button" class="btn btn--primary btn--sm" (click)="startCreate()">
+        <netro-icon name="plus" [size]="13" /> New company
+      </button>
+    </div>
+  </netro-page-header>
+
+  <netro-panel [flush]="true" padding="none">
+    <netro-toolbar [search]="search()" searchPlaceholder="Name, code, industry or city..." searchLabel="Search companies" (searchChange)="applySearch($event)">
+      <div slot="filters" class="segmented-control">
+        <button
+          type="button"
+          class="seg-btn"
+          [class.is-active]="statusFilter() === 'ALL'"
+          (click)="setStatusFilter('ALL')"
+        >
+          All ({{ companies().length }})
+        </button>
+        <button
+          type="button"
+          class="seg-btn"
+          [class.is-active]="statusFilter() === 'ACTIVE'"
+          (click)="setStatusFilter('ACTIVE')"
+        >
+          Active ({{ activeCount() }})
+        </button>
+        <button
+          type="button"
+          class="seg-btn"
+          [class.is-active]="statusFilter() === 'INACTIVE'"
+          (click)="setStatusFilter('INACTIVE')"
+        >
+          Inactive ({{ inactiveCount() }})
+        </button>
+      </div>
+
+      <span slot="actions" class="text-micro text-subtle tnum">{{ rows().length }} {{ rows().length === 1 ? 'company' : 'companies' }}</span>
+    </netro-toolbar>
+
+    @if (loading()) {
+      <netro-skeleton-rows [rows]="6" [cols]="5" />
+    } @else if (error()) {
+      <netro-state icon="x-circle" tone="risk" title="Could not load companies" [body]="error()">
+        <button type="button" class="btn btn--default" (click)="load()">Try again</button>
+      </netro-state>
+    } @else if (!rows().length) {
+      <netro-state icon="building" [title]="search() || statusFilter() !== 'ALL' ? 'No company matches that filter' : 'No tenants yet'" body="Register a new company using the Add Company button.">
+        <button type="button" class="btn btn--primary" *ngIf="!search() && statusFilter() === 'ALL'" (click)="startCreate()">Add Company</button>
+      </netro-state>
+    } @else {
+      <div class="table-scroll">
+        <table class="table">
+          <caption class="sr-only">Tenant companies</caption>
+          <thead>
+            <tr>
+              <th scope="col">Company</th>
+              <th scope="col">Code</th>
+              <th scope="col" class="col-hide-md">Industry</th>
+              <th scope="col" class="num col-hide-sm">Workforce</th>
+              <th scope="col">Capabilities</th>
+              <th scope="col">Status</th>
+              <th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of rows(); track c.id) {
+              <tr class="is-clickable" tabindex="0" (click)="view(c)" (keydown.enter)="view(c)">
+                <td>
+                  <div class="row row--nowrap row--center" style="gap: 12px">
+                    <img *ngIf="c.companyLogoUrl || c.logoUrl; else fallbackAvatar" [src]="c.companyLogoUrl || c.logoUrl" alt="Logo" class="company-logo-sm" />
+                    <ng-template #fallbackAvatar>
+                      <netro-avatar [name]="c.name" [seed]="c.id" size="sm" />
+                    </ng-template>
+                    <div>
+                      <span class="cell-strong">{{ c.name }}</span>
+                      <span class="cell-secondary" style="display: block">{{ c.officialEmail || c.city || '' }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="company-code-badge">[{{ c.code || '—' }}]</span>
+                </td>
+                <td class="col-hide-md cell-secondary">{{ c.industry || '—' }}</td>
+                <td class="num tnum col-hide-sm">
+                  <span class="badge-stat">{{ headcount(c) }} users</span>
+                </td>
+                <td>
+                  <netro-badge [tone]="c.isGpsEnabled !== false ? 'ok' : 'warn'" size="sm">
+                    {{ c.isGpsEnabled !== false ? 'GPS Enabled' : 'Simple Punch Only' }}
+                  </netro-badge>
+                </td>
+                <td>
+                  <netro-badge [tone]="c.status === 'INACTIVE' ? 'risk' : 'ok'" [dot]="true">
+                    {{ c.status === 'INACTIVE' ? 'Inactive' : 'Active' }}
+                  </netro-badge>
+                </td>
+                <td class="col-actions" (click)="$event.stopPropagation()">
+                  <span class="row-actions">
+                    <button
+                      type="button"
+                      class="btn btn--subtle btn--sm btn--icon"
+                      [attr.aria-label]="'Edit ' + c.name"
+                      (click)="startEdit(c)"
+                      title="Edit company"
+                    >
+                      <netro-icon name="edit" [size]="14" />
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn--subtle btn--sm btn--icon"
+                      [attr.aria-label]="'Manage workforce for ' + c.name"
+                      (click)="manageWorkforce(c)"
+                      title="Manage workforce"
+                    >
+                      <netro-icon name="people" [size]="14" />
+                    </button>
+                    <button
+                      *ngIf="!isMasterCompany(c)"
+                      type="button"
+                      class="btn btn--subtle btn--sm btn--icon"
+                      [attr.aria-label]="'Delete ' + c.name"
+                      (click)="remove(c)"
+                      title="Delete company"
+                    >
+                      <netro-icon name="x" [size]="14" />
+                    </button>
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </netro-panel>
+</div>
+
+<!-- ==========================================================================
+     COMPANY WORKSPACE DRAWER
+     ========================================================================== -->
+@if (viewing(); as c) {
+  <netro-drawer eyebrow="Tenant Company" [heading]="c.name" [sub]="'Code: [' + (c.code || 'NO-CODE') + ']'" width="wide" (closed)="closeView()">
+    <div class="stack stack--lg">
+      <!-- Company Header Card with Logo -->
+      <div class="company-detail-head">
+        <img *ngIf="c.companyLogoUrl || c.logoUrl; else detailAvatar" [src]="c.companyLogoUrl || c.logoUrl" alt="Logo" class="company-logo-lg" />
+        <ng-template #detailAvatar>
+          <netro-avatar [name]="c.name" [seed]="c.id" size="lg" />
+        </ng-template>
+        <div class="stack stack--xs" style="flex: 1">
+          <div class="row row--nowrap row--center" style="gap: 8px">
+            <h3 class="heading-sm">{{ c.name }}</h3>
+            <span class="company-code-badge">[{{ c.code }}]</span>
+            <netro-badge [tone]="c.status === 'INACTIVE' ? 'risk' : 'ok'" [dot]="true">
+              {{ c.status === 'INACTIVE' ? 'Inactive' : 'Active' }}
+            </netro-badge>
+            <netro-badge [tone]="c.isGpsEnabled !== false ? 'ok' : 'warn'">
+              {{ c.isGpsEnabled !== false ? 'GPS Enabled' : 'Simple Punch Only' }}
+            </netro-badge>
+          </div>
+          <p class="text-small text-subtle">{{ c.legalName || c.name }} · Created {{ c.createdAt ? (c.createdAt | slice:0:10) : '—' }}</p>
+        </div>
+      </div>
+
+      <!-- Quick Actions Strip -->
+      <div class="row" style="gap: 8px; flex-wrap: wrap">
+        <button type="button" class="btn btn--primary btn--sm" (click)="manageWorkforce(c)">
+          <netro-icon name="people" [size]="14" /> Manage Workforce ({{ headcount(c) }})
+        </button>
+        <button type="button" class="btn btn--default btn--sm" (click)="startEdit(c)">
+          <netro-icon name="edit" [size]="14" /> Edit Profile & Modules
+        </button>
+        <button type="button" class="btn btn--default btn--sm" (click)="toggleStatus(c)">
+          <netro-icon [name]="c.status === 'INACTIVE' ? 'check' : 'x-circle'" [size]="14" />
+          {{ c.status === 'INACTIVE' ? 'Reactivate Tenant' : 'Deactivate Tenant' }}
+        </button>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="company-stats-grid">
+        <div class="company-stat-card">
+          <span class="company-stat-label">Users</span>
+          <span class="company-stat-num brand">{{ c._count?.users ?? c.userCount ?? 0 }}</span>
+        </div>
+        <div class="company-stat-card">
+          <span class="company-stat-label">Branches</span>
+          <span class="company-stat-num">{{ c._count?.branches ?? 0 }}</span>
+        </div>
+        <div class="company-stat-card">
+          <span class="company-stat-label">Departments</span>
+          <span class="company-stat-num">{{ c._count?.departments ?? 0 }}</span>
+        </div>
+      </div>
+
+      <!-- Active Capabilities / Modules -->
+      <section>
+        <p class="eyebrow" style="margin-bottom: 8px">HRMS Modules & Capabilities</p>
+        <div class="row" style="gap: 6px; flex-wrap: wrap">
+          @for (m of c.modules; track m.module) {
+            <netro-badge [tone]="m.isEnabled ? 'ok' : 'neutral'" [dot]="m.isEnabled">
+              {{ label(m.module) }}
+            </netro-badge>
+          }
+          @if (!c.modules?.length) {
+            <span class="text-small text-subtle">Standard modules enabled.</span>
+          }
+        </div>
+      </section>
+
+      <!-- Full Profile Breakdown -->
+      <section>
+        <p class="eyebrow" style="margin-bottom: 8px">Company Profile & Legal</p>
+        <dl class="defs">
+          <div class="defs__row"><dt class="defs__key">Company Name</dt><dd class="defs__val">{{ c.name }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Company Code</dt><dd class="defs__val mono">{{ c.code || '—' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Legal / Registered Name</dt><dd class="defs__val">{{ c.legalName || '—' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Company Type</dt><dd class="defs__val">{{ c.companyType || '—' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Industry</dt><dd class="defs__val">{{ c.industry || '—' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Employee Size</dt><dd class="defs__val">{{ c.employeeCount ? c.employeeCount + ' Employees' : '—' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Official Email</dt><dd class="defs__val">{{ c.officialEmail || '—' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Phone Number</dt><dd class="defs__val">{{ c.phone || '—' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Address</dt><dd class="defs__val">{{ c.addressLine1 || '' }} {{ c.addressLine2 || '' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Location</dt><dd class="defs__val">{{ place(c) }} {{ c.zipCode ? ' - ' + c.zipCode : '' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Timezone</dt><dd class="defs__val">{{ c.timezone || 'Asia/Kolkata' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Base Currency</dt><dd class="defs__val">{{ c.currency || 'INR' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Tax ID / GSTIN</dt><dd class="defs__val mono">{{ c.taxId || '—' }}</dd></div>
+          <div class="defs__row"><dt class="defs__key">Registration / CIN</dt><dd class="defs__val mono">{{ c.registrationNumber || '—' }}</dd></div>
+        </dl>
+      </section>
+    </div>
+
+    <div slot="footer" style="display: contents">
+      <button *ngIf="!isMasterCompany(c)" type="button" class="btn btn--danger-outline" (click)="remove(c)">Delete</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--default" (click)="closeView()">Done</button>
+    </div>
+  </netro-drawer>
+}
+
+<!-- ==========================================================================
+     CREATE / EDIT WIZARD
+     ========================================================================== -->
+@if (wizardOpen()) {
+  <netro-drawer
+    [eyebrow]="isEditMode() ? 'Edit Tenant' : 'Register New Company'"
+    [heading]="isEditMode() ? 'Edit Company' : 'Register New Company'"
+    [sub]="isEditMode() ? 'Step ' + (step() > 4 ? 4 : step()) + ' of 4' : 'Step ' + (step() > 5 ? 5 : step()) + ' of 5'"
+    width="wide"
+    [dismissOnScrim]="false"
+    (closed)="closeWizard()"
+  >
+    <!-- Multi-Step Indicator -->
+    @if (step() < (isEditMode() ? 5 : 6)) {
+      <nav class="steps" aria-label="Wizard steps">
+        <span class="steps__item" [class.is-active]="step() === 1" [class.is-done]="step() > 1">
+          <span class="steps__n">1</span> Profile
+        </span>
+        <span class="steps__line" [class.is-done]="step() > 1"></span>
+
+        <span class="steps__item" [class.is-active]="step() === 2" [class.is-done]="step() > 2">
+          <span class="steps__n">2</span> Contact
+        </span>
+        <span class="steps__line" [class.is-done]="step() > 2"></span>
+
+        @if (!isEditMode()) {
+          <span class="steps__item" [class.is-active]="step() === 3" [class.is-done]="step() > 3">
+            <span class="steps__n">3</span> Admin
+          </span>
+          <span class="steps__line" [class.is-done]="step() > 3"></span>
+        }
+
+        <span class="steps__item" [class.is-active]="step() === (isEditMode() ? 3 : 4)" [class.is-done]="step() > (isEditMode() ? 3 : 4)">
+          <span class="steps__n">{{ isEditMode() ? '3' : '4' }}</span> Modules
+        </span>
+        <span class="steps__line" [class.is-done]="step() > (isEditMode() ? 3 : 4)"></span>
+
+        <span class="steps__item" [class.is-active]="step() === (isEditMode() ? 4 : 5)">
+          <span class="steps__n">{{ isEditMode() ? '4' : '5' }}</span> Review
+        </span>
+      </nav>
+    }
+
+    <form [formGroup]="wizard" class="stack stack--lg">
+      <!-- Step 1: Company Profile -->
+      <div formGroupName="company" *ngIf="step() === 1" class="form-grid">
+        <!-- Logo Upload Card -->
+        <div class="span-2 logo-upload-row">
+          <img *ngIf="logoPreview(); else noLogoPreview" [src]="logoPreview()" alt="Logo Preview" class="company-logo-preview" />
+          <ng-template #noLogoPreview>
+            <div class="company-logo-placeholder">
+              <netro-icon name="building" [size]="24" />
+            </div>
+          </ng-template>
+          <div class="stack stack--xs">
+            <span class="field__label">Company Logo</span>
+            <label class="btn btn--secondary btn--sm file-label">
+              <netro-icon [name]="logoUploading() ? 'spinner' : 'camera'" [size]="13" [spin]="logoUploading()" />
+              {{ logoUploading() ? 'Uploading…' : 'Upload Logo' }}
+              <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" (change)="onLogoSelected($event)" />
+            </label>
+            <span class="field__hint">PNG, JPEG or WebP recommended</span>
+          </div>
+        </div>
+
+        <label class="field">
+          <span class="field__label">Company Name <span class="field__req">*</span></span>
+          <input class="input" formControlName="name" placeholder="e.g. Acme Innovations Pvt Ltd" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Company Code <span class="field__req">*</span> (Unique)</span>
+          <input class="input mono" formControlName="code" placeholder="ACME" (input)="onCodeInput($event)" [readonly]="isEditMode()" />
+        </label>
+
+        <label class="field span-2">
+          <span class="field__label">Legal / Registered Name</span>
+          <input class="input" formControlName="legalName" placeholder="e.g. Acme Innovations Private Limited" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Company Type</span>
+          <select class="select" formControlName="companyType">
+            <option value="">Select company type...</option>
+            @for (opt of companyTypes; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Industry</span>
+          <select class="select" formControlName="industry">
+            <option value="">Select industry...</option>
+            @for (opt of industries; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="field span-2">
+          <span class="field__label">Employee Size</span>
+          <select class="select" formControlName="employeeCount">
+            <option value="">Select size...</option>
+            @for (opt of empCounts; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <!-- Step 2: Contact, Location & Tax -->
+      <div formGroupName="company" *ngIf="step() === 2" class="form-grid">
+        <label class="field">
+          <span class="field__label">Phone Number</span>
+          <input class="input" formControlName="phone" placeholder="+91 9876543210" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Official Email <span class="field__req">*</span></span>
+          <input class="input" type="email" formControlName="officialEmail" placeholder="contact@company.com" />
+        </label>
+
+        <!-- Location Search / Autocomplete -->
+        <button
+          type="button"
+          class="location-search-btn span-2"
+          (click)="openAddressModal()"
+        >
+          <div class="location-search-left">
+            <div class="location-icon-badge">
+              <netro-icon name="pin" [size]="16" />
+            </div>
+            <div class="location-search-text">
+              <span class="location-search-title">Search Location on Maps</span>
+              <span class="location-search-hint">Autofill address, city, state & PIN code</span>
+            </div>
+          </div>
+          <netro-icon name="chevron-right" [size]="16" class="location-search-arrow" />
+        </button>
+
+        <label class="field span-2">
+          <span class="field__label">Address Line 1</span>
+          <input class="input" formControlName="addressLine1" placeholder="Building, Street, Area" />
+        </label>
+
+        <label class="field span-2">
+          <span class="field__label">Address Line 2</span>
+          <input class="input" formControlName="addressLine2" placeholder="Suite, Landmark, Unit" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">City</span>
+          <input class="input" formControlName="city" placeholder="City / District" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">State</span>
+          <input class="input" formControlName="state" placeholder="State / Province" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Zip Code / PIN</span>
+          <input class="input" formControlName="zipCode" placeholder="Postal code" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Country</span>
+          <select class="select" formControlName="country">
+            @for (c of countries; track c.value) {
+              <option [value]="c.value">{{ c.label }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Timezone</span>
+          <select class="select" formControlName="timezone">
+            @for (tz of timezones; track tz.value) {
+              <option [value]="tz.value">{{ tz.label }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Base Currency</span>
+          <select class="select" formControlName="currency">
+            @for (curr of currencies; track curr.value) {
+              <option [value]="curr.value">{{ curr.label }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Tax ID / GSTIN</span>
+          <input class="input mono" formControlName="taxId" placeholder="e.g. 29AAAAA0000A1Z5" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Registration Number / CIN</span>
+          <input class="input mono" formControlName="registrationNumber" placeholder="e.g. U72200KA2020PTC123456" />
+        </label>
+      </div>
+
+      <!-- Step 3: Primary Administrator (Create Mode Only) -->
+      <div formGroupName="admin" *ngIf="step() === 3 && !isEditMode()" class="form-grid">
+        <label class="field span-2">
+          <span class="field__label">Admin Name <span class="field__req">*</span></span>
+          <input class="input" formControlName="name" placeholder="Full name" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Admin Email <span class="field__req">*</span></span>
+          <input class="input" type="email" formControlName="email" placeholder="admin@company.com" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Admin Mobile <span class="field__req">*</span></span>
+          <input class="input" formControlName="mobile" placeholder="Mobile number" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Initial Password <span class="field__req">*</span></span>
+          <input class="input" type="password" formControlName="password" autocomplete="new-password" placeholder="At least 8 characters" />
+          <span class="field__hint">At least 8 characters.</span>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Confirm Password <span class="field__req">*</span></span>
+          <input class="input" type="password" formControlName="confirmPassword" autocomplete="new-password" placeholder="Re-enter password" />
+          <span class="field__error" *ngIf="wizard.controls.admin.hasError('passwordsMismatch') && wizard.controls.admin.controls.confirmPassword.touched">
+            Passwords do not match.
+          </span>
+        </label>
+      </div>
+
+      <!-- Step 4: HRMS Modules (Step 3 in edit mode) -->
+      <div formGroupName="modules" *ngIf="step() === (isEditMode() ? 3 : 4)" class="stack stack--md">
+        <p class="text-small text-subtle">
+          Configure enabled HRMS capabilities for this tenant company. Attendance serves as the core foundation for field tracking and regularizations.
+        </p>
+
+        <!-- Attendance Master Toggle -->
+        <div class="module-card">
+          <label class="module-row">
+            <div class="module-info">
+              <span class="module-title">Attendance</span>
+              <span class="module-desc">Punch-in/out, live shift timesheets, and attendance policies.</span>
+            </div>
+            <input type="checkbox" formControlName="attendance" class="toggle-switch" />
+          </label>
+
+          <!-- Nested Sub-Modules (GPS & Regularization) -->
+          @if (wizard.controls.modules.controls.attendance.value) {
+            <div class="module-nested">
+              <label class="module-row">
+                <div class="module-info">
+                  <span class="module-title">GPS Tracking</span>
+                  <span class="module-desc">Track live worker locations, movement breadcrumbs, and route replays during duty.</span>
+                </div>
+                <input type="checkbox" formControlName="gps" class="toggle-switch" />
+              </label>
+
+              <label class="module-row">
+                <div class="module-info">
+                  <span class="module-title">Attendance Regularization</span>
+                  <span class="module-desc">Allow field employees to request punch corrections and allow managers to approve them.</span>
+                </div>
+                <input type="checkbox" formControlName="regularization" class="toggle-switch" />
+              </label>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Step 5: Review Summary (Step 4 in edit mode) -->
+      <div *ngIf="step() === (isEditMode() ? 4 : 5)" class="stack stack--md">
+        <p class="text-small text-subtle">
+          Please review the company configuration before finalizing.
+        </p>
+
+        <div class="review-card">
+          <h4 class="review-heading">Company Profile</h4>
+          <dl class="defs">
+            <div class="defs__row"><dt class="defs__key">Name & Code</dt><dd class="defs__val">{{ companyData().name }} ({{ companyData().code }})</dd></div>
+            <div class="defs__row"><dt class="defs__key">Legal Name</dt><dd class="defs__val">{{ companyData().legalName || 'N/A' }}</dd></div>
+            <div class="defs__row"><dt class="defs__key">Company Type</dt><dd class="defs__val">{{ companyData().companyType || 'N/A' }}</dd></div>
+            <div class="defs__row"><dt class="defs__key">Industry</dt><dd class="defs__val">{{ companyData().industry || 'N/A' }}</dd></div>
+            <div class="defs__row"><dt class="defs__key">Employee Size</dt><dd class="defs__val">{{ companyData().employeeCount || 'N/A' }}</dd></div>
+          </dl>
+        </div>
+
+        <div class="review-card">
+          <h4 class="review-heading">Location & Tax</h4>
+          <dl class="defs">
+            <div class="defs__row"><dt class="defs__key">Contact</dt><dd class="defs__val">{{ companyData().officialEmail }} | {{ companyData().phone || 'No phone' }}</dd></div>
+            <div class="defs__row"><dt class="defs__key">Location</dt><dd class="defs__val">{{ formattedLocation(companyData()) }}</dd></div>
+            <div class="defs__row"><dt class="defs__key">GSTIN / Tax ID</dt><dd class="defs__val mono">{{ companyData().taxId || 'N/A' }}</dd></div>
+            <div class="defs__row"><dt class="defs__key">Currency & Timezone</dt><dd class="defs__val">{{ companyData().currency }} | {{ companyData().timezone }}</dd></div>
+          </dl>
+        </div>
+
+        @if (!isEditMode()) {
+          <div class="review-card">
+            <h4 class="review-heading">Primary Administrator</h4>
+            <dl class="defs">
+              <div class="defs__row"><dt class="defs__key">Admin Name</dt><dd class="defs__val">{{ adminData().name }}</dd></div>
+              <div class="defs__row"><dt class="defs__key">Admin Email</dt><dd class="defs__val">{{ adminData().email }}</dd></div>
+              <div class="defs__row"><dt class="defs__key">Admin Mobile</dt><dd class="defs__val">{{ adminData().mobile }}</dd></div>
+            </dl>
+          </div>
+        }
+
+        <div class="review-card">
+          <h4 class="review-heading">Active Modules</h4>
+          <p class="review-modules-text">{{ activeModulesSummary() }}</p>
+        </div>
+      </div>
+
+      <!-- Success Confirmation Step -->
+      <div *ngIf="step() === (isEditMode() ? 5 : 6)" class="success-screen">
+        <div class="success-icon-badge">
+          <netro-icon name="check" [size]="36" />
+        </div>
+        <h3 class="success-title">{{ isEditMode() ? 'Company Updated' : 'Company Created' }}</h3>
+        <p class="success-desc">
+          {{ isEditMode() ? 'The company details have been successfully updated.' : 'The company and its primary administrator account have been successfully created.' }}
+        </p>
+
+        <div class="row row--center" style="gap: 12px; margin-top: 16px">
+          <button type="button" class="btn btn--primary" (click)="closeWizard()">
+            Done
+          </button>
+          <button *ngIf="createdResult()?.id" type="button" class="btn btn--default" (click)="manageWorkforce(createdResult()!)">
+            <netro-icon name="people" [size]="14" /> Manage Workforce
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Drawer Footer Actions -->
+    <div slot="footer" style="display: contents">
+      @if (step() < (isEditMode() ? 5 : 6)) {
+        <button type="button" class="btn btn--subtle" (click)="closeWizard()">Cancel</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn--default" *ngIf="step() > 1" (click)="prev()">Back</button>
+        <button type="button" class="btn btn--primary" *ngIf="step() < (isEditMode() ? 4 : 5)" (click)="next()">Continue</button>
+        <button type="button" class="btn btn--primary" *ngIf="step() === (isEditMode() ? 4 : 5)" [disabled]="saving()" (click)="submit()">
+          <netro-icon [name]="saving() ? 'spinner' : 'check'" [size]="14" [spin]="saving()" />
+          {{ isEditMode() ? 'Save changes' : 'Create company' }}
+        </button>
+      }
+    </div>
+  </netro-drawer>
+}
+
+<!-- ==========================================================================
+     ADDRESS SEARCH MODAL (Maps & Places Autocomplete)
+     ========================================================================== -->
+@if (addressModalOpen()) {
+  <netro-drawer
+    eyebrow="Maps Autocomplete"
+    heading="Search Location"
+    sub="Search for your company address or landmark to autofill fields"
+    width="md"
+    (closed)="closeAddressModal()"
+  >
+    <div class="stack stack--md">
+      <!-- Search Input -->
+      <div class="input-wrap">
+        <netro-icon name="search" [size]="15" class="input-wrap__icon" />
+        <input
+          type="text"
+          class="input"
+          style="padding-left: 36px"
+          placeholder="Search place, street, area, city or PIN..."
+          [value]="addressSearchQuery()"
+          (input)="onAddressSearch($any($event.target).value)"
+          autofocus
+        />
+      </div>
+
+      <!-- Quick Popular Cities -->
+      <div>
+        <p class="text-micro text-subtle" style="margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em">Popular Hubs</p>
+        <div class="row" style="gap: 6px; flex-wrap: wrap">
+          @for (city of popularCities; track city) {
+            <button type="button" class="btn btn--subtle btn--xs" (click)="searchPopularCity(city)">
+              {{ city }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Search Results Feed -->
+      <div class="address-results-feed">
+        @if (addressSearching()) {
+          <div class="row row--center" style="padding: 24px 0; gap: 8px">
+            <netro-icon name="spinner" [size]="16" [spin]="true" />
+            <span class="text-small text-subtle">Searching places...</span>
+          </div>
+        } @else if (addressSearchResults().length) {
+          @for (res of addressSearchResults(); track res.id) {
+            <div class="address-result-item" (click)="selectAddress(res)" role="button" tabindex="0">
+              <div class="address-result-icon">
+                <netro-icon name="pin" [size]="14" />
+              </div>
+              <div class="address-result-info">
+                <p class="address-result-title">{{ res.title }}</p>
+                <p class="address-result-sub">{{ res.subtitle }}</p>
+              </div>
+              <netro-icon name="chevron-right" [size]="14" class="address-result-go" />
+            </div>
+          }
+        } @else if (addressSearchQuery().trim().length >= 2) {
+          <p class="text-small text-subtle" style="text-align: center; padding: 24px 0">
+            No matching locations found. Try searching with city or area name.
+          </p>
+        } @else {
+          <div class="address-search-empty">
+            <netro-icon name="globe" [size]="28" />
+            <p class="text-small text-subtle" style="margin-top: 8px">
+              Type a location name above to search Google Maps and OpenStreetMap.
+            </p>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div slot="footer" style="display: contents">
+      <button type="button" class="btn btn--default" (click)="closeAddressModal()">Close</button>
+    </div>
+  </netro-drawer>
+}

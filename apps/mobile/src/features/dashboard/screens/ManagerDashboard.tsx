@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
 import { useAuthStore } from '../../auth/stores/authStore';
@@ -15,13 +15,18 @@ import {
 } from '../../../shared/components';
 import { useTeamSummary } from '../hooks/useDashboard';
 import { useRefreshOnFocus } from '../../../shared/utils/useRefreshOnFocus';
+import { useRegularizations } from '../../attendance/hooks/useAttendance';
 
 export function ManagerDashboard({ navigation }: { navigation: any }) {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
   const { data: teamSummary, refetch } = useTeamSummary();
+  const { data: pendingRequests = [], refetch: refetchPending } = useRegularizations('PENDING');
 
-  useRefreshOnFocus(refetch);
+  useRefreshOnFocus(React.useCallback(() => {
+    void refetch();
+    void refetchPending();
+  }, [refetch, refetchPending]));
 
   const visitsCount = teamSummary?.visitsToday ?? 0;
   const salesCount = teamSummary?.salesToday ?? 0;
@@ -47,6 +52,63 @@ export function ManagerDashboard({ navigation }: { navigation: any }) {
           </View>
           <Badge label="MANAGER" variant="info" size="sm" />
         </View>
+
+        {/* Quick Actions Card */}
+        <Card variant="elevated" style={styles.quickActionsCard}>
+          <Text style={styles.quickActionsTitle}>QUICK ACTIONS</Text>
+          <View style={[styles.divider, { backgroundColor: theme.colors.surface.divider }]} />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickActionsScroll}
+          >
+            {[
+              { label: 'Agents', icon: 'employees', screen: 'Employees', params: undefined, unreleased: false },
+              { label: 'Org Chart', icon: 'employees', screen: 'OrgChart', params: undefined, unreleased: false },
+              { label: 'Requests', icon: 'attendance', screen: 'Employees', params: { screen: 'ManagerRegularizations' }, badgeCount: pendingRequests.length, unreleased: false },
+              { label: 'Visits', icon: 'visits', screen: 'Visits', params: undefined, unreleased: true },
+              { label: 'Sales', icon: 'sales', screen: 'Sales', params: undefined, unreleased: true },
+              { label: 'Inspections', icon: 'inspect', screen: 'Inspections', params: undefined, unreleased: true },
+            ].map((act) => (
+              <TouchableOpacity
+                key={act.label}
+                onPress={() => {
+                  if (act.unreleased) {
+                    Alert.alert(
+                      'Feature Coming Soon',
+                      `${act.label} is currently in active development and will be released in an upcoming update.`
+                    );
+                  } else {
+                    navigation.navigate(act.screen, act.params);
+                  }
+                }}
+                activeOpacity={0.7}
+                style={[
+                  styles.quickActionItem,
+                  {
+                    backgroundColor: theme.colors.brand.primaryLight,
+                    opacity: act.unreleased ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <View style={styles.quickActionIconBox}>
+                  <AppIcon name={act.icon} color={theme.colors.brand.primary} size={20} />
+                  {act.badgeCount != null && act.badgeCount > 0 && (
+                    <View style={styles.badgeContainer}>
+                      <Text style={styles.badgeText}>{act.badgeCount}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text numberOfLines={1} style={[typography.buttonSm, { color: theme.colors.brand.primary, marginTop: 6, fontWeight: '600', fontSize: 12 }]}>
+                  {act.label}
+                </Text>
+                {act.unreleased && (
+                  <Text style={{ fontSize: 9, color: theme.colors.text.secondary, marginTop: 1 }}>Soon</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </Card>
 
         {/* Live Map CTA Card */}
         <Card variant="elevated" style={styles.mapCard}>
@@ -143,31 +205,7 @@ export function ManagerDashboard({ navigation }: { navigation: any }) {
           </Card>
         </Section>
 
-        {/* Quick Management Actions */}
-        <Section title="Team Actions">
-          <View style={styles.actionsGrid}>
-            {[
-              { label: 'Agents', icon: 'employees', screen: 'Employees' },
-              { label: 'Org Chart', icon: 'employees', screen: 'OrgChart' },
-              { label: 'Visits', icon: 'visits', screen: 'Visits' },
-              { label: 'Sales', icon: 'sales', screen: 'Sales' },
-              { label: 'Inspections', icon: 'inspect', screen: 'Inspections' },
-            ].map((act) => (
-              <Card
-                key={act.label}
-                onPress={() => navigation.navigate(act.screen)}
-                style={styles.actionChip}
-              >
-                <View style={[styles.actionIconBox, { backgroundColor: theme.colors.brand.primaryLight }]}>
-                  <AppIcon name={act.icon} color={theme.colors.brand.primary} size={20} />
-                </View>
-                <Text style={[typography.buttonSm, { color: theme.colors.text.primary, marginTop: 8, fontWeight: '600', textAlign: 'center' }]}>
-                  {act.label}
-                </Text>
-              </Card>
-            ))}
-          </View>
-        </Section>
+
       </ScrollView>
     </View>
   );
@@ -235,6 +273,57 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeContainer: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#EF4444',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  quickActionsCard: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  quickActionsTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  divider: {
+    height: 1,
+    marginBottom: 12,
+  },
+  quickActionsScroll: {
+    flexDirection: 'row',
+    paddingRight: 16,
+  },
+  quickActionItem: {
+    width: 90,
+    height: 72,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    paddingHorizontal: 4,
+  },
+  quickActionIconBox: {
+    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
   },

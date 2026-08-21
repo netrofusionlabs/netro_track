@@ -1,0 +1,362 @@
+<div class="page">
+  <netro-page-header
+    title="Organization"
+    [description]="canManageWorkforce() ? 'View company reporting hierarchy, team structures, and supervisor assignments.' : 'Explore your company reporting structure, colleagues, and team hierarchy.'"
+  >
+    <div slot="actions" class="row row--nowrap" *ngIf="canManageWorkforce()">
+      <button type="button" class="btn btn--default btn--sm" [disabled]="refreshing()" (click)="load(true)">
+        <netro-icon name="refresh" [size]="13" [spin]="refreshing()" /> Refresh chart
+      </button>
+      <a class="btn btn--default btn--sm" routerLink="/people">
+        <netro-icon name="people" [size]="13" /> Directory
+      </a>
+    </div>
+  </netro-page-header>
+
+  <section class="metrics" *ngIf="canManageWorkforce()">
+    <netro-metric
+      label="Organization leads"
+      [value]="roots().length"
+      caption="Primary company leaders and executives"
+      icon="hierarchy"
+    />
+    <netro-metric
+      label="Loaded members"
+      [value]="headcount()"
+      caption="Total members currently visible"
+      icon="people"
+    />
+    <netro-metric
+      label="Unassigned employees"
+      [value]="unassigned().length"
+      [tone]="unassigned().length ? 'attention' : 'neutral'"
+      caption="Awaiting supervisor assignment"
+      icon="alert"
+    />
+    <netro-metric
+      label="Active managers"
+      [value]="managers().length"
+      caption="Team leaders with direct reports"
+      icon="shield"
+    />
+  </section>
+
+  <div class="org-layout" [class.org-layout--single]="!canManageWorkforce()">
+    <netro-panel
+      heading="Reporting structure"
+      description="Select any manager or team member to view their direct reports and team structure."
+      [flush]="true"
+      padding="none"
+    >
+      <netro-toolbar
+        [search]="search()"
+        searchPlaceholder="Search people by name, ID, or role"
+        searchLabel="Search organization members"
+        (searchChange)="onSearch($event)"
+      >
+        <span slot="actions" class="text-micro text-subtle" *ngIf="matches()">
+          {{ matches()!.length }} {{ matches()!.length === 1 ? 'match' : 'matches' }}
+          <button type="button" class="btn btn--subtle btn--sm" (click)="clearSearch()">Back to chart</button>
+        </span>
+      </netro-toolbar>
+
+      @if (loading()) {
+        <div class="org-skeleton">
+          @for (i of [0, 1, 2, 3, 4, 5]; track i) {
+            <netro-skeleton variant="line" [width]="i % 2 ? '58%' : '72%'" />
+          }
+        </div>
+      } @else if (error()) {
+        <netro-state icon="x-circle" tone="risk" title="Could not load the chart" [body]="error()">
+          <button type="button" class="btn btn--default" (click)="load()">Try again</button>
+        </netro-state>
+      } @else if (matches()) {
+        @if (searching()) {
+          <div class="org-skeleton">
+            @for (i of [0, 1, 2]; track i) {
+              <netro-skeleton variant="line" width="60%" />
+            }
+          </div>
+        } @else if (!matches()!.length) {
+          <netro-state
+            icon="search"
+            title="No one matches that search"
+            body="Search by name, employee ID, email or job title."
+          />
+        } @else {
+          <ul class="org-list">
+            @for (node of matches()!; track node.id) {
+              <li class="org-row">
+                <span class="org-row__spacer"></span>
+                <netro-avatar [name]="node.name" [seed]="node.id" size="sm" />
+                <span class="org-row__body">
+                  <span class="org-row__name">{{ node.name }}</span>
+                  <span class="org-row__meta">
+                    {{ node.designationName || label(node.role) }}
+                    <ng-container *ngIf="node.managerName"> · reports to {{ node.managerName }}</ng-container>
+                  </span>
+                </span>
+                <netro-badge [tone]="node.status === 'INACTIVE' ? 'risk' : 'neutral'">
+                  {{ node.status === 'INACTIVE' ? 'Deactivated' : label(node.role) }}
+                </netro-badge>
+                <span class="org-row__count" *ngIf="node.subordinatesCount">
+                  {{ node.subordinatesCount }} reports
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      } @else if (!rows().length) {
+        <netro-state
+          icon="hierarchy"
+          title="No reporting structure yet"
+          body="Once people have supervisors assigned, the hierarchy appears here."
+        />
+      } @else {
+        <ul class="org-list" role="tree" aria-label="Reporting structure">
+          @for (row of rows(); track row.node.id) {
+            <li
+              class="org-row"
+              role="treeitem"
+              [attr.aria-level]="row.depth + 1"
+              [attr.aria-expanded]="row.node.subordinatesCount ? row.expanded : null"
+              [ngClass]="{ 'org-row--inactive': row.node.status === 'INACTIVE' }"
+            >
+              <span class="org-row__rails" [style.width.px]="indent(row.depth)"></span>
+
+              <button
+                *ngIf="row.node.subordinatesCount; else leaf"
+                type="button"
+                class="org-row__toggle"
+                [attr.aria-label]="(row.expanded ? 'Collapse ' : 'Expand ') + row.node.name + '\'s team'"
+                (click)="toggle(row.node)"
+              >
+                <netro-icon
+                  [name]="row.loading ? 'spinner' : row.expanded ? 'chevron-down' : 'chevron-right'"
+                  [size]="13"
+                  [spin]="row.loading"
+                />
+              </button>
+              <ng-template #leaf><span class="org-row__spacer"></span></ng-template>
+
+              <netro-avatar
+                [name]="row.node.name"
+                [seed]="row.node.id"
+                [size]="row.depth === 0 ? 'md' : 'sm'"
+              />
+
+              <span class="org-row__body">
+                <span class="org-row__name">{{ row.node.name }}</span>
+                <span class="org-row__meta">
+                  {{ row.node.designationName || label(row.node.role) }}
+                  <ng-container *ngIf="row.node.employeeId"> · {{ row.node.employeeId }}</ng-container>
+                </span>
+              </span>
+
+              <netro-badge *ngIf="row.node.status === 'INACTIVE'" tone="risk" [dot]="true">Deactivated</netro-badge>
+              <netro-badge *ngIf="row.node.status !== 'INACTIVE'">{{ label(row.node.role) }}</netro-badge>
+
+              <span class="org-row__count" *ngIf="row.node.subordinatesCount">
+                {{ row.node.subordinatesCount }} {{ row.node.subordinatesCount === 1 ? 'report' : 'reports' }}
+              </span>
+
+              <span class="row-actions org-row__actions">
+                <button
+                  type="button"
+                  class="btn btn--subtle btn--sm"
+                  *ngIf="canRemove(row.node)"
+                  (click)="startRemoval(row.node)"
+                >
+                  Replace
+                </button>
+              </span>
+            </li>
+          }
+        </ul>
+      }
+    </netro-panel>
+
+    <netro-panel
+      *ngIf="canManageWorkforce()"
+      heading="Unassigned"
+      description="Employees who are not currently assigned to a reporting manager."
+      icon="alert"
+      [flush]="true"
+      padding="none"
+    >
+      @if (loading()) {
+        <div class="org-skeleton">
+          @for (i of [0, 1, 2]; track i) {
+            <netro-skeleton variant="line" width="70%" />
+          }
+        </div>
+      } @else if (!unassigned().length) {
+        <netro-state
+          [inline]="true"
+          icon="check-circle"
+          title="All team members assigned"
+          body="Every active employee in your scope is assigned to a manager."
+        />
+      } @else {
+        <ul class="unassigned">
+          @for (person of unassigned(); track person.id) {
+            <li class="unassigned__item">
+              <netro-avatar [name]="person.name" [seed]="person.id" size="sm" />
+              <span class="org-row__body">
+                <span class="org-row__name">{{ person.name }}</span>
+                <span class="org-row__meta">
+                  {{ person.designationName || person.designation?.name || label(person.role) }}
+                </span>
+              </span>
+              <a
+                class="btn btn--subtle btn--sm"
+                *ngIf="canRestructure()"
+                routerLink="/people"
+                [queryParams]="{ search: person.employeeId || person.name }"
+              >
+                Assign
+              </a>
+            </li>
+          }
+        </ul>
+      }
+    </netro-panel>
+  </div>
+</div>
+
+<!-- ==========================================================================
+     MANAGER REMOVAL — reassign the team, then withdraw access
+     ========================================================================== -->
+@if (removing(); as manager) {
+  <netro-drawer
+    eyebrow="Restructure"
+    [heading]="'Replace ' + manager.name"
+    sub="Decide where their team goes before their access is withdrawn."
+    width="wide"
+    [dismissOnScrim]="false"
+    (closed)="closeRemoval()"
+  >
+    <div class="stack stack--lg">
+      <div class="alert alert--warn" role="status">
+        <netro-icon name="alert" [size]="15" />
+        <div class="alert__body">
+          <strong>This deactivates {{ manager.name }}</strong>
+          Their team is reassigned first so nobody is left without an approver. Attendance, visits and orders
+          they already recorded are kept.
+        </div>
+      </div>
+
+      <fieldset class="fieldset">
+        <div class="fieldset__head">
+          <h3 class="fieldset__title">Where does the team go?</h3>
+          <p class="fieldset__desc">
+            {{ removalTeam().length || manager.subordinatesCount }} people currently report to
+            {{ manager.name }}.
+          </p>
+        </div>
+
+        <div class="stack stack--sm">
+          <label class="check">
+            <input
+              type="radio"
+              name="strategy"
+              [checked]="strategy() === 'move-to-manager'"
+              (change)="setStrategy('move-to-manager')"
+            />
+            <span class="check__text">
+              Move the whole team to one manager
+              <small>The simplest handover, and the usual choice.</small>
+            </span>
+          </label>
+
+          <label class="field" style="margin-left: 30px" *ngIf="strategy() === 'move-to-manager'">
+            <span class="field__label">Replacement manager <span class="field__req">*</span></span>
+            <select
+              class="select"
+              [value]="targetManagerId()"
+              (change)="setTargetManager($any($event.target).value)"
+            >
+              <option value="">Choose a manager…</option>
+              <option *ngFor="let m of replacementOptions()" [value]="m.id">
+                {{ m.name }}<ng-container *ngIf="m.employeeId"> · {{ m.employeeId }}</ng-container>
+              </option>
+            </select>
+            <span class="field__hint">Only active managers in this company can take on a team.</span>
+          </label>
+
+          <label class="check">
+            <input
+              type="radio"
+              name="strategy"
+              [checked]="strategy() === 'individual'"
+              (change)="setStrategy('individual')"
+            />
+            <span class="check__text">
+              Choose a manager for each person
+              <small>Use this when the team is being split between several managers.</small>
+            </span>
+          </label>
+
+          <label class="check">
+            <input
+              type="radio"
+              name="strategy"
+              [checked]="strategy() === 'move-to-unassigned'"
+              (change)="setStrategy('move-to-unassigned')"
+            />
+            <span class="check__text">
+              Leave the team unassigned for now
+              <small>
+                They keep working, but their requests will have no approver until you assign a supervisor.
+              </small>
+            </span>
+          </label>
+        </div>
+      </fieldset>
+
+      @if (strategy() === 'individual' && removalTeam().length) {
+        <fieldset class="fieldset">
+          <div class="fieldset__head">
+            <h3 class="fieldset__title">Individual assignments</h3>
+            <p class="fieldset__desc">Anyone left blank becomes unassigned.</p>
+          </div>
+
+          <ul class="assign-list">
+            @for (member of removalTeam(); track member.id) {
+              <li class="assign-list__item">
+                <netro-avatar [name]="member.name" [seed]="member.id" size="sm" />
+                <span class="org-row__body">
+                  <span class="org-row__name">{{ member.name }}</span>
+                  <span class="org-row__meta">{{ member.designationName || label(member.role) }}</span>
+                </span>
+                <select
+                  class="select select--sm"
+                  [attr.aria-label]="'New manager for ' + member.name"
+                  [value]="individualFor(member.id)"
+                  (change)="assignIndividual(member.id, $any($event.target).value)"
+                >
+                  <option value="">Unassigned</option>
+                  <option *ngFor="let m of replacementOptions()" [value]="m.id">{{ m.name }}</option>
+                </select>
+              </li>
+            }
+          </ul>
+        </fieldset>
+      }
+    </div>
+
+    <div slot="footer" style="display: contents">
+      <button type="button" class="btn btn--subtle" (click)="closeRemoval()">Cancel</button>
+      <span class="spacer"></span>
+      <button
+        type="button"
+        class="btn btn--danger"
+        [disabled]="!removalValid() || submitting()"
+        (click)="submitRemoval()"
+      >
+        <netro-icon [name]="submitting() ? 'spinner' : 'check'" [size]="14" [spin]="submitting()" />
+        Reassign and deactivate
+      </button>
+    </div>
+  </netro-drawer>
+}

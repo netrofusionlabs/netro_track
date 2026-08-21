@@ -8,6 +8,7 @@ export const UPLOAD_PURPOSES = [
   'employees',
   'products',
   'companies',
+  'attendance',
 ] as const;
 
 export type UploadPurpose = (typeof UPLOAD_PURPOSES)[number];

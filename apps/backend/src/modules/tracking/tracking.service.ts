@@ -46,6 +46,15 @@ export class TrackingService {
       throw new AppError('BATCH_TOO_LARGE', 'GPS batch cannot exceed 500 points per request', 400);
     }
 
+    // Guard: reject sync for users who have GPS tracking disabled
+    const userRecord = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isGpsTracked: true },
+    });
+    if (userRecord?.isGpsTracked === false) {
+      throw new AppError('GPS_TRACKING_DISABLED', 'GPS tracking is not enabled for this user', 403);
+    }
+
     // Collect candidate attendance IDs from client points to validate against DB
     const candidateAttIds = Array.from(
       new Set(points.map((p) => p.attendanceId).filter(Boolean) as string[])

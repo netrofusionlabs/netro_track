@@ -1,0 +1,350 @@
+<div class="page">
+  <netro-page-header
+    title="Settings"
+    description="Manage your interface appearance, company preferences, and account security."
+  >
+    <netro-tabs [tabs]="tabs()" [value]="section()" label="Settings sections" (valueChange)="select($event)" />
+  </netro-page-header>
+
+  <!-- ======================================================================
+       APPEARANCE — affects this browser only
+       ====================================================================== -->
+  @if (section() === 'appearance') {
+    <netro-panel
+      heading="Theme"
+      description="Choose your preferred display theme for NetroTrack."
+    >
+      <div class="choice-grid" role="radiogroup" aria-label="Theme">
+        @for (option of themeOptions; track option.value) {
+          <button
+            type="button"
+            class="choice"
+            role="radio"
+            [class.is-selected]="theme.choice() === option.value"
+            [attr.aria-checked]="theme.choice() === option.value"
+            (click)="theme.set(option.value)"
+          >
+            <span class="choice__icon"><netro-icon [name]="option.icon" [size]="16" /></span>
+            <span class="choice__body">
+              <span class="choice__label">
+                {{ option.label }}
+                <netro-badge *ngIf="option.value === 'system'" [plain]="true">
+                  now {{ theme.resolved() }}
+                </netro-badge>
+              </span>
+              <span class="choice__hint">{{ option.hint }}</span>
+            </span>
+            <netro-icon *ngIf="theme.choice() === option.value" name="check-circle" [size]="16" />
+          </button>
+        }
+      </div>
+    </netro-panel>
+
+    <netro-panel
+      heading="Motion & Accessibility"
+      description="Configure UI animations and system reduced-motion support."
+    >
+      <p class="text-small text-subtle" style="line-height: 1.6">
+        If you have reduced motion switched on in your operating system, transitions and the live status
+        pulse are disabled across the product. Status is always communicated with a label as well as a
+        colour, so nothing depends on movement or hue alone.
+      </p>
+    </netro-panel>
+  }
+
+  <!-- ======================================================================
+       ORGANISATION
+       ====================================================================== -->
+  @if (section() === 'organisation') {
+    @if (loading()) {
+      <netro-panel heading="Organisation profile">
+        <div class="stack">
+          <netro-skeleton variant="title" width="40%" />
+          <netro-skeleton variant="line" width="80%" />
+          <netro-skeleton variant="line" width="65%" />
+          <netro-skeleton variant="block" height="120px" />
+        </div>
+      </netro-panel>
+    } @else if (error()) {
+      <netro-panel>
+        <netro-state icon="x-circle" tone="risk" title="Could not load your organisation" [body]="error()">
+          <button type="button" class="btn btn--default" (click)="loadCompany()">Try again</button>
+        </netro-state>
+      </netro-panel>
+    } @else if (company()) {
+      <netro-panel
+        heading="Organisation profile"
+        [description]="
+          canAdminister()
+            ? 'Used on documents, reports and the sign-in experience for everyone in this company.'
+            : 'Read-only. A company administrator can change these details.'
+        "
+        [hasFooter]="canAdminister()"
+      >
+        <div slot="actions" class="row row--nowrap">
+          <netro-badge [plain]="true">Code {{ company()?.code }}</netro-badge>
+          <netro-badge *ngIf="headcount() !== null" [plain]="true">{{ headcount() }} people</netro-badge>
+        </div>
+
+        <form [formGroup]="form" class="stack stack--lg" (ngSubmit)="saveProfile()">
+          <fieldset class="fieldset">
+            <div class="fieldset__head">
+              <h3 class="fieldset__title">Identity</h3>
+              <p class="fieldset__desc">How this organisation is named and reached.</p>
+            </div>
+
+            <div class="form-grid">
+              <label class="field">
+                <span class="field__label">Display name <span class="field__req">*</span></span>
+                <input class="input" formControlName="name" [attr.aria-invalid]="!!errorFor('name')" />
+                <span class="field__error" *ngIf="errorFor('name')">
+                  <netro-icon name="alert" [size]="12" /> {{ errorFor('name') }}
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="field__label">Registered legal name</span>
+                <input class="input" formControlName="legalName" />
+              </label>
+
+              <label class="field">
+                <span class="field__label">Official email</span>
+                <input class="input" type="email" formControlName="officialEmail" />
+                <span class="field__error" *ngIf="errorFor('officialEmail')">
+                  <netro-icon name="alert" [size]="12" /> {{ errorFor('officialEmail') }}
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="field__label">Phone</span>
+                <input class="input" formControlName="phone" />
+              </label>
+
+              <label class="field">
+                <span class="field__label">Website</span>
+                <input class="input" formControlName="website" placeholder="https://" />
+                <span class="field__error" *ngIf="errorFor('website')">
+                  <netro-icon name="alert" [size]="12" /> {{ errorFor('website') }}
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="field__label">Industry</span>
+                <input class="input" formControlName="industry" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="fieldset">
+            <div class="fieldset__head">
+              <h3 class="fieldset__title">Registered address</h3>
+              <p class="fieldset__desc">Appears on exported reports and order documents.</p>
+            </div>
+
+            <div class="form-grid">
+              <label class="field span-2">
+                <span class="field__label">Address</span>
+                <input class="input" formControlName="addressLine1" placeholder="Street address" />
+              </label>
+              <label class="field span-2">
+                <span class="sr-only">Address line two</span>
+                <input class="input" formControlName="addressLine2" placeholder="Suite, floor, landmark" />
+              </label>
+              <label class="field">
+                <span class="field__label">City</span>
+                <input class="input" formControlName="city" />
+              </label>
+              <label class="field">
+                <span class="field__label">State</span>
+                <input class="input" formControlName="state" />
+              </label>
+              <label class="field">
+                <span class="field__label">Postcode</span>
+                <input class="input" formControlName="zipCode" />
+              </label>
+              <label class="field">
+                <span class="field__label">Country</span>
+                <input class="input" formControlName="country" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="fieldset">
+            <div class="fieldset__head">
+              <h3 class="fieldset__title">Locale</h3>
+              <p class="fieldset__desc">
+                The time zone decides which calendar day a punch belongs to. Changing it affects how
+                attendance is grouped from here on.
+              </p>
+            </div>
+
+            <div class="form-grid">
+              <label class="field">
+                <span class="field__label">Time zone</span>
+                <select class="select" formControlName="timezone">
+                  <option *ngFor="let tz of timezones" [value]="tz">{{ tz }}</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field__label">Currency</span>
+                <select class="select" formControlName="currency">
+                  <option *ngFor="let c of currencies" [value]="c">{{ c }}</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="fieldset">
+            <div class="fieldset__head">
+              <h3 class="fieldset__title">Registration</h3>
+              <p class="fieldset__desc">Optional statutory identifiers.</p>
+            </div>
+
+            <div class="form-grid">
+              <label class="field">
+                <span class="field__label">Tax ID</span>
+                <input class="input" formControlName="taxId" />
+              </label>
+              <label class="field">
+                <span class="field__label">Registration number</span>
+                <input class="input" formControlName="registrationNumber" />
+              </label>
+            </div>
+          </fieldset>
+        </form>
+
+        <div slot="footer" style="display: contents">
+          <span class="text-small text-subtle" *ngIf="form.dirty">You have unsaved changes.</span>
+          <span class="spacer"></span>
+          <button type="button" class="btn btn--default" [disabled]="!form.dirty" (click)="loadCompany()">
+            Discard
+          </button>
+          <button
+            type="button"
+            class="btn btn--primary"
+            [disabled]="savingProfile() || !form.dirty"
+            (click)="saveProfile()"
+          >
+            <netro-icon [name]="savingProfile() ? 'spinner' : 'check'" [size]="14" [spin]="savingProfile()" />
+            Save changes
+          </button>
+        </div>
+      </netro-panel>
+    }
+  }
+
+  <!-- ======================================================================
+       CAPABILITIES
+       ====================================================================== -->
+  @if (section() === 'capabilities') {
+    <netro-panel
+      heading="Capabilities"
+      [description]="
+        canAdminister()
+          ? 'Switching a capability off hides it for everyone in this organisation and stops the mobile app collecting that data.'
+          : 'What is switched on for your organisation. A company administrator can change this.'
+      "
+      [flush]="true"
+      padding="none"
+    >
+      @if (loading()) {
+        <div class="stack" style="padding: var(--s-4)">
+          <netro-skeleton variant="line" width="70%" />
+          <netro-skeleton variant="line" width="55%" />
+        </div>
+      } @else if (company()) {
+        <ul class="module-list">
+          @for (module of modules; track module.key) {
+            <li class="module">
+              <span class="module__icon"><netro-icon [name]="module.icon" [size]="16" /></span>
+              <span class="module__body">
+                <span class="module__name">{{ module.name }}</span>
+                <span class="module__desc">{{ module.description }}</span>
+              </span>
+
+              @if (canAdminister()) {
+                <label class="switch">
+                  <span class="sr-only">Enable {{ module.name }}</span>
+                  <input
+                    type="checkbox"
+                    [checked]="enabled(module.key)"
+                    [disabled]="savingModule() === module.key"
+                    (change)="toggleModule(module.key, checked($event))"
+                  />
+                  <span class="switch__track"><span class="switch__thumb"></span></span>
+                </label>
+              } @else {
+                <netro-badge [tone]="enabled(module.key) ? 'ok' : 'neutral'" [dot]="true">
+                  {{ enabled(module.key) ? 'On' : 'Off' }}
+                </netro-badge>
+              }
+            </li>
+          }
+        </ul>
+
+        <div class="module-note">
+          <netro-icon name="info" [size]="14" />
+          <p>
+            Leave, shift, payroll, expense, asset, performance and recruitment are part of the NetroTrack
+            roadmap and are not available in this release. They are not shown here because switching them on
+            would have no effect.
+          </p>
+        </div>
+      } @else {
+        <netro-state
+          icon="building"
+          title="No organisation on this account"
+          body="Platform accounts are not scoped to a single company."
+        />
+      }
+    </netro-panel>
+  }
+
+  <!-- ======================================================================
+       ACCOUNT
+       ====================================================================== -->
+  @if (section() === 'account') {
+    <netro-panel
+      heading="Your account"
+      description="View your personal details, role, and security settings."
+      [hasFooter]="true"
+    >
+      <dl class="defs">
+        <div class="defs__row">
+          <dt class="defs__key">Signed in as</dt>
+          <dd class="defs__val">{{ user()?.name }}</dd>
+        </div>
+        <div class="defs__row">
+          <dt class="defs__key">Employee ID</dt>
+          <dd class="defs__val mono">{{ user()?.employeeId || '—' }}</dd>
+        </div>
+        <div class="defs__row">
+          <dt class="defs__key">Role</dt>
+          <dd class="defs__val">{{ user()?.role }}</dd>
+        </div>
+        <div class="defs__row" *ngIf="user()?.company">
+          <dt class="defs__key">Organisation</dt>
+          <dd class="defs__val">{{ user()?.company?.name }}</dd>
+        </div>
+      </dl>
+
+      <div slot="footer" style="display: contents">
+        <span class="spacer"></span>
+        <a class="btn btn--primary" routerLink="/profile">
+          <netro-icon name="user" [size]="14" /> Open my profile
+        </a>
+      </div>
+    </netro-panel>
+
+    <netro-panel
+      heading="Security & Sessions"
+      description="Your active login sessions and authentication status."
+    >
+      <p class="text-small text-subtle" style="line-height: 1.6">
+        Signing out clears the token from this browser immediately. If you think your account has been used
+        by someone else, sign out and ask an administrator to reset your credentials — that invalidates the
+        password and MPIN used by the mobile app as well.
+      </p>
+    </netro-panel>
+  }
+</div>

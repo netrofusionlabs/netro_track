@@ -17,6 +17,12 @@ import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { syncNow as syncGps } from '../services/trackingService';
 import { getQueue, removeFromQueue } from './offlineQueue';
 import { api } from '../services/api';
+import { useAuthStore } from '../../features/auth/stores/authStore';
+
+/** Returns true only when the logged-in user has GPS tracking enabled. */
+function isGpsTrackingEnabled(): boolean {
+  return useAuthStore.getState().user?.isGpsTracked !== false;
+}
 
 
 
@@ -25,7 +31,7 @@ import { api } from '../services/api';
 type ActionNamespace = 'visits' | 'sales' | 'inspections' | 'attendance';
 
 interface ActionHandler {
-  endpoint: string;
+  endpoint: string | ((payload: any, type?: string) => string);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   buildPayload: (payload: any) => unknown;
 }
@@ -46,12 +52,63 @@ const ACTION_HANDLERS: Record<ActionNamespace, ActionHandler> = {
     buildPayload: (p) => p,
   },
   attendance: {
-    endpoint: '/attendance',
+    endpoint: (p: any, type?: string) => {
+      if (type === 'PUNCH_IN') return '/attendance/punch-in';
+      if (type === 'PUNCH_OUT') return '/attendance/punch-out';
+      return '/attendance/regularization';
+    },
     buildPayload: (p) => p,
   },
 };
 
 // ─── Queue Flusher ────────────────────────────────────────────────────────────
+
+async function uploadLocalFile(uri: string, userId: string): Promise<{ publicUrl: string; fileKey: string }> {
+  // 1. Request presigned upload URL
+  const res = await api.post('/uploads/presigned-url', {
+    purpose: 'attendance',
+    contentType: 'image/jpeg',
+    entityId: userId,
+  });
+  const { uploadUrl, publicUrl, fileKey } = res.data.data;
+
+  // 2. Resolve URI to a local Blob in React Native
+  const localResponse = await fetch(uri);
+  const blob = await localResponse.blob();
+
+  // 3. Upload file to Cloudflare R2
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', uploadUrl);
+    xhr.setRequestHeader('Content-Type', 'image/jpeg');
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Upload failed with status ${xhr.status}`));
+    };
+    xhr.onerror = () => reject(new Error('Network request failed'));
+    xhr.send(blob);
+  });
+
+  return { publicUrl, fileKey };
+}
+
+async function uploadPayloadPhotos(evidence: Record<string, unknown>, userId: string): Promise<Record<string, unknown>> {
+  const updatedEvidence = { ...evidence };
+  for (const [key, value] of Object.entries(updatedEvidence)) {
+    if (typeof value === 'string' && (value.startsWith('file://') || value.startsWith('/') || value.startsWith('content://'))) {
+      try {
+        console.info(`[syncEngine] Uploading local photo for ${key}: ${value}`);
+        const { publicUrl } = await uploadLocalFile(value, userId);
+        updatedEvidence[key] = publicUrl;
+        console.info(`[syncEngine] Uploaded local photo for ${key}. URL: ${publicUrl}`);
+      } catch (err) {
+        console.warn(`[syncEngine] Failed to upload local photo for ${key}:`, err);
+        throw err;
+      }
+    }
+  }
+  return updatedEvidence;
+}
 
 let isFlushing = false;
 
@@ -61,7 +118,20 @@ async function flushQueue(namespace: ActionNamespace): Promise<void> {
 
   for (const item of queue) {
     try {
-      await api.post(handler.endpoint, handler.buildPayload(item.payload));
+      let payload = item.payload;
+      if (payload && typeof payload === 'object' && 'evidence' in payload && payload.evidence) {
+        const userId = useAuthStore.getState().user?.id || 'anonymous';
+        const uploadedEvidence = await uploadPayloadPhotos(payload.evidence as Record<string, unknown>, userId);
+        payload = {
+          ...payload,
+          evidence: uploadedEvidence
+        };
+      }
+
+      const endpoint = typeof handler.endpoint === 'function'
+        ? handler.endpoint(payload, item.type)
+        : handler.endpoint;
+      await api.post(endpoint, handler.buildPayload(payload));
       removeFromQueue(namespace, item.localId);
       console.info(`[syncEngine] Synced ${namespace} action`, { localId: item.localId });
     } catch (error) {
@@ -77,9 +147,9 @@ export async function flushAllQueues(): Promise<void> {
   isFlushing = true;
 
   try {
-    // Parallel flush all namespaces and GPS buffer
+    // Parallel flush all namespaces; only sync GPS if tracking is enabled for this user
     await Promise.allSettled([
-      syncGps(),
+      isGpsTrackingEnabled() ? syncGps() : Promise.resolve(),
       flushQueue('attendance'),
       flushQueue('visits'),
       flushQueue('sales'),

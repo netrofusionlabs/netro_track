@@ -12,3 +12,5 @@ export * from './schemas/dashboard.validator';
 export * from './schemas/report.validator';
 export * from './schemas/user-management.validator';
 export * from './schemas/company.validator';
+export * from './schemas/attendance-policy.validator';
+export * from './schemas/policy.validator';

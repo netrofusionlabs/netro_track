@@ -20,4 +20,10 @@ router.get('/summary', controller.getSummary);
 router.get('/team', requireRoles(Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.getTeam);
 router.get('/company', requireRoles(Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.getCompany);
 
+// Regularization Routes
+router.get('/regularization', controller.getRegularizations);
+router.post('/regularization', controller.requestRegularization);
+router.post('/regularization/bulk-review', requireRoles(Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.bulkReviewRegularizations);
+router.post('/regularization/:id/review', requireRoles(Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.reviewRegularization);
+
 export { router as attendanceRouter };

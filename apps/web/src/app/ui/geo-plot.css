@@ -1,0 +1,190 @@
+:host {
+  display: block;
+}
+
+.plot {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  min-height: 280px;
+  background: var(--surface-sunken);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.plot--empty {
+  display: grid;
+  place-items: center;
+}
+
+.plot__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--fg-faint);
+  font: var(--t-small);
+  text-align: center;
+  padding: var(--s-5);
+}
+
+.plot__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.plot__grid {
+  color: var(--line-subtle);
+}
+
+.plot__track {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.45;
+}
+
+/* A pin is a dot plus a name. Names sit to the right and only appear on hover
+   for the crowd, so a dense cluster stays readable. */
+.pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.pin__dot {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  background: var(--n-400);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.28);
+  transition: transform var(--dur-1) var(--ease);
+}
+
+.pin__label {
+  font: var(--t-micro);
+  font-weight: 500;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 1px 5px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+  pointer-events: none;
+}
+
+.pin:hover,
+.pin:focus-visible {
+  z-index: 3;
+}
+
+.pin:hover .pin__label,
+.pin:focus-visible .pin__label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.pin:hover .pin__dot,
+.pin:focus-visible .pin__dot {
+  transform: scale(1.25);
+}
+
+.pin:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--r-sm);
+}
+
+.pin--active .pin__dot {
+  background: var(--ok-solid);
+}
+
+.pin--stale .pin__dot {
+  background: var(--warn-solid);
+}
+
+.pin--idle .pin__dot {
+  background: var(--n-300);
+}
+
+.pin--focus {
+  z-index: 2;
+}
+
+.pin--focus .pin__dot {
+  background: var(--accent);
+  width: 14px;
+  height: 14px;
+}
+
+.pin--focus .pin__label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.plot__scale {
+  position: absolute;
+  left: var(--s-3);
+  bottom: var(--s-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 4;
+}
+
+.plot__scale-bar {
+  display: block;
+  width: 22%;
+  min-width: 44px;
+  height: 5px;
+  border: 1px solid var(--fg-faint);
+  border-top: 0;
+}
+
+.plot__scale-text {
+  font: var(--t-micro);
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.plot__note {
+  position: absolute;
+  right: var(--s-3);
+  bottom: var(--s-3);
+  max-width: 46%;
+  text-align: right;
+  font: var(--t-micro);
+  color: var(--fg-faint);
+  line-height: 1.4;
+  z-index: 4;
+}
+
+@media (max-width: 640px) {
+  .plot__note {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin__dot,
+  .pin__label {
+    transition: none;
+  }
+}

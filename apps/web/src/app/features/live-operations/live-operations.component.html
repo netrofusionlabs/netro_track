@@ -1,0 +1,251 @@
+<div class="page page--full">
+  <netro-page-header
+    title="Live Operations"
+    description="Where the field is right now, and what that position means: the shift behind it, the activity out of it, and who has gone quiet."
+  >
+    <div slot="actions" class="row row--nowrap">
+      <span class="text-micro text-subtle">
+        Updated {{ refreshedAt() }} · refreshes every minute
+      </span>
+      <button type="button" class="btn btn--default btn--sm" [disabled]="refreshing()" (click)="load(true)">
+        <netro-icon name="refresh" [size]="13" [spin]="refreshing()" /> Refresh
+      </button>
+    </div>
+  </netro-page-header>
+
+  @if (loading()) {
+    <netro-panel>
+      <div class="stack">
+        <netro-skeleton variant="title" width="30%" />
+        <netro-skeleton variant="block" height="320px" />
+      </div>
+    </netro-panel>
+  } @else if (error()) {
+    <netro-panel>
+      <netro-state icon="x-circle" tone="risk" title="Could not load live operations" [body]="error()">
+        <button type="button" class="btn btn--default" (click)="load()">Try again</button>
+      </netro-state>
+    </netro-panel>
+  } @else {
+    <section class="metrics">
+      <netro-metric
+        label="Reporting position"
+        [value]="counts().moving"
+        icon="radar"
+        caption="On shift and sending fixes"
+      />
+      <netro-metric
+        label="Gone quiet"
+        [value]="counts().stale"
+        icon="alert"
+        [tone]="counts().stale ? 'attention' : 'neutral'"
+        caption="On shift, no fix in 15 minutes"
+      />
+      <netro-metric
+        label="Off shift"
+        [value]="counts().offShift"
+        icon="clock"
+        caption="Position seen, but no open punch"
+      />
+      <netro-metric
+        label="Field activity today"
+        [value]="visits().length + sales().length + inspections().length"
+        icon="pulse"
+        [caption]="visits().length + ' visits · ' + sales().length + ' orders'"
+      />
+    </section>
+
+    @if (quiet().length) {
+      <div class="alert alert--warn" role="status">
+        <netro-icon name="alert" [size]="15" />
+        <div class="alert__body">
+          <strong>
+            {{ quiet().length }} {{ quiet().length === 1 ? 'person is' : 'people are' }} on shift but not
+            reporting
+          </strong>
+          <span class="quiet-names">
+            @for (row of quiet(); track row.userId) {
+              <button type="button" class="linkish" (click)="focus(row.userId)">{{ row.name }}</button>
+            }
+          </span>
+        </div>
+      </div>
+    }
+
+    <div class="live-layout">
+      <netro-panel
+        heading="Position"
+        [description]="markers().length + ' of ' + rows().length + ' people plotted'"
+        [flush]="true"
+        padding="none"
+      >
+        <div slot="actions">
+          <netro-segmented
+            [options]="filters"
+            [value]="filter()"
+            label="Filter the board"
+            [small]="true"
+            (valueChange)="setFilter($event)"
+          />
+        </div>
+
+        <netro-geo-plot
+          [markers]="markers()"
+          [tracks]="tracks()"
+          [emptyLabel]="plotEmpty()"
+          (selected)="focus($event)"
+        />
+      </netro-panel>
+
+      <netro-panel heading="Workforce" [flush]="true" padding="none">
+        @if (!visible().length) {
+          <netro-state
+            [inline]="true"
+            icon="people"
+            title="Nobody in this view"
+            body="Change the filter to see the rest of the board."
+          />
+        } @else {
+          <ul class="board">
+            @for (row of visible(); track row.userId) {
+              <li
+                class="board__row"
+                [ngClass]="{ 'is-focused': focused() === row.userId }"
+                tabindex="0"
+                (click)="focus(row.userId)"
+                (keydown.enter)="focus(row.userId)"
+              >
+                <netro-avatar
+                  [name]="row.name"
+                  [seed]="row.userId"
+                  size="sm"
+                  [presence]="row.presence === 'moving' ? 'on' : row.presence === 'stale' ? 'warn' : 'none'"
+                />
+                <span class="board__body">
+                  <span class="board__name">{{ row.name }}</span>
+                  <netro-status
+                    [tone]="presenceTone(row)"
+                    [live]="row.presence === 'moving'"
+                  >
+                    {{ presenceDetail(row) }}
+                  </netro-status>
+                </span>
+                <span class="board__aside">
+                  <span class="board__distance" *ngIf="distance(row)">{{ distance(row) }}</span>
+                  <netro-badge
+                    *ngIf="battery(row) !== null && battery(row)! <= 30"
+                    [tone]="batteryTone(battery(row))"
+                  >
+                    {{ battery(row) }}% battery
+                  </netro-badge>
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </netro-panel>
+    </div>
+
+    <netro-panel
+      heading="Field activity"
+      description="Visits, orders and inspections recorded today, newest first."
+      icon="pulse"
+    >
+      <netro-activity-feed
+        [entries]="activity()"
+        emptyText="No visits, orders or inspections recorded yet today."
+      />
+    </netro-panel>
+  }
+</div>
+
+<!-- ==========================================================================
+     PERSON DETAIL — position, shift and today's route
+     ========================================================================== -->
+@if (focusedRow(); as row) {
+  <netro-drawer
+    eyebrow="Field position"
+    [heading]="row.name"
+    [sub]="presenceDetail(row)"
+    [hasFooter]="!!mapUrl(row)"
+    (closed)="clearFocus()"
+  >
+    <div class="stack stack--lg">
+      <section class="ws-now">
+        <netro-status [tone]="presenceTone(row)" [live]="row.presence === 'moving'">
+          {{ presenceLabel(row) }}
+        </netro-status>
+        <netro-badge *ngIf="battery(row) !== null" [tone]="batteryTone(battery(row))">
+          {{ battery(row) }}% battery
+        </netro-badge>
+      </section>
+
+      <p class="text-small text-subtle" *ngIf="shiftSummary(row)">{{ shiftSummary(row) }}</p>
+      <p class="text-small text-subtle" *ngIf="!row.shift">
+        No open shift. A position without a punch usually means the app is running in the background after
+        someone forgot to punch out.
+      </p>
+
+      <dl class="defs">
+        <div class="defs__row">
+          <dt class="defs__key">Last fix</dt>
+          <dd class="defs__val">
+            {{ row.lastSeen ? ago(row.lastSeen) : 'Never' }}
+          </dd>
+        </div>
+        <div class="defs__row">
+          <dt class="defs__key">Coordinates</dt>
+          <dd class="defs__val mono">{{ coords(row) }}</dd>
+        </div>
+        <div class="defs__row">
+          <dt class="defs__key">Reported accuracy</dt>
+          <dd class="defs__val">{{ accuracy(row) }}</dd>
+        </div>
+        <div class="defs__row" *ngIf="distance(row)">
+          <dt class="defs__key">Distance travelled</dt>
+          <dd class="defs__val">{{ distance(row) }}</dd>
+        </div>
+      </dl>
+
+      <section>
+        <p class="eyebrow" style="margin-bottom: 8px">Today's route</p>
+        @if (routeLoading()) {
+          <netro-skeleton variant="block" height="80px" />
+        } @else if (route()?.points?.length) {
+          <div class="route-facts">
+            <div class="ws-fact">
+              <span class="ws-fact__label">Distance</span>
+              <span class="ws-fact__value tnum">{{ routeDistance() }}</span>
+            </div>
+            <div class="ws-fact">
+              <span class="ws-fact__label">Between</span>
+              <span class="ws-fact__value tnum">{{ routeWindow() }}</span>
+            </div>
+            <div class="ws-fact">
+              <span class="ws-fact__label">Fixes</span>
+              <span class="ws-fact__value tnum">{{ route()!.points.length }}</span>
+            </div>
+          </div>
+          <p class="text-micro text-subtle" style="margin-top: 8px">
+            The route is drawn on the position plot behind this panel.
+          </p>
+        } @else {
+          <p class="text-small text-subtle">No positions recorded for {{ row.name }} today.</p>
+        }
+      </section>
+    </div>
+
+    <div slot="footer" style="display: contents">
+      <span class="spacer"></span>
+      <a
+        class="btn btn--primary"
+        *ngIf="mapUrl(row)"
+        [href]="mapUrl(row)"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <netro-icon name="external" [size]="14" /> Open on map
+      </a>
+    </div>
+  </netro-drawer>
+}

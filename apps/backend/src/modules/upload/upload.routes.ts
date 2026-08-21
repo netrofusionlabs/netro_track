@@ -14,7 +14,7 @@
  * - Images never pass through this API as payloads (BR-IM01)
  */
 import { Router, Response, NextFunction } from 'express';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
 import { authenticateToken } from '../../shared/middlewares/auth.middleware';
@@ -89,6 +89,47 @@ router.post(
           publicUrl,
           expiresAt: Math.floor(Date.now() / 1000) + EXPIRY_SECONDS,
         },
+        meta: { timestamp: new Date().toISOString() },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ─── DELETE /api/v1/uploads/file ─────────────────────────────────────────────
+router.delete(
+  '/file',
+  authenticateToken,
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { fileKey } = req.body;
+      if (!fileKey) {
+        throw new AppError('MISSING_KEY', 'fileKey is required', 400);
+      }
+
+      const companyId = req.user!.companyId;
+      // Security Check: prevent users from deleting files outside their company folder
+      if (!fileKey.startsWith(`companies/${companyId}/`)) {
+        throw new AppError('FORBIDDEN', 'You do not have permission to delete this file', 403);
+      }
+
+      const bucket = process.env.R2_BUCKET_NAME;
+      if (!bucket) {
+        throw new AppError('R2_NOT_CONFIGURED', 'Storage bucket not configured', 503);
+      }
+
+      const client = getR2Client();
+      await client.send(
+        new DeleteObjectCommand({
+          Bucket: bucket,
+          Key: fileKey,
+        })
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'File deleted from storage',
         meta: { timestamp: new Date().toISOString() },
       });
     } catch (error) {

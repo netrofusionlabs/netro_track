@@ -22,6 +22,7 @@ import {
 import { usePermissions } from '../../../shared/hooks/usePermissions';
 import { useSupervisors, useCreateUser } from '../hooks/useUserManagement';
 import { useCompanies } from '../../companies/hooks/useCompanies';
+import { useAttendancePolicies } from '../../attendance/hooks/useAttendance';
 import { ROLE_DISPLAY_LABELS, UserRole } from '@netrotrack/shared';
 
 export function AddUserScreen({ navigation }: { navigation: any }) {
@@ -35,8 +36,10 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
 
   // Check if selected company is the platform company (NetroTrack, code 'NETRO')
   const availableRoles: UserRole[] = permissions.creatableRoles;
-  const selectedCompany = companies.find((c) => c.id === selectedCompanyId);
-  const isCompanyGpsDisabled = selectedCompany ? selectedCompany.isGpsEnabled === false : false;
+  const selectedCompany = companies.find((c) => c.id === selectedCompanyId) || (companies.length === 1 ? companies[0] : null);
+  const isCompanyGpsDisabled = selectedCompany
+    ? !selectedCompany.modules?.some((m: any) => m.module === 'GPS' && m.isEnabled)
+    : false;
 
   const isPlatformCompany = selectedCompany
     ? (selectedCompany.code === 'NETRO' || selectedCompany.name.toLowerCase().includes('netro'))
@@ -69,6 +72,9 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
   const [selectedSupervisorId, setSelectedSupervisorId] = useState<string | null>(null);
   const [isGpsTracked, setIsGpsTracked] = useState(true);
   const [designationName, setDesignationName] = useState('');
+  const [selectedAttendancePolicyId, setSelectedAttendancePolicyId] = useState<string | null>(null);
+
+  const { data: policies = [], isLoading: loadingPolicies } = useAttendancePolicies(undefined, 'ATTENDANCE');
 
   // Auto-switch selectedRole if current role is invalid for selected tenant company
   React.useEffect(() => {
@@ -76,7 +82,18 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
       const fallbackRole = displayedRoles[0] || UserRole.COMPANY_ADMIN;
       setSelectedRole(fallbackRole);
     }
-  }, [selectedCompanyId, isPlatformCompany, selectedRole]);
+  }, [selectedCompanyId, isPlatformCompany, selectedRole, displayedRoles]);
+
+  // Auto-enable GPS tracking when a policy with GPS REQUIRED/OPTIONAL is selected
+  React.useEffect(() => {
+    if (!selectedAttendancePolicyId) return;
+    const selectedPolicy = policies.find((p) => p.id === selectedAttendancePolicyId);
+    if (!selectedPolicy) return;
+    const punchInGps: string | undefined = selectedPolicy.punchInConfig?.gps;
+    if (punchInGps === 'REQUIRED' || punchInGps === 'OPTIONAL') {
+      setIsGpsTracked(true);
+    }
+  }, [selectedAttendancePolicyId, policies]);
 
   // Roles that need a supervisor picker (everything below Company Admin)
   const needsSupervisor = selectedRole === UserRole.EMPLOYEE ||
@@ -148,6 +165,7 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
         companyId: permissions.isSuperAdmin ? selectedCompanyId : undefined,
         isGpsTracked: isCompanyGpsDisabled ? false : isGpsTracked,
         managerId: needsSupervisor ? (selectedSupervisorId ?? null) : undefined,
+        attendancePolicyId: selectedRole !== UserRole.MASTER_SUPER_ADMIN ? selectedAttendancePolicyId : null,
       });
 
       Alert.alert('Success', `User ${name} created successfully!`, [
@@ -431,26 +449,104 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
           </View>
 
           {/* User GPS Tracking Option (For all roles below MASTER_SUPER_ADMIN) */}
-          {selectedRole !== UserRole.MASTER_SUPER_ADMIN && (
-            <View style={[styles.gpsToggleCard, { borderColor: theme.colors.surface.border }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]}>
-                  Record GPS Tracking & Live Map for User?
-                </Text>
-                <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
-                  {isCompanyGpsDisabled
-                    ? '⚠️ Disabled because GPS tracking is turned OFF for this company.'
-                    : isGpsTracked
-                    ? 'Record background GPS routes and display on Live Map.'
-                    : 'Simple Punch-In / Punch-Out mode only (No GPS recorded).'}
-                </Text>
+          {selectedRole !== UserRole.MASTER_SUPER_ADMIN && (() => {
+            const ROLE_RANK_MAP: Record<UserRole, number> = {
+              [UserRole.EMPLOYEE]: 0,
+              [UserRole.MANAGER]: 1,
+              [UserRole.HR]: 2,
+              [UserRole.COMPANY_ADMIN]: 3,
+              [UserRole.SUPER_ADMIN]: 4,
+              [UserRole.MASTER_SUPER_ADMIN]: 5,
+            };
+            const actorRole = actorUser?.role as UserRole;
+            const actorRank = ROLE_RANK_MAP[actorRole] ?? 0;
+            const targetRank = ROLE_RANK_MAP[selectedRole] ?? 0;
+            const canToggleGps = !isCompanyGpsDisabled && actorRank > targetRank;
+
+            return (
+              <View style={[styles.gpsToggleCard, { borderColor: theme.colors.surface.border }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]}>
+                    Record GPS Tracking & Live Map for User?
+                  </Text>
+                  <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+                    {isCompanyGpsDisabled
+                      ? '⚠️ Disabled because GPS tracking module is not enabled for this company.'
+                      : !canToggleGps
+                      ? '⚠️ Only administrators of higher role rank can enable/disable tracking.'
+                      : isGpsTracked
+                      ? 'Record background GPS routes and display on Live Map.'
+                      : 'Simple Punch-In / Punch-Out mode only (No GPS recorded).'}
+                  </Text>
+                </View>
+                <Switch
+                  value={isCompanyGpsDisabled ? false : (canToggleGps ? isGpsTracked : false)}
+                  disabled={!canToggleGps}
+                  onValueChange={setIsGpsTracked}
+                  trackColor={{ false: '#CBD5E1', true: theme.colors.brand.primary }}
+                />
               </View>
-              <Switch
-                value={isCompanyGpsDisabled ? false : isGpsTracked}
-                disabled={isCompanyGpsDisabled}
-                onValueChange={setIsGpsTracked}
-                trackColor={{ false: '#CBD5E1', true: theme.colors.brand.primary }}
-              />
+            );
+          })()}
+
+          {/* Attendance Policy override (Optional) */}
+          {selectedRole !== UserRole.MASTER_SUPER_ADMIN && (
+            <View style={{ marginTop: 16 }}>
+              <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 6 }]}>
+                Attendance Punch Policy (Optional Override)
+              </Text>
+              {loadingPolicies ? (
+                <LoadingState message="Loading attendance policies..." />
+              ) : (
+                <View style={{ gap: 6 }}>
+                  {/* Default / Unassigned (system default or company default) */}
+                  <TouchableOpacity
+                    style={[
+                      styles.managerItem,
+                      {
+                        borderColor: selectedAttendancePolicyId === null
+                          ? theme.colors.brand.primary
+                          : theme.colors.surface.border,
+                      },
+                      selectedAttendancePolicyId === null && { backgroundColor: theme.colors.brand.primaryLight },
+                    ]}
+                    onPress={() => setSelectedAttendancePolicyId(null)}
+                  >
+                    <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>
+                      {'Inherit Default (Designation > Department > Company Default)'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* All custom policies */}
+                  {policies.map((p) => {
+                    const isSelected = selectedAttendancePolicyId === p.id;
+                    return (
+                      <TouchableOpacity
+                        key={p.id}
+                        style={[
+                          styles.managerItem,
+                          {
+                            borderColor: isSelected ? theme.colors.brand.primary : theme.colors.surface.border,
+                          },
+                          isSelected && { backgroundColor: theme.colors.brand.primaryLight },
+                        ]}
+                        onPress={() => setSelectedAttendancePolicyId(p.id)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]}>
+                            {p.name}
+                          </Text>
+                          {p.description ? (
+                            <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+                              {p.description}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
             </View>
           )}
 

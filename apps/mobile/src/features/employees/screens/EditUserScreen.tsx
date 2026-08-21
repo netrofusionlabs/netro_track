@@ -21,22 +21,19 @@ import {
 } from '../../../shared/components';
 import { usePermissions } from '../../../shared/hooks/usePermissions';
 import { useSupervisors, useUpdateUser } from '../hooks/useUserManagement';
+import { useAttendancePolicies } from '../../attendance/hooks/useAttendance';
+import { useCompanies } from '../../companies/hooks/useCompanies';
 import {
   ROLE_DISPLAY_LABELS,
   ROLE_HIERARCHY,
   UserRole,
   getCreatableRoles,
 } from '@netrotrack/shared';
-import type { EmployeeRecord } from '../types';
 
-interface Props {
-  route: { params: { user: EmployeeRecord } };
-  navigation: any;
-}
 
 const ROLES_WITH_SUPERVISOR: string[] = ['EMPLOYEE', 'MANAGER', 'HR'];
 
-export function EditUserScreen({ route, navigation }: { route: any; navigation: any }) {
+export function EditUserScreen({ route, navigation }: any) {
   const theme = useTheme();
   const permissions = usePermissions();
   const { user } = route.params;
@@ -80,6 +77,31 @@ export function EditUserScreen({ route, navigation }: { route: any; navigation: 
 
   const [selectedRole, setSelectedRole] = useState<UserRole>(user.role as UserRole);
   const [roleTouched, setRoleTouched] = useState(false);
+  const [selectedAttendancePolicyId, setSelectedAttendancePolicyId] = useState<string | null>(
+    user.attendancePolicyId ?? null
+  );
+  const [policyTouched, setPolicyTouched] = useState(false);
+  const { data: policies = [], isLoading: loadingPolicies } = useAttendancePolicies(undefined, 'ATTENDANCE');
+
+  const { data: companies = [] } = useCompanies();
+  const userCompany = companies.find((c) => c.id === user.companyId);
+  const isCompanyGpsDisabled = userCompany
+    ? !userCompany.modules?.some((m: any) => m.module === 'GPS' && m.isEnabled)
+    : false;
+
+  const [isGpsTracked, setIsGpsTracked] = useState(user.isGpsTracked ?? true);
+  const [gpsTouched, setGpsTouched] = useState(false);
+
+  // Auto-enable GPS tracking when admin switches to a policy with GPS REQUIRED/OPTIONAL
+  React.useEffect(() => {
+    if (!policyTouched || !selectedAttendancePolicyId) return;
+    const selectedPolicy = policies.find((p) => p.id === selectedAttendancePolicyId);
+    if (!selectedPolicy) return;
+    const punchInGps: string | undefined = selectedPolicy.punchInConfig?.gps;
+    if (punchInGps === 'REQUIRED' || punchInGps === 'OPTIONAL') {
+      setIsGpsTracked(true);
+    }
+  }, [selectedAttendancePolicyId, policyTouched, policies]);
 
   const handleRoleChange = (role: UserRole) => {
     setSelectedRole(role);
@@ -179,6 +201,14 @@ export function EditUserScreen({ route, navigation }: { route: any; navigation: 
 
     if (supervisorTouched) {
       payload.managerId = selectedSupervisorId;
+    }
+
+    if (policyTouched) {
+      payload.attendancePolicyId = selectedAttendancePolicyId;
+    }
+
+    if (gpsTouched) {
+      payload.isGpsTracked = isGpsTracked;
     }
 
     try {
@@ -537,6 +567,143 @@ export function EditUserScreen({ route, navigation }: { route: any; navigation: 
             </View>
           )}
 
+          {/* User GPS Tracking Option (For all roles below MASTER_SUPER_ADMIN) */}
+          {selectedRole !== UserRole.MASTER_SUPER_ADMIN && (() => {
+            const ROLE_RANK_MAP: Record<string, number> = {
+              EMPLOYEE: 0,
+              MANAGER: 1,
+              HR: 2,
+              COMPANY_ADMIN: 3,
+              SUPER_ADMIN: 4,
+              MASTER_SUPER_ADMIN: 5,
+            };
+            const actorRole = permissions.userRole;
+            const actorRank = ROLE_RANK_MAP[actorRole] ?? 0;
+            const targetRank = ROLE_RANK_MAP[user.role] ?? 0;
+            const isOwnProfile = permissions.user?.id === user.id;
+            const canToggleGps = !isCompanyGpsDisabled && !isOwnProfile && actorRank > targetRank;
+
+            return (
+              <View style={styles.section}>
+                <View style={[styles.gpsToggleCard, { borderColor: theme.colors.surface.border, marginTop: 8 }]}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]}>
+                      Record GPS Tracking & Live Map for User?
+                    </Text>
+                    <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
+                      {isCompanyGpsDisabled
+                        ? '⚠️ Disabled because GPS tracking module is not enabled for this company.'
+                        : isOwnProfile
+                        ? '⚠️ You cannot modify your own GPS tracking settings.'
+                        : !canToggleGps
+                        ? '⚠️ Only administrators of higher role rank can enable/disable tracking.'
+                        : isGpsTracked
+                        ? 'Record background GPS routes and display on Live Map.'
+                        : 'Simple Punch-In / Punch-Out mode only (No GPS recorded).'}
+                    </Text>
+                  </View>
+                  <Switch
+                    value={isCompanyGpsDisabled ? false : (canToggleGps ? isGpsTracked : false)}
+                    disabled={!canToggleGps}
+                    onValueChange={(val) => {
+                      setIsGpsTracked(val);
+                      setGpsTouched(true);
+                    }}
+                    trackColor={{ false: '#CBD5E1', true: theme.colors.brand.primary }}
+                  />
+                </View>
+              </View>
+            );
+          })()}
+
+          {/* Attendance Policy override (Optional) */}
+          {selectedRole !== UserRole.MASTER_SUPER_ADMIN && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <AppIcon name="attendance" color={theme.colors.brand.primary} size={16} />
+                <Text style={[typography.label, { color: theme.colors.text.primary, marginLeft: 6 }]}>
+                  Attendance Punch Policy
+                </Text>
+              </View>
+              {loadingPolicies ? (
+                <LoadingState message="Loading attendance policies..." />
+              ) : (
+                <View style={{ gap: 6, marginTop: 8 }}>
+                  {/* Default / Unassigned (system default or company default) */}
+                  <TouchableOpacity
+                    style={[
+                      styles.supervisorItem,
+                      {
+                        borderColor: selectedAttendancePolicyId === null
+                          ? theme.colors.brand.primary
+                          : theme.colors.surface.border,
+                      },
+                      selectedAttendancePolicyId === null && { backgroundColor: theme.colors.brand.primaryLight },
+                    ]}
+                    onPress={() => {
+                      setSelectedAttendancePolicyId(null);
+                      setPolicyTouched(true);
+                    }}
+                  >
+                    <View style={styles.supervisorRow}>
+                      <Text style={[typography.bodySm, { color: theme.colors.text.secondary }]}>
+                        {'Inherit Default (Designation > Department > Company Default)'}
+                      </Text>
+                      {user.attendancePolicyId === null && !policyTouched && (
+                        <Text style={[typography.caption, { color: theme.colors.semantic.success, fontWeight: '600', marginLeft: 'auto' }]}>
+                          Current
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* All custom policies */}
+                  {policies.map((p) => {
+                    const isSelected = selectedAttendancePolicyId === p.id;
+                    const isCurrent = user.attendancePolicyId === p.id;
+                    return (
+                      <TouchableOpacity
+                        key={p.id}
+                        style={[
+                          styles.supervisorItem,
+                          {
+                            borderColor: isSelected ? theme.colors.brand.primary : theme.colors.surface.border,
+                          },
+                          isSelected && { backgroundColor: theme.colors.brand.primaryLight },
+                        ]}
+                        onPress={() => {
+                          setSelectedAttendancePolicyId(p.id);
+                          setPolicyTouched(true);
+                        }}
+                      >
+                        <View style={styles.supervisorRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]}>
+                              {p.name}
+                            </Text>
+                            {p.description ? (
+                              <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 1 }]}>
+                                {p.description}
+                              </Text>
+                            ) : null}
+                          </View>
+                          {isCurrent && !policyTouched && (
+                            <Text style={[typography.caption, { color: theme.colors.semantic.success, fontWeight: '600' }]}>
+                              Current
+                            </Text>
+                          )}
+                          {isSelected && policyTouched && (
+                            <AppIcon name="success" color={theme.colors.brand.primary} size={16} />
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          )}
+
           <Button
             label="Save Changes"
             variant="primary"
@@ -586,5 +753,14 @@ const styles = StyleSheet.create({
   supervisorRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  gpsToggleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 16,
   },
 });

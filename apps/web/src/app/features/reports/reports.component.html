@@ -1,0 +1,136 @@
+<div class="page">
+  <netro-page-header
+    title="Reports"
+    description="Operational extracts over a date range. Employees see their own records; managers and above see their scope."
+  >
+    <div slot="actions" class="row row--nowrap">
+      <netro-badge tone="neutral">Coming Soon</netro-badge>
+    </div>
+  </netro-page-header>
+
+  <netro-alert tone="info" heading="Feature Coming Soon">
+    The Reports & Advanced Analytics module is currently under active development and will be released in an upcoming platform update.
+  </netro-alert>
+
+  <netro-panel>
+    <netro-tabs [tabs]="tabs" [value]="kind()" label="Report type" (valueChange)="select($event)" />
+    <div class="row" style="margin-top: var(--s-4); flex-wrap: wrap">
+      <label class="field" style="width: auto">
+        <span class="field__label">From</span>
+        <input class="input" type="date" [ngModel]="startDate()" (ngModelChange)="startDate.set($event)" />
+      </label>
+      <label class="field" style="width: auto">
+        <span class="field__label">To</span>
+        <input class="input" type="date" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)" />
+      </label>
+      <button type="button" class="btn btn--primary" style="align-self: end" [disabled]="loading()" (click)="generate()">
+        <netro-icon [name]="loading() ? 'spinner' : 'chart'" [size]="14" [spin]="loading()" />
+        Generate
+      </button>
+    </div>
+  </netro-panel>
+
+  @if (loading()) {
+    <netro-panel [flush]="true" padding="none"><netro-skeleton-rows [rows]="8" [cols]="5" /></netro-panel>
+  } @else if (error()) {
+    <netro-state icon="x-circle" tone="risk" title="Could not generate this report" [body]="error()">
+      <button type="button" class="btn btn--default" (click)="generate()">Try again</button>
+    </netro-state>
+  } @else if (!ran()) {
+    <netro-state icon="chart" title="Choose a range and generate" body="Attendance, visits and sales each summarise the same window so you can compare presence, activity and outcome." />
+  } @else if (kind() === 'attendance' && attendance()) {
+    <section class="metrics">
+      <netro-metric label="Shifts" [value]="attendance()!.totalRecords" icon="clock" />
+      <netro-metric label="Hours" [value]="attendance()!.totalWorkingHours" unit="h" icon="gauge" />
+    </section>
+    <netro-panel [flush]="true" padding="none" heading="Attendance log" [description]="attendance()!.startDate + ' → ' + attendance()!.endDate">
+      @if (!attendance()!.records.length) {
+        <netro-state icon="clock" [inline]="true" title="No punches in this range" />
+      } @else {
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Person</th>
+                <th scope="col">In</th>
+                <th scope="col">Out</th>
+                <th scope="col" class="num">Hours</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of attendance()!.records">
+                <td>{{ row.employee?.name || '—' }}</td>
+                <td class="tnum">{{ row.punchInTime | date: 'short' }}</td>
+                <td class="tnum">{{ row.punchOutTime ? (row.punchOutTime | date: 'shortTime') : 'Open' }}</td>
+                <td class="num tnum">{{ row.workingHours ?? '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      }
+    </netro-panel>
+  } @else if (kind() === 'visits' && visits()) {
+    <section class="metrics">
+      <netro-metric label="Visits" [value]="visits()!.totalRecords" icon="pin" />
+      <netro-metric label="Duration" [value]="visits()!.totalDurationMinutes" unit="min" icon="clock" />
+    </section>
+    <netro-panel [flush]="true" padding="none" heading="Visit log" [description]="visits()!.startDate + ' → ' + visits()!.endDate">
+      @if (!visits()!.records.length) {
+        <netro-state icon="pin" [inline]="true" title="No visits in this range" />
+      } @else {
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Customer</th>
+                <th scope="col">Visited by</th>
+                <th scope="col">When</th>
+                <th scope="col" class="col-hide-md">Discussed</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of visits()!.records">
+                <td>{{ row.customer?.name || '—' }}</td>
+                <td>{{ row.employee?.name || '—' }}</td>
+                <td class="tnum">{{ row.checkInTime | date: 'short' }}</td>
+                <td class="col-hide-md cell-truncate">{{ row.productsDiscussed || row.notes || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      }
+    </netro-panel>
+  } @else if (kind() === 'sales' && sales()) {
+    <section class="metrics">
+      <netro-metric label="Orders" [value]="sales()!.totalRecords" icon="orders" />
+      <netro-metric label="Revenue" [value]="money(sales()!.totalRevenue)" icon="chart" />
+      <netro-metric label="Items sold" [value]="sales()!.totalItemsSold" icon="box" />
+    </section>
+    <netro-panel [flush]="true" padding="none" heading="Sales log" [description]="sales()!.startDate + ' → ' + sales()!.endDate">
+      @if (!sales()!.records.length) {
+        <netro-state icon="orders" [inline]="true" title="No orders in this range" />
+      } @else {
+        <div class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Customer</th>
+                <th scope="col">Recorded by</th>
+                <th scope="col" class="num">Total</th>
+                <th scope="col" class="col-hide-sm">Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of sales()!.records">
+                <td>{{ row.customer?.name || '—' }}</td>
+                <td>{{ row.employee?.name || '—' }}</td>
+                <td class="num tnum">{{ money(row.totalAmount) }}</td>
+                <td class="col-hide-sm tnum">{{ row.createdAt | date: 'mediumDate' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      }
+    </netro-panel>
+  }
+</div>

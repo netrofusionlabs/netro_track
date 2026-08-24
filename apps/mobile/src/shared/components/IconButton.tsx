@@ -22,8 +22,8 @@ export function IconButton({
 }: IconButtonProps) {
   const theme = useTheme();
 
-  const dimensions = size === 'sm' ? 32 : size === 'lg' ? 48 : 40;
-  const iconSize = size === 'sm' ? 16 : size === 'lg' ? 22 : 18;
+  const dimensions = theme.sizes.iconButtonSize[size];
+  const iconSize = size === 'sm' ? 16 : size === 'lg' ? 24 : 20;
 
   const getVariantStyles = () => {
     switch (variant) {

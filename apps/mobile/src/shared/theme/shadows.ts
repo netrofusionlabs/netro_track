@@ -22,6 +22,20 @@ export const shadows = {
       shadowRadius: 4,
     },
     android: {
+      elevation: 2,
+    },
+    default: {},
+  }) as ViewStyle,
+
+  /** Bordered card — for Card.tsx default variant */
+  card: Platform.select<ViewStyle>({
+    ios: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.02,
+      shadowRadius: 2,
+    },
+    android: {
       elevation: 1,
     },
     default: {},

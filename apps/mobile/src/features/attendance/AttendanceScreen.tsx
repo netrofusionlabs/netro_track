@@ -1,3 +1,5 @@
+import { lightTheme as theme } from "../../shared/theme/tokens";
+
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
@@ -604,28 +606,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scroll: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 32,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xxl,
   },
   headerArea: {
-    marginBottom: 16,
+    marginBottom: theme.spacing.lg,
   },
   heroCard: {
-    padding: 16,
-    marginBottom: 16,
+    padding: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
   },
   heroTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: theme.spacing.lg,
   },
   columnsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: theme.spacing.lg,
   },
   columnItem: {
     flex: 1,
@@ -639,17 +641,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    marginBottom: 12,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
   },
   summaryCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    marginBottom: 16,
+    paddingVertical: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
   summaryCol: {
     flex: 1,
@@ -661,13 +663,13 @@ const styles = StyleSheet.create({
   },
   logCard: {
     padding: 14,
-    marginBottom: 8,
+    marginBottom: theme.spacing.sm,
   },
   logRowTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: theme.spacing.xs,
   },
   logRowBottom: {
     flexDirection: 'row',
@@ -678,8 +680,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
     borderTopWidth: 1,
   },
   routeHint: {
@@ -688,14 +690,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   dayRouteBtn: {
-    marginTop: 12,
+    marginTop: theme.spacing.md,
   },
   gpsCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     padding: 14,
-    marginTop: 8,
-    gap: 12,
+    marginTop: theme.spacing.sm,
+    gap: theme.spacing.md,
   },
   gpsTextGroup: {
     flex: 1,
@@ -704,8 +706,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    marginTop: 8,
+    marginTop: theme.spacing.sm,
   },
 });

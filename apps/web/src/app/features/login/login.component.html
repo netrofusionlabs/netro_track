@@ -25,9 +25,9 @@
     <div class="auth__form">
       <div class="auth__form-header">
         <img src="images/bannerLogoClean.png" alt="NetroTrack" class="auth__form-banner" />
-        <h2 class="auth__title">{{ expired() ? 'Sign in again' : 'Sign in' }}</h2>
+        <h2 class="auth__title">{{ expired() ? 'Sign in again' : 'Welcome back' }}</h2>
         <p class="text-small text-subtle">
-          {{ expired() ? 'Your session ended. Use your password or MPIN to continue.' : 'Use your employee ID or work email.' }}
+          {{ expired() ? 'Your session ended. Use your password or MPIN to continue.' : 'Use your employee ID or work email to sign in.' }}
         </p>
       </div>
 
@@ -40,7 +40,7 @@
 
       <form [formGroup]="form" class="stack" style="margin-top: var(--s-5)" (ngSubmit)="submit()">
         <label class="field">
-          <span class="field__label">Employee ID or email</span>
+          <span class="field__label">Employee ID or Email</span>
           <input class="input" formControlName="loginId" autocomplete="username" placeholder="e.g. NT-0142"
             [attr.aria-invalid]="!!errorFor('loginId')" />
           <span class="field__error" *ngIf="errorFor('loginId')">

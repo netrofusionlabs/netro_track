@@ -79,6 +79,8 @@ export const lightTheme = {
     },
   },
   spacing: {
+    /** Zero padding/margin */
+    zero: 0,
     /** Micro adjustments (icon-to-text gap in badges) */
     xxs: 2,
     /** Tight internal padding (badge padding, dot spacing) */
@@ -97,6 +99,10 @@ export const lightTheme = {
     xxxl: 32,
     /** Maximum spacing (top/bottom screen padding) */
     xxxxl: 40,
+    /** Aliases for consistent layout */
+    screenPadding: 20,
+    cardGap: 12,
+    sectionGap: 24,
   },
   borderRadius: {
     /** Sharp edges (dividers, hairlines) */
@@ -111,6 +117,18 @@ export const lightTheme = {
     xl: 16,
     /** Circular elements (avatars, dots, round buttons) */
     full: 9999,
+  },
+  sizes: {
+    inputHeight: 48,
+    buttonHeight: { sm: 38, md: 48, lg: 52 },
+    touchTarget: 44,
+    tabBarHeight: 60,
+    iconButtonSize: { sm: 36, md: 44, lg: 52 },
+  },
+  animation: {
+    durationFast: 90,
+    durationNormal: 200,
+    durationSlow: 300,
   },
 };
 
@@ -156,6 +174,8 @@ export const darkTheme = {
   },
   spacing: lightTheme.spacing,
   borderRadius: lightTheme.borderRadius,
+  sizes: lightTheme.sizes,
+  animation: lightTheme.animation,
 };
 
 export type Theme = typeof lightTheme;

@@ -56,17 +56,25 @@ export function EmployeeDashboard({ navigation }: { navigation: any }) {
   const isPunchedIn = !!todayRecord && !todayRecord.punchOutTime;
   const isPunchedOut = !!todayRecord && !!todayRecord.punchOutTime;
 
+  const [isTracking, setIsTracking] = React.useState(false);
+
   React.useEffect(() => {
+    let mounted = true;
     if (isPunchedIn && todayRecord?.id) {
       void requestLocationPermission().then((granted) => {
-        if (granted) {
+        if (granted && user?.isGpsTracked !== false) {
           void startTracking(todayRecord.id);
+          if (mounted) setIsTracking(true);
+        } else {
+          if (mounted) setIsTracking(false);
         }
       });
     } else if (isPunchedOut) {
       void stopTracking();
+      if (mounted) setIsTracking(false);
     }
-  }, [isPunchedIn, isPunchedOut, todayRecord?.id]);
+    return () => { mounted = false; };
+  }, [isPunchedIn, isPunchedOut, todayRecord?.id, user?.isGpsTracked]);
 
   const totalSalesAmount = todaySales.reduce(
     (sum, sale) => sum + Number(sale.totalAmount), 0
@@ -158,23 +166,23 @@ export function EmployeeDashboard({ navigation }: { navigation: any }) {
         <Card variant="elevated" style={styles.heroCard}>
           <View style={styles.heroTopRow}>
             {isPunchedIn ? (
-              <View style={{ backgroundColor: '#E8F0FE', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <AppIcon name="clock" color="#1A73E8" size={16} />
-                <Text style={[typography.buttonSm, { color: '#1A73E8', fontWeight: '600', fontSize: 13 }]}>
+              <View style={{ backgroundColor: theme.colors.brand.primaryLight, borderRadius: theme.borderRadius.xl, paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <AppIcon name="clock" color={theme.colors.brand.primary} size={16} />
+                <Text style={[typography.buttonSm, { color: theme.colors.brand.primary, fontWeight: '600', fontSize: 13 }]}>
                   Punched In
                 </Text>
               </View>
             ) : isPunchedOut ? (
-              <View style={{ backgroundColor: '#E6F4EA', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <AppIcon name="success" color="#137333" size={16} />
-                <Text style={[typography.buttonSm, { color: '#137333', fontWeight: '600', fontSize: 13 }]}>
+              <View style={{ backgroundColor: theme.colors.semantic.successBg, borderRadius: theme.borderRadius.xl, paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <AppIcon name="success" color={theme.colors.semantic.success} size={16} />
+                <Text style={[typography.buttonSm, { color: theme.colors.semantic.success, fontWeight: '600', fontSize: 13 }]}>
                   Shift Complete
                 </Text>
               </View>
             ) : (
-              <View style={{ backgroundColor: '#FFF0E1', borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <AppIcon name="info" color="#B06000" size={16} />
-                <Text style={[typography.buttonSm, { color: '#B06000', fontWeight: '600', fontSize: 13 }]}>
+              <View style={{ backgroundColor: theme.colors.semantic.warningBg, borderRadius: theme.borderRadius.xl, paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <AppIcon name="info" color={theme.colors.semantic.warning} size={16} />
+                <Text style={[typography.buttonSm, { color: theme.colors.semantic.warning, fontWeight: '600', fontSize: 13 }]}>
                   Not Punched In
                 </Text>
               </View>
@@ -188,11 +196,11 @@ export function EmployeeDashboard({ navigation }: { navigation: any }) {
             <View
               style={{
                 flex: 1,
-                backgroundColor: '#F5FBF7',
-                borderColor: '#E1EFE8',
+                backgroundColor: theme.colors.surface.subtle,
+                borderColor: theme.colors.surface.border,
                 borderWidth: 1,
-                borderRadius: 12,
-                padding: 12,
+                borderRadius: theme.borderRadius.lg,
+                padding: theme.spacing.md,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 10,
@@ -202,24 +210,24 @@ export function EmployeeDashboard({ navigation }: { navigation: any }) {
                 style={{
                   width: 40,
                   height: 40,
-                  borderRadius: 20,
-                  backgroundColor: '#E6F4EA',
+                  borderRadius: theme.borderRadius.full,
+                  backgroundColor: theme.colors.semantic.successBg,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <AppIcon name="login" color="#137333" size={18} />
+                <AppIcon name="login" color={theme.colors.semantic.success} size={18} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[typography.caption, { color: '#5F6368', fontSize: 12 }]}>
+                <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>
                   Punch In
                 </Text>
-                <Text style={[typography.headingSm, { color: '#202124', fontWeight: '700', fontSize: 18, marginVertical: 2 }]} numberOfLines={1}>
+                <Text style={[typography.headingSm, { color: theme.colors.text.primary, fontSize: 18, marginVertical: 2 }]} numberOfLines={1}>
                   {todayRecord?.punchInTime ? formatTime(todayRecord.punchInTime) : '--:--'}
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <AppIcon name="calendar" color="#5F6368" size={12} />
-                  <Text style={[typography.caption, { color: '#5F6368', fontSize: 11 }]} numberOfLines={1}>
+                  <AppIcon name="calendar" color={theme.colors.text.tertiary} size={12} />
+                  <Text style={[typography.caption, { color: theme.colors.text.tertiary, fontSize: 11 }]} numberOfLines={1}>
                     {todayRecord?.punchInTime ? formatPunchDate(todayRecord.punchInTime) : formatPunchDate(new Date().toISOString())}
                   </Text>
                 </View>
@@ -230,11 +238,11 @@ export function EmployeeDashboard({ navigation }: { navigation: any }) {
             <View
               style={{
                 flex: 1,
-                backgroundColor: '#F4F7FC',
-                borderColor: '#E2E8F5',
+                backgroundColor: theme.colors.surface.subtle,
+                borderColor: theme.colors.surface.border,
                 borderWidth: 1,
-                borderRadius: 12,
-                padding: 12,
+                borderRadius: theme.borderRadius.lg,
+                padding: theme.spacing.md,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 10,
@@ -244,24 +252,24 @@ export function EmployeeDashboard({ navigation }: { navigation: any }) {
                 style={{
                   width: 40,
                   height: 40,
-                  borderRadius: 20,
-                  backgroundColor: '#E8F0FE',
+                  borderRadius: theme.borderRadius.full,
+                  backgroundColor: theme.colors.brand.primaryLight,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <AppIcon name="logout" color="#1A73E8" size={18} />
+                <AppIcon name="logout" color={theme.colors.brand.primary} size={18} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[typography.caption, { color: '#5F6368', fontSize: 12 }]}>
+                <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>
                   Punch Out
                 </Text>
-                <Text style={[typography.headingSm, { color: '#202124', fontWeight: '700', fontSize: 18, marginVertical: 2 }]} numberOfLines={1}>
+                <Text style={[typography.headingSm, { color: theme.colors.text.primary, fontSize: 18, marginVertical: 2 }]} numberOfLines={1}>
                   {todayRecord?.punchOutTime ? formatTime(todayRecord.punchOutTime) : '--:--'}
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <AppIcon name="calendar" color="#5F6368" size={12} />
-                  <Text style={[typography.caption, { color: '#5F6368', fontSize: 11 }]} numberOfLines={1}>
+                  <AppIcon name="calendar" color={theme.colors.text.tertiary} size={12} />
+                  <Text style={[typography.caption, { color: theme.colors.text.tertiary, fontSize: 11 }]} numberOfLines={1}>
                     {todayRecord?.punchOutTime ? formatPunchDate(todayRecord.punchOutTime) : formatPunchDate(new Date().toISOString())}
                   </Text>
                 </View>
@@ -281,45 +289,45 @@ export function EmployeeDashboard({ navigation }: { navigation: any }) {
               }}
               style={{
                 flex: 1,
-                height: 50,
+                height: theme.sizes.buttonHeight.md,
                 backgroundColor: isPunchedIn ? theme.colors.semantic.error : theme.colors.brand.primary,
-                borderRadius: 12,
+                borderRadius: theme.borderRadius.md,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                paddingHorizontal: 16,
+                paddingHorizontal: theme.spacing.lg,
               }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <AppIcon name="clock" color="#FFFFFF" size={18} />
+                <AppIcon name="clock" color={theme.colors.text.inverse} size={18} />
                 <View
                   style={{
                     width: 1,
                     height: 20,
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: theme.colors.text.inverse,
                     opacity: 0.3,
                     marginHorizontal: 12,
                   }}
                 />
-                <Text style={[typography.button, { color: '#FFFFFF', fontWeight: '700' }]}>
+                <Text style={[typography.button, { color: theme.colors.text.inverse }]}>
                   {isPunchedIn ? 'Punch Out' : isPunchedOut ? 'Punch In Again' : 'Punch In Now'}
                 </Text>
               </View>
-              <AppIcon name="arrowRight" color="#FFFFFF" size={16} />
+              <AppIcon name="arrowRight" color={theme.colors.text.inverse} size={16} />
             </TouchableOpacity>
 
             {isPunchedOut && (
               <TouchableOpacity
                 onPress={() => navigation.navigate('Attendance', { screen: 'AttendanceToday' })}
                 style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: 12,
+                  width: theme.sizes.buttonHeight.md,
+                  height: theme.sizes.buttonHeight.md,
+                  borderRadius: theme.borderRadius.md,
                   borderWidth: 1.5,
-                  borderColor: '#A4C2F4',
+                  borderColor: theme.colors.brand.primaryLight,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: '#FFFFFF',
+                  backgroundColor: theme.colors.surface.card,
                 }}
                 activeOpacity={0.7}
                 accessibilityRole="button"
@@ -358,19 +366,19 @@ export function EmployeeDashboard({ navigation }: { navigation: any }) {
         {/* 3. GPS Tracking Banner */}
         <Card style={styles.gpsBanner}>
           <View style={styles.gpsRow}>
-            <View style={[styles.gpsIconBox, { backgroundColor: isPunchedIn ? theme.colors.semantic.successBg : theme.colors.surface.subtle }]}>
+            <View style={[styles.gpsIconBox, { backgroundColor: isTracking ? theme.colors.semantic.successBg : theme.colors.surface.subtle }]}>
               <AppIcon
                 name="locationPin"
-                color={isPunchedIn ? theme.colors.semantic.success : theme.colors.text.tertiary}
+                color={isTracking ? theme.colors.semantic.success : theme.colors.text.tertiary}
                 size={20}
               />
             </View>
             <View style={styles.gpsTextGroup}>
               <Text style={[typography.headingSm, { color: theme.colors.text.primary }]}>
-                {isPunchedIn ? 'Live GPS Tracking Active' : 'GPS Tracking Standby'}
+                {isTracking ? 'Live GPS Tracking Active' : (isPunchedIn ? 'GPS Tracking Disabled / Denied' : 'GPS Tracking Standby')}
               </Text>
               <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 1 }]}>
-                {isPunchedIn ? 'Location synced every 2.5 min during shift' : 'Punch in to start shift location tracking'}
+                {isTracking ? 'Location synced every 2.5 min during shift' : (isPunchedIn ? 'Check device location permissions' : 'Punch in to start shift location tracking')}
               </Text>
             </View>
           </View>

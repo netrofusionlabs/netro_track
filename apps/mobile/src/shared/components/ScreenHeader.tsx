@@ -36,6 +36,7 @@ export function ScreenHeader({
         <TouchableOpacity 
           onPress={onBackPress} 
           style={{ marginRight: 12, justifyContent: 'center', height: isSection ? 20 : 28 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <AppIcon name="chevronLeft" color={theme.colors.text.primary} size={24} />
         </TouchableOpacity>
@@ -44,12 +45,7 @@ export function ScreenHeader({
         <Text
           style={[
             isSection ? typography.overline : typography.displaySm,
-            {
-              color: isSection ? theme.colors.text.secondary : theme.colors.text.primary,
-              fontSize: isSection ? 12 : 22,
-              fontWeight: isSection ? '700' : '700',
-              letterSpacing: isSection ? 0.6 : -0.3,
-            },
+            { color: isSection ? theme.colors.text.secondary : theme.colors.text.primary },
           ]}
         >
           {title}

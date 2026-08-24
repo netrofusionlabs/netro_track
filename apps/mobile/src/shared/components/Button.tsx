@@ -73,11 +73,11 @@ export function Button({
   const getSizeStyles = (): { height: number; paddingHorizontal: number; textStyle: TextStyle } => {
     switch (size) {
       case 'sm':
-        return { height: 36, paddingHorizontal: 12, textStyle: typography.buttonSm };
+        return { height: theme.sizes.buttonHeight.sm, paddingHorizontal: 12, textStyle: typography.buttonSm };
       case 'lg':
-        return { height: 50, paddingHorizontal: 24, textStyle: typography.button };
+        return { height: theme.sizes.buttonHeight.lg, paddingHorizontal: 24, textStyle: typography.button };
       default:
-        return { height: 44, paddingHorizontal: 16, textStyle: typography.button };
+        return { height: theme.sizes.buttonHeight.md, paddingHorizontal: 16, textStyle: typography.button };
     }
   };
 
@@ -97,7 +97,7 @@ export function Button({
           borderRadius: theme.borderRadius.md,
           height,
           paddingHorizontal,
-          opacity: disabled || loading ? 0.5 : 1,
+          opacity: disabled || loading ? 0.45 : 1,
           ...(fullWidth ? { width: '100%' as const } : {}),
         },
         style,

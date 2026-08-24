@@ -34,7 +34,7 @@ export function Select({
   return (
     <View style={[styles.container, { marginBottom: theme.spacing.md }, style]}>
       {label && (
-        <Text style={[typography.label, { color: theme.colors.text.secondary, marginBottom: 6 }]}>
+        <Text style={[typography.label, { color: theme.colors.text.secondary, marginBottom: theme.spacing.sm }]}>
           {label}
         </Text>
       )}
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   trigger: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 44,
+    height: 48, // matching theme.sizes.inputHeight
     paddingHorizontal: 14,
   },
   iconWrap: {

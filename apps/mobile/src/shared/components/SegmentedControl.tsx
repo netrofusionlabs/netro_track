@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeProvider';
+import { shadows } from '../theme/shadows';
 
 export interface SegmentOption<T extends string = string> {
   value: T;
@@ -44,7 +45,8 @@ export function SegmentedControl<T extends string = string>({
               styles.segment,
               {
                 borderRadius: theme.borderRadius.sm,
-                backgroundColor: isActive ? theme.colors.brand.primary : 'transparent',
+                backgroundColor: isActive ? theme.colors.surface.card : 'transparent',
+                ...(isActive ? shadows.sm : {}),
               },
             ]}
           >
@@ -52,7 +54,7 @@ export function SegmentedControl<T extends string = string>({
               style={[
                 styles.segmentText,
                 {
-                  color: isActive ? theme.colors.text.inverse : theme.colors.text.secondary,
+                  color: isActive ? theme.colors.text.primary : theme.colors.text.secondary,
                   fontWeight: isActive ? '700' : '500',
                 },
               ]}

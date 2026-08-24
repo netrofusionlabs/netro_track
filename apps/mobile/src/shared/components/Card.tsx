@@ -5,7 +5,7 @@ import { shadows } from '../theme/shadows';
 
 interface CardProps {
   children: React.ReactNode;
-  variant?: 'default' | 'elevated' | 'outlined';
+  variant?: 'default' | 'elevated' | 'outlined' | 'flat';
   noPadding?: boolean;
   onPress?: () => void;
   style?: ViewStyle;
@@ -21,13 +21,16 @@ export function Card({
   const theme = useTheme();
 
   const isElevated = variant === 'elevated';
+  const isFlat = variant === 'flat';
+  const isOutlined = variant === 'outlined';
 
   const cardStyle: ViewStyle = {
-    backgroundColor: theme.colors.surface.card,
+    backgroundColor: isFlat ? theme.colors.surface.subtle : theme.colors.surface.card,
     borderRadius: theme.borderRadius.lg,
-    borderColor: theme.colors.surface.border,
+    borderColor: isFlat ? 'transparent' : theme.colors.surface.border,
+    borderWidth: isFlat ? 0 : 1,
     padding: noPadding ? 0 : theme.spacing.lg,
-    ...(isElevated ? shadows.sm : {}),
+    ...(isElevated ? shadows.md : variant === 'default' ? shadows.card : {}),
   };
 
   if (onPress) {
@@ -51,8 +54,6 @@ export function Card({
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: 12,
-    borderWidth: 1,
     overflow: 'hidden',
   },
 });

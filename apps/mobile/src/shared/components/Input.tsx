@@ -69,7 +69,7 @@ export function Input({
                 : isFocused
                 ? theme.colors.brand.primary
                 : theme.colors.text.secondary,
-              marginBottom: 6,
+              marginBottom: theme.spacing.sm,
             },
           ]}
         >
@@ -84,7 +84,7 @@ export function Input({
             borderRadius: theme.borderRadius.md,
             borderColor,
             borderWidth: isFocused || error ? 1.5 : 1,
-            minHeight: multiline ? 90 : 44,
+            minHeight: multiline ? 100 : theme.sizes.inputHeight,
           },
         ]}
       >
@@ -191,8 +191,8 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 14,
-    paddingVertical: 10,
+    fontSize: 15,
+    paddingVertical: 12,
   },
   multiline: {
     textAlignVertical: 'top',

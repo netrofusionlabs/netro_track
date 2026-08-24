@@ -1,3 +1,5 @@
+import { lightTheme as theme } from "../../../shared/theme/tokens";
+
 import React, { useState } from 'react';
 import {
   StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert,
@@ -402,12 +404,12 @@ export function MpinScreen({ mode }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  brandLogo: { marginBottom: 20 },
-  dotContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 24, marginBottom: 32 },
-  dot: { width: 16, height: 16, borderRadius: 8, marginHorizontal: 10 },
+  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: theme.spacing.xxl },
+  brandLogo: { marginBottom: theme.spacing.xl },
+  dotContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: theme.spacing.xxl, marginBottom: theme.spacing.xxxl },
+  dot: { width: 16, height: 16, borderRadius: 8, marginHorizontal: theme.spacing.md },
   keypad: { width: '100%', maxWidth: 280 },
-  keypadRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  keypadRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: theme.spacing.md },
   key: {
     width: 72,
     height: 56,
@@ -416,5 +418,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   keyEmpty: { width: 72, height: 56 },
-  reloginBtn: { marginTop: 16, padding: 12 },
+  reloginBtn: { marginTop: theme.spacing.xl, padding: theme.spacing.md },
 });

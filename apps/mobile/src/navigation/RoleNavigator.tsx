@@ -226,10 +226,10 @@ function CustomBottomTabBar({ state, descriptors, navigation, insets, theme }: a
         backgroundColor: theme.colors.surface.card,
         borderTopColor: theme.colors.surface.border,
         borderTopWidth: 1,
-        height: 56 + baseBottomPadding,
+        height: theme.sizes.tabBarHeight + baseBottomPadding,
         paddingBottom: baseBottomPadding,
-        paddingTop: 6,
-        paddingHorizontal: 8,
+        paddingTop: 8,
+        paddingHorizontal: theme.spacing.sm,
       }}
     >
       {state.routes.map((route: any, index: number) => {
@@ -298,11 +298,11 @@ function CustomBottomTabBar({ state, descriptors, navigation, insets, theme }: a
               flex: 1,
               alignItems: 'center',
               justifyContent: 'center',
-              paddingVertical: 4,
+              paddingVertical: 6,
               paddingHorizontal: 2,
-              borderRadius: theme.borderRadius.md,
-              backgroundColor: isFocused ? theme.colors.brand.primaryLight : 'transparent',
-              opacity: isUnreleased ? 0.6 : 1,
+              borderRadius: theme.borderRadius.lg,
+              backgroundColor: isFocused ? theme.colors.surface.subtle : 'transparent',
+              opacity: isUnreleased ? 0.4 : 1,
             }}
             activeOpacity={0.8}
           >
@@ -423,6 +423,7 @@ function ManagerTabs() {
         component={ManagerDashboard}
         options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Dashboard' }}
       />
+      <Tab.Screen name="Attendance" component={AttendanceStackScreen} options={{ tabBarLabel: 'Attendance' }} />
       <Tab.Screen name="TeamMap" component={TeamMapScreen} options={{ tabBarLabel: 'Live Map' }} />
       <Tab.Screen name="Employees" component={EmployeesStackScreen} options={{ tabBarLabel: 'Agents' }} />
       <Tab.Screen name="Reports" component={ReportsScreen} options={{ tabBarLabel: 'Reports' }} />

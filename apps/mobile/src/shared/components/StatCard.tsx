@@ -35,7 +35,9 @@ export function StatCard({ icon, value, label, valueColor, trend, style }: StatC
           backgroundColor: theme.colors.surface.card,
           borderRadius: theme.borderRadius.lg,
           borderColor: theme.colors.surface.border,
-          padding: theme.spacing.md,
+          borderBottomColor: accentColor,
+          borderBottomWidth: 3,
+          padding: theme.spacing.lg,
         },
         style,
       ]}
@@ -95,8 +97,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   iconWrap: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',

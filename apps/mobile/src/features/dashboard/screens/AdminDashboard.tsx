@@ -1,3 +1,5 @@
+import { lightTheme as theme } from "../../../shared/theme/tokens";
+
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
@@ -245,7 +247,7 @@ export function AdminDashboard({ navigation }: { navigation: any }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32 },
+  scroll: { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.md, paddingBottom: theme.spacing.xxl },
   topHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -327,8 +329,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -6,
-    backgroundColor: '#EF4444',
-    borderRadius: 9,
+    backgroundColor: theme.colors.semantic.error,
+    borderRadius: theme.borderRadius.full,
     minWidth: 18,
     height: 18,
     justifyContent: 'center',
@@ -336,37 +338,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   badgeText: {
-    color: '#FFFFFF',
+    color: theme.colors.text.inverse,
     fontSize: 10,
     fontWeight: '700',
   },
   quickActionsCard: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
   },
   quickActionsTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#64748B',
+    color: theme.colors.text.secondary,
     letterSpacing: 0.5,
-    marginBottom: 8,
+    marginBottom: theme.spacing.sm,
   },
   divider: {
     height: 1,
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
   quickActionsScroll: {
     flexDirection: 'row',
-    paddingRight: 16,
+    paddingRight: theme.spacing.lg,
   },
   quickActionItem: {
     width: 90,
     height: 72,
-    borderRadius: 12,
+    borderRadius: theme.borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: theme.spacing.md,
     paddingHorizontal: 4,
   },
   quickActionIconBox: {

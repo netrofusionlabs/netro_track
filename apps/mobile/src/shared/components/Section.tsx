@@ -39,14 +39,14 @@ export function Section({ title, actionLabel, onAction, children, style }: Secti
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 20,
-    marginBottom: 8,
+    marginTop: 24,
+    marginBottom: 12,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   actionBtn: {
     flexDirection: 'row',

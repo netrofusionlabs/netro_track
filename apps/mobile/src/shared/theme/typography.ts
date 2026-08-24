@@ -20,6 +20,14 @@ export const typography = {
     letterSpacing: -0.5,
   } as TextStyle,
 
+  /** Secondary hero numbers — 20pt */
+  displayMd: {
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 26,
+    letterSpacing: -0.4,
+  } as TextStyle,
+
   /** Screen titles — 22pt */
   displaySm: {
     fontSize: 22,
@@ -49,6 +57,7 @@ export const typography = {
     fontSize: 14,
     fontWeight: '600',
     lineHeight: 20,
+    letterSpacing: -0.1,
   } as TextStyle,
 
   // ─── Body ──────────────────────────────────────────────────────
@@ -63,14 +72,14 @@ export const typography = {
   bodyMd: {
     fontSize: 14,
     fontWeight: '400',
-    lineHeight: 20,
+    lineHeight: 21,
   } as TextStyle,
 
   /** Secondary text, metadata — 13pt */
   bodySm: {
     fontSize: 13,
     fontWeight: '400',
-    lineHeight: 18,
+    lineHeight: 19,
   } as TextStyle,
 
   // ─── Utility ───────────────────────────────────────────────────
@@ -94,6 +103,15 @@ export const typography = {
     fontWeight: '600',
     lineHeight: 14,
     letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  } as TextStyle,
+
+  /** Section titles for compact areas (e.g. Quick Actions) — 13pt uppercase */
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
   } as TextStyle,
 

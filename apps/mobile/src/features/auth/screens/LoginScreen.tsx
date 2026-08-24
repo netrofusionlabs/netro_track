@@ -1,3 +1,5 @@
+import { lightTheme as theme } from "../../../shared/theme/tokens";
+
 import React, { useState, useEffect } from 'react';
 import {
   TouchableOpacity,
@@ -207,7 +209,7 @@ export function LoginScreen({ navigation }: { navigation: any }) {
                         style={[
                           typography.caption,
                           {
-                            color: isSelected ? '#ffffff' : theme.colors.text.primary,
+                            color: isSelected ? theme.colors.text.inverse : theme.colors.text.primary,
                             fontWeight: isSelected ? '700' : '500',
                           },
                         ]}
@@ -283,47 +285,47 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 32,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.xxl,
     justifyContent: 'center',
   },
   brandHero: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: theme.spacing.xxl,
   },
   loginCard: {
-    padding: 20,
+    padding: theme.spacing.xl,
   },
   demoSection: {
-    marginTop: 24,
+    marginTop: theme.spacing.xxl,
   },
   tenantPillsRow: {
     flexDirection: 'row',
-    gap: 8,
-    paddingBottom: 8,
-    marginBottom: 12,
+    gap: theme.spacing.sm,
+    paddingBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
   },
   tenantPill: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.full,
     borderWidth: 1,
   },
   roleGroupList: {
-    gap: 12,
+    gap: theme.spacing.md,
   },
   roleBlock: {
-    marginBottom: 4,
+    marginBottom: theme.spacing.xs,
   },
   usersGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: theme.spacing.sm,
   },
   userCard: {
     width: '48%',
-    padding: 10,
-    borderRadius: 8,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
     borderWidth: 1,
   },
 });

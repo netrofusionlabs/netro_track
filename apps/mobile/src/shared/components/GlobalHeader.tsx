@@ -128,7 +128,7 @@ export function GlobalHeader({
                   {!!user?.companyLogoUrl && (
                     <Avatar source={user.companyLogoUrl} name={companyDisplayName} size="xs" />
                   )}
-                  <Text style={styles.subBrandText} numberOfLines={1}>
+                  <Text style={[styles.subBrandText, { color: theme.colors.brand.primary }]} numberOfLines={1}>
                     {companyDisplayName}
                   </Text>
                 </View>
@@ -143,26 +143,24 @@ export function GlobalHeader({
           <TouchableOpacity
             onPress={handleHomePress}
             activeOpacity={0.7}
-            style={[styles.utilityBtn, { backgroundColor: theme.colors.surface.subtle }]}
+            style={[styles.utilityButton, { backgroundColor: theme.colors.surface.subtle }]}
             accessibilityRole="button"
             accessibilityLabel="Home"
           >
             <AppIcon name="home" color={theme.colors.text.secondary} size={16} />
           </TouchableOpacity>
 
-
-
           {/* Notification Bell Action */}
           <TouchableOpacity
             onPress={handleNotificationPress}
             activeOpacity={0.7}
-            style={[styles.utilityBtn, { backgroundColor: theme.colors.surface.subtle }]}
+            style={[styles.utilityButton, { backgroundColor: theme.colors.surface.subtle }]}
             accessibilityRole="button"
             accessibilityLabel="Notifications"
           >
             <AppIcon name="bell" color={theme.colors.text.secondary} size={16} />
             {notificationCount != null && notificationCount > 0 && (
-              <View style={[styles.notifBadge, { backgroundColor: theme.colors.semantic.error }]}>
+              <View style={[styles.notifBadge, { backgroundColor: theme.colors.semantic.error, borderColor: theme.colors.surface.card }]}>
                 <Text style={styles.notifBadgeText}>
                   {notificationCount > 99 ? '99+' : notificationCount}
                 </Text>
@@ -229,7 +227,6 @@ const styles = StyleSheet.create({
   subBrandText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#0284C7',
     letterSpacing: -0.2,
     lineHeight: 15,
   },
@@ -239,24 +236,25 @@ const styles = StyleSheet.create({
     gap: 8,
     marginLeft: 8,
   },
-  utilityBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  utilityButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   notifBadge: {
     position: 'absolute',
-    top: -2,
-    right: -3,
-    minWidth: 15,
-    height: 15,
-    borderRadius: 7.5,
+    top: -4,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
     paddingHorizontal: 3,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
   },
   notifBadgeText: {
     color: '#FFFFFF',

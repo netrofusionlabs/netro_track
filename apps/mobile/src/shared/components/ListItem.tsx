@@ -44,8 +44,8 @@ export function ListItem({
           backgroundColor: theme.colors.surface.card,
           borderRadius: theme.borderRadius.lg,
           borderColor: theme.colors.surface.border,
-          paddingVertical: compact ? 8 : 12,
-          paddingHorizontal: 12,
+          paddingVertical: compact ? 10 : 14,
+          paddingHorizontal: theme.spacing.md,
         },
         style,
       ]}
@@ -54,7 +54,7 @@ export function ListItem({
         <View style={styles.leftContainer}>{avatar}</View>
       ) : icon ? (
         <View style={[styles.iconContainer, { backgroundColor: theme.colors.brand.primaryLight }]}>
-          <AppIcon name={icon} color={theme.colors.brand.primary} size={18} />
+          <AppIcon name={icon} color={theme.colors.brand.primary} size={20} />
         </View>
       ) : null}
 
@@ -104,15 +104,14 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
     borderWidth: 1,
   },
   leftContainer: {
     marginRight: 12,
   },
   iconContainer: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',

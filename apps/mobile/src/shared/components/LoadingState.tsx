@@ -28,6 +28,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 40,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
   },
 });

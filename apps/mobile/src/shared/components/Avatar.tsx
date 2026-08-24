@@ -61,6 +61,8 @@ export function Avatar({
           height: dimensions,
           borderRadius: dimensions / 2,
           backgroundColor: bgColor,
+          borderColor: theme.colors.surface.border,
+          borderWidth: 1,
         },
         style,
       ]}

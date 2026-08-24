@@ -483,8 +483,14 @@ export class AttendanceService {
     companyId: string,
     userId: string,
     role: string,
-    status?: 'PENDING' | 'APPROVED' | 'REJECTED'
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED',
+    personal?: boolean
   ) {
+    // If personal is true, ignore role context and return user's own regularizations
+    if (personal) {
+      return this.attendanceRepository.findRegularizations({ companyId, userId, status });
+    }
+
     // If user is a MANAGER, HR, or ADMIN, return all pending/reviewed team or company regularizations
     if (role === 'COMPANY_ADMIN' || role === 'HR' || role === 'SUPER_ADMIN') {
       return this.attendanceRepository.findRegularizations({ companyId, status });

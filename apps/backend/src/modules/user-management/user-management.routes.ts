@@ -28,7 +28,7 @@ router.get('/org-chart/subordinates/:managerId', requireRoles(Role.EMPLOYEE, Rol
 router.get('/org-chart/search', requireRoles(Role.EMPLOYEE, Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.searchOrgChart);
 
 // Get list of active managers (for selection dropdowns)
-router.get('/managers', requireRoles(Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.getCompanyManagers);
+router.get('/managers', requireRoles(Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.getCompanyManagers);
 
 // Get unassigned employees
 router.get('/unassigned', requireRoles(Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.getUnassignedEmployees);
@@ -42,8 +42,8 @@ router.get('/:id', requireRoles(Role.EMPLOYEE, Role.MANAGER, Role.HR, Role.COMPA
 // Get user professional timeline audit log
 router.get('/:id/timeline', requireRoles(Role.EMPLOYEE, Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), controller.getUserTimeline);
 
-// Create user (Role-aware: Manager creates Employee; HR creates Manager/Employee; Admin creates Manager/Employee; Super Admin creates Company Admin; Master creates Super Admin)
-router.post('/', requireRoles(Role.MANAGER, Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), validate(createUserSchema), controller.createUser);
+// Create user (Role-aware: HR creates Manager/Employee; Admin creates Manager/Employee; Super Admin creates Company Admin; Master creates Super Admin)
+router.post('/', requireRoles(Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), validate(createUserSchema), controller.createUser);
 
 // Update user details
 router.put('/:id', requireRoles(Role.HR, Role.COMPANY_ADMIN, Role.SUPER_ADMIN), validate(updateUserSchema), controller.updateUser);

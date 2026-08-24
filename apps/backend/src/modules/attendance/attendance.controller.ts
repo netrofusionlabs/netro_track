@@ -218,8 +218,9 @@ export class AttendanceController {
       const userId = req.user!.id;
       const role = req.user!.role;
       const status = req.query.status as 'PENDING' | 'APPROVED' | 'REJECTED' | undefined;
+      const personal = req.query.personal === 'true';
 
-      const records = await this.attendanceService.getRegularizations(companyId, userId, role, status);
+      const records = await this.attendanceService.getRegularizations(companyId, userId, role, status, personal);
       res.status(200).json({
         success: true,
         message: 'Regularization requests retrieved successfully',

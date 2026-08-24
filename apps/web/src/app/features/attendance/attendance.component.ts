@@ -430,7 +430,7 @@ export class AttendanceComponent implements OnDestroy {
       policy: this.api.one<EffectivePolicy>(API.attendancePolicyEffective),
       active: this.api.one<AttendanceRecord>(API.attendanceActive),
       history: this.api.list<AttendanceRecord>(API.attendanceHistory),
-      requests: this.api.list<Regularization>(API.regularization),
+      requests: this.api.list<Regularization>(API.regularization, { personal: 'true' }),
     }).subscribe(result => {
       this.policy.set(result.policy);
       this.ownShift.set(result.active);

@@ -29,11 +29,13 @@ export const uploadSignRequestSchema = z.object({
     })
     .default('image/jpeg'),
 
-  /**
-   * ID of the entity this image belongs to (e.g. visitId, inspectionId).
-   * Used to construct the R2 storage path.
-   */
-  entityId: z.string().uuid('entityId must be a valid UUID'),
+  entityId: z
+    .string()
+    .min(1, 'entityId is required')
+    .regex(
+      /^[a-zA-Z0-9_-]+$/,
+      'entityId must be a valid UUID or identifier (alphanumeric, hyphens, and underscores only)'
+    ),
 });
 
 export type UploadSignRequestInput = z.infer<typeof uploadSignRequestSchema>;

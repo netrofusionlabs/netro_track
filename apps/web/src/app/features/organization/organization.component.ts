@@ -143,7 +143,7 @@ export class OrganizationComponent {
     forkJoin({
       roots: this.api.get<OrgNode[]>(API.orgRoots, { refresh: refresh || undefined }),
       unassigned: this.api.list<Person>(API.workforceUnassigned),
-      managers: hasRole(this.actorRole(), CAN.editWorkforce)
+      managers: hasRole(this.actorRole(), CAN.manageWorkforce)
         ? this.api.list<Person>(API.workforceManagers)
         : of<Person[]>([]),
     }).subscribe({

@@ -123,8 +123,8 @@ export class PeopleComponent {
 
   /** `PUT /users/:id` and deactivation are HR and above. */
   readonly canEdit = computed(() => hasRole(this.actorRole(), CAN.editWorkforce));
-  /** `POST /users` also admits managers, who may only create employees. */
-  readonly canCreate = computed(() => hasRole(this.actorRole(), CAN.manageWorkforce));
+  /** `POST /users` is allowed for HR and above (managers cannot create employees). */
+  readonly canCreate = computed(() => hasRole(this.actorRole(), CAN.editWorkforce));
 
   readonly roleOptions = computed(() =>
     (['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'] as Role[])

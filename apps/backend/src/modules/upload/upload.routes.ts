@@ -1,5 +1,5 @@
 /**
- * Upload Routes — Cloudflare R2 pre-signed URL generation.
+ * Upload Routes — Cloudflare R2 pre-signed URL generation. (Reloaded schema check)
  *
  * Flow:
  *  1. Mobile requests a pre-signed URL with { purpose, contentType, entityId }

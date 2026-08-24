@@ -32,10 +32,10 @@ describe('AuthorizationService Unit Tests', () => {
       expect(authService.canCreateRole(Role.COMPANY_ADMIN, EMP_ROLE)).toBe(true);
     });
 
-    it('MANAGER can only create EMPLOYEE', () => {
+    it('MANAGER cannot create any role', () => {
       expect(authService.canCreateRole(Role.MANAGER, Role.MANAGER)).toBe(false);
       expect(authService.canCreateRole(Role.MANAGER, Role.COMPANY_ADMIN)).toBe(false);
-      expect(authService.canCreateRole(Role.MANAGER, EMP_ROLE)).toBe(true);
+      expect(authService.canCreateRole(Role.MANAGER, EMP_ROLE)).toBe(false);
     });
   });
 

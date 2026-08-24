@@ -46,7 +46,7 @@ export class AuthorizationService {
       return targetRole === Role.MANAGER || isTargetEmployee;
     }
     if (actorRole === Role.MANAGER) {
-      return isTargetEmployee;
+      return false;
     }
     return false;
   }

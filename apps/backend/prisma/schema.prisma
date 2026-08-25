@@ -1,11 +1,429 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+model Company {
+  id                 String              @id @default(uuid()) @db.Uuid
+  name               String
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  deletedAt          DateTime?           @map("deleted_at")
+  code               String              @unique
+  isGpsEnabled       Boolean             @default(true) @map("is_gps_enabled")
+  logoFileId         String?             @unique @map("logo_file_id") @db.Uuid
+  companyType        String?             @map("company_type")
+  country            String?
+  industry           String?
+  legalName          String?             @map("legal_name")
+  officialEmail      String?             @map("official_email")
+  phone              String?
+  status             CompanyStatus       @default(ACTIVE)
+  website            String?
+  addressLine1       String?             @map("address_line1")
+  addressLine2       String?             @map("address_line2")
+  city               String?
+  currency           String?
+  employeeCount      String?             @map("employee_count")
+  registrationNumber String?             @map("registration_number")
+  state              String?
+  taxId              String?             @map("tax_id")
+  timezone           String?
+  zipCode            String?             @map("zip_code")
+  attendances        Attendance[]
+  branches           Branch[]
+  logoFile           File?               @relation("CompanyLogo", fields: [logoFileId], references: [id])
+  modules            CompanyModule[]
+  departments        Department[]
+  designations       Designation[]
+  uploadedFiles      File[]              @relation("CompanyTenantFiles")
+  gpsLocations       GpsLocation[]
+  inspections        Inspection[]
+  sales              Sale[]
+  timelineEvents     UserTimelineEvent[]
+  users              User[]
+  visits             Visit[]
+
+  @@map("companies")
+}
+
+model CompanyModule {
+  id            String     @id @default(uuid()) @db.Uuid
+  companyId     String     @map("company_id") @db.Uuid
+  module        ModuleType
+  isEnabled     Boolean    @default(false) @map("is_enabled")
+  configuration Json?
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  company       Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, module])
+  @@map("company_modules")
+}
+
+model User {
+  id                    String              @id @default(uuid()) @db.Uuid
+  companyId             String              @map("company_id") @db.Uuid
+  employeeId            String              @map("employee_id")
+  name                  String
+  passwordHash          String              @map("password_hash")
+  mpinHash              String?             @map("mpin_hash")
+  role                  Role
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+  deletedAt             DateTime?           @map("deleted_at")
+  bloodGroup            String?             @map("blood_group")
+  branchId              String?             @map("branch_id") @db.Uuid
+  departmentId          String?             @map("department_id") @db.Uuid
+  designationId         String?             @map("designation_id") @db.Uuid
+  email                 String?             @unique
+  emergencyContactName  String?             @map("emergency_contact_name")
+  emergencyContactPhone String?             @map("emergency_contact_phone")
+  isGpsTracked          Boolean             @default(true) @map("is_gps_tracked")
+  linkedinUrl           String?             @map("linkedin_url")
+  managerId             String?             @map("manager_id") @db.Uuid
+  personalEmail         String?             @map("personal_email")
+  phone                 String?             @map("phone")
+  profilePictureFileId  String?             @unique @map("profile_picture_file_id") @db.Uuid
+  secondaryPhone        String?             @map("secondary_phone")
+  status                UserStatus          @default(ACTIVE)
+  twitterUrl            String?             @map("twitter_url")
+  attendances           Attendance[]
+  createdCustomers      Customer[]          @relation("CreatedCustomers")
+  devices               Device[]
+  uploadedFiles         File[]              @relation("UserUploadedFiles")
+  gpsLocations          GpsLocation[]
+  inspections           Inspection[]
+  sales                 Sale[]
+  sessions              Session[]
+  actedTimelineEvents   UserTimelineEvent[] @relation("ActorTimelineEvents")
+  timelineEvents        UserTimelineEvent[] @relation("UserTimelineEvents")
+  branch                Branch?             @relation(fields: [branchId], references: [id])
+  company               Company             @relation(fields: [companyId], references: [id])
+  department            Department?         @relation(fields: [departmentId], references: [id])
+  designation           Designation?        @relation(fields: [designationId], references: [id])
+  manager               User?               @relation("ManagerSubordinates", fields: [managerId], references: [id])
+  subordinates          User[]              @relation("ManagerSubordinates")
+  profilePicture        File?               @relation("UserProfilePicture", fields: [profilePictureFileId], references: [id])
+  visits                Visit[]
+
+  @@unique([companyId, employeeId])
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("userId") @db.Uuid
+  refreshToken String   @unique @map("refresh_token")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@map("sessions")
+}
+
+model Device {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  deviceId     String   @map("device_id")
+  os           String
+  model        String
+  appVersion   String   @map("app_version")
+  registeredAt DateTime @default(now()) @map("registered_at")
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, deviceId])
+  @@map("devices")
+}
+
+model Customer {
+  id          String    @id @default(uuid()) @db.Uuid
+  companyId   String    @map("company_id") @db.Uuid
+  name        String
+  phone       String?
+  email       String?
+  address     String?
+  village     String?
+  latitude    Decimal?  @db.Decimal(10, 7)
+  longitude   Decimal?  @db.Decimal(10, 7)
+  type        String?
+  createdById String?   @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdBy   User?     @relation("CreatedCustomers", fields: [createdById], references: [id])
+  sales       Sale[]
+  visits      Visit[]
+
+  @@map("customers")
+}
+
+model Product {
+  id          String     @id @default(uuid()) @db.Uuid
+  companyId   String     @map("company_id") @db.Uuid
+  name        String
+  sku         String?
+  description String?
+  unit        String?
+  price       Decimal?   @db.Decimal(10, 2)
+  imageUrl    String?    @map("image_url")
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  deletedAt   DateTime?  @map("deleted_at")
+  saleItems   SaleItem[]
+
+  @@map("products")
+}
+
+model Branch {
+  id          String       @id @default(uuid()) @db.Uuid
+  companyId   String       @map("company_id") @db.Uuid
+  name        String
+  address     String?
+  latitude    Decimal?     @db.Decimal(10, 7)
+  longitude   Decimal?     @db.Decimal(10, 7)
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  deletedAt   DateTime?    @map("deleted_at")
+  company     Company      @relation(fields: [companyId], references: [id])
+  departments Department[]
+  users       User[]
+
+  @@map("branches")
+}
+
+model Department {
+  id        String    @id @default(uuid()) @db.Uuid
+  companyId String    @map("company_id") @db.Uuid
+  branchId  String?   @map("branch_id") @db.Uuid
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  branch    Branch?   @relation(fields: [branchId], references: [id])
+  company   Company   @relation(fields: [companyId], references: [id])
+  users     User[]
+
+  @@map("departments")
+}
+
+model Designation {
+  id        String    @id @default(uuid()) @db.Uuid
+  companyId String    @map("company_id") @db.Uuid
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  company   Company   @relation(fields: [companyId], references: [id])
+  users     User[]
+
+  @@map("designations")
+}
+
+model Attendance {
+  id                String        @id @default(uuid()) @db.Uuid
+  companyId         String        @map("company_id") @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  punchInTime       DateTime      @map("punch_in_time")
+  punchInLatitude   Decimal       @map("punch_in_latitude") @db.Decimal(10, 7)
+  punchInLongitude  Decimal       @map("punch_in_longitude") @db.Decimal(10, 7)
+  punchOutTime      DateTime?     @map("punch_out_time")
+  punchOutLatitude  Decimal?      @map("punch_out_latitude") @db.Decimal(10, 7)
+  punchOutLongitude Decimal?      @map("punch_out_longitude") @db.Decimal(10, 7)
+  workingHours      Decimal?      @map("working_hours") @db.Decimal(5, 2)
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  company           Company       @relation(fields: [companyId], references: [id])
+  user              User          @relation(fields: [userId], references: [id])
+  gpsLocations      GpsLocation[]
+
+  @@map("attendances")
+}
+
+model Visit {
+  id                String    @id @default(uuid()) @db.Uuid
+  /// Client-generated UUID for offline idempotency (BR-SY03)
+  localId           String?   @unique @map("local_id")
+  companyId         String    @map("company_id") @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  customerId        String    @map("customer_id") @db.Uuid
+  checkInTime       DateTime  @map("check_in_time")
+  checkOutTime      DateTime? @map("check_out_time")
+  duration          Int?
+  latitude          Decimal   @db.Decimal(10, 7)
+  longitude         Decimal   @db.Decimal(10, 7)
+  productsDiscussed String?   @map("products_discussed")
+  notes             String?
+  imageUrl          String?   @map("image_url")
+  photoUrls         String[]  @default([]) @map("photo_urls")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+  company           Company   @relation(fields: [companyId], references: [id])
+  customer          Customer  @relation(fields: [customerId], references: [id])
+  user              User      @relation(fields: [userId], references: [id])
+
+  @@index([companyId, userId, checkInTime])
+  @@map("visits")
+}
+
+model Sale {
+  id          String     @id @default(uuid()) @db.Uuid
+  /// Client-generated UUID for offline idempotency (BR-SY03)
+  localId     String?    @unique @map("local_id")
+  companyId   String     @map("company_id") @db.Uuid
+  userId      String     @map("user_id") @db.Uuid
+  customerId  String     @map("customer_id") @db.Uuid
+  totalAmount Decimal    @map("total_amount") @db.Decimal(12, 2)
+  remarks     String?
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  deletedAt   DateTime?  @map("deleted_at")
+  items       SaleItem[]
+  company     Company    @relation(fields: [companyId], references: [id])
+  customer    Customer   @relation(fields: [customerId], references: [id])
+  user        User       @relation(fields: [userId], references: [id])
+
+  @@index([companyId, userId, createdAt])
+  @@map("sales")
+}
+
+model Inspection {
+  id             String    @id @default(uuid()) @db.Uuid
+  /// Client-generated UUID for offline idempotency (BR-SY03)
+  localId        String?   @unique @map("local_id")
+  companyId      String    @map("company_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  siteName       String    @map("site_name")
+  category       String?
+  latitude       Decimal   @db.Decimal(10, 7)
+  longitude      Decimal   @db.Decimal(10, 7)
+  observation    String
+  recommendation String?
+  imageUrls      String[]  @default([]) @map("image_urls")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  company        Company   @relation(fields: [companyId], references: [id])
+  user           User      @relation(fields: [userId], references: [id])
+
+  @@index([companyId, userId, createdAt])
+  @@map("inspections")
+}
+
+model SaleItem {
+  id         String  @id @default(uuid()) @db.Uuid
+  saleId     String  @map("sale_id") @db.Uuid
+  productId  String  @map("product_id") @db.Uuid
+  quantity   Int
+  price      Decimal @db.Decimal(10, 2)
+  totalPrice Decimal @map("total_price") @db.Decimal(10, 2)
+  product    Product @relation(fields: [productId], references: [id])
+  sale       Sale    @relation(fields: [saleId], references: [id])
+
+  @@map("sale_items")
+}
+
+model GpsLocation {
+  id              String      @id @default(uuid()) @db.Uuid
+  /// Client-generated UUID for idempotent batch sync (BR-SY03, BR-G11)
+  localId         String?     @unique @map("local_id")
+  companyId       String      @map("company_id") @db.Uuid
+  userId          String      @map("user_id") @db.Uuid
+  attendanceId    String?     @map("attendance_id") @db.Uuid
+  latitude        Decimal     @db.Decimal(10, 7)
+  longitude       Decimal     @db.Decimal(10, 7)
+  accuracy        Decimal?    @db.Decimal(8, 2)
+  speed           Decimal?    @db.Decimal(8, 2)
+  heading         Decimal?    @db.Decimal(6, 2)
+  altitude        Decimal?    @db.Decimal(10, 2)
+  batteryLevel    Int?        @map("battery_level")
+  batteryCharging Boolean?    @map("battery_charging")
+  networkType     String?     @map("network_type")
+  gpsProvider     String?     @map("gps_provider")
+  /// True when accuracy is within 100 m threshold (BR-G08)
+  isAccurate      Boolean?    @map("is_accurate")
+  recordedAt      DateTime    @map("recorded_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  attendance      Attendance? @relation(fields: [attendanceId], references: [id])
+  company         Company     @relation(fields: [companyId], references: [id])
+  user            User        @relation(fields: [userId], references: [id])
+
+  @@index([companyId, userId, recordedAt])
+  @@index([companyId, userId])
+  @@map("gps_locations")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  companyId  String?  @map("company_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  oldValues  Json?    @map("old_values")
+  newValues  Json?    @map("new_values")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+
+model UserTimelineEvent {
+  id              String            @id @default(uuid()) @db.Uuid
+  userId          String            @map("user_id") @db.Uuid
+  companyId       String            @map("company_id") @db.Uuid
+  eventType       TimelineEventType @map("event_type")
+  title           String
+  description     String?
+  previousValue   String?           @map("previous_value")
+  newValue        String?           @map("new_value")
+  changedByUserId String?           @map("changed_by_user_id") @db.Uuid
+  changedByName   String?           @map("changed_by_name")
+  effectiveDate   DateTime          @default(now()) @map("effective_date")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  changedBy       User?             @relation("ActorTimelineEvents", fields: [changedByUserId], references: [id])
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user            User              @relation("UserTimelineEvents", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([companyId])
+  @@index([userId, effectiveDate])
+  @@map("user_timeline_events")
+}
+
+model File {
+  id               String     @id @default(uuid()) @db.Uuid
+  tenantId         String     @map("tenant_id") @db.Uuid
+  storageProvider  String     @map("storage_provider")
+  bucket           String
+  objectKey        String     @map("object_key")
+  fileName         String     @map("file_name")
+  mimeType         String     @map("mime_type")
+  size             Int
+  fileType         String     @map("file_type")
+  status           FileStatus @default(PENDING)
+  uploadedByUserId String     @map("uploaded_by_user_id") @db.Uuid
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+  companyLogo      Company?   @relation("CompanyLogo")
+  company          Company    @relation("CompanyTenantFiles", fields: [tenantId], references: [id])
+  uploadedBy       User       @relation("UserUploadedFiles", fields: [uploadedByUserId], references: [id])
+  userProfile      User?      @relation("UserProfilePicture")
+
+  @@index([tenantId])
+  @@map("files")
 }
 
 enum UserStatus {
@@ -44,466 +462,6 @@ enum ModuleType {
   ASSET
   PERFORMANCE
   RECRUITMENT
-  REGULARIZATION
-}
-
-enum PolicyType {
-  ATTENDANCE
-  LEAVE
-  EXPENSE
-  TRACKING
-  VISIT
-  INSPECTION
-}
-
-enum PolicyTargetType {
-  COMPANY
-  DEPARTMENT
-  DESIGNATION
-  USER
-}
-
-model Company {
-  id            String        @id @default(uuid()) @db.Uuid
-  name          String
-  code          String        @unique
-  officialEmail String?       @map("official_email")
-  country       String?
-  legalName     String?       @map("legal_name")
-  industry      String?
-  companyType   String?       @map("company_type")
-  employeeCount String?       @map("employee_count")
-  website       String?
-  phone         String?
-  taxId         String?       @map("tax_id")
-  registrationNumber String?  @map("registration_number")
-  timezone      String?
-  currency      String?
-  addressLine1  String?       @map("address_line1")
-  addressLine2  String?       @map("address_line2")
-  city          String?
-  state         String?
-  zipCode       String?       @map("zip_code")
-  isGpsEnabled  Boolean       @default(true) @map("is_gps_enabled")
-  logoFileId    String?       @unique @map("logo_file_id") @db.Uuid
-  status        CompanyStatus @default(ACTIVE)
-  defaultAttendancePolicyId String? @map("default_attendance_policy_id") @db.Uuid
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-  deletedAt     DateTime?     @map("deleted_at")
-
-  logoFile       File?               @relation("CompanyLogo", fields: [logoFileId], references: [id], onDelete: SetNull)
-  defaultAttendancePolicy AttendancePolicy? @relation("DefaultPolicy", fields: [defaultAttendancePolicyId], references: [id], onDelete: SetNull)
-  attendancePolicies AttendancePolicy[] @relation("CompanyPolicies")
-  users          User[]
-  branches       Branch[]
-  departments    Department[]
-  designations   Designation[]
-  attendances    Attendance[]
-  visits         Visit[]
-  sales          Sale[]
-  inspections    Inspection[]
-  gpsLocations   GpsLocation[]
-  timelineEvents UserTimelineEvent[]
-  uploadedFiles  File[]              @relation("CompanyTenantFiles")
-  modules        CompanyModule[]
-  regularizations AttendanceRegularization[]
-  policyAssignments PolicyAssignment[]
-
-  @@map("companies")
-}
-
-model CompanyModule {
-  id            String     @id @default(uuid()) @db.Uuid
-  companyId     String     @map("company_id") @db.Uuid
-  module        ModuleType
-  isEnabled     Boolean    @default(false) @map("is_enabled")
-  configuration Json?
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
-
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@unique([companyId, module])
-  @@map("company_modules")
-}
-
-model User {
-  id                    String     @id @default(uuid()) @db.Uuid
-  companyId             String     @map("company_id") @db.Uuid
-  employeeId            String     @map("employee_id")
-  name                  String
-  email                 String?    @unique
-  personalEmail         String?    @map("personal_email")
-  phone                 String?    @map("phone")
-  secondaryPhone        String?    @map("secondary_phone")
-  emergencyContactName  String?    @map("emergency_contact_name")
-  emergencyContactPhone String?    @map("emergency_contact_phone")
-  linkedinUrl           String?    @map("linkedin_url")
-  twitterUrl            String?    @map("twitter_url")
-  bloodGroup            String?    @map("blood_group")
-  passwordHash          String     @map("password_hash")
-  mpinHash              String?    @map("mpin_hash")
-  role                  Role
-  status                UserStatus @default(ACTIVE)
-  isGpsTracked          Boolean    @default(true) @map("is_gps_tracked")
-  managerId             String?    @map("manager_id") @db.Uuid
-  branchId              String?    @map("branch_id") @db.Uuid
-  departmentId          String?    @map("department_id") @db.Uuid
-  designationId         String?    @map("designation_id") @db.Uuid
-  attendancePolicyId    String?    @map("attendance_policy_id") @db.Uuid
-  profilePictureFileId  String?    @unique @map("profile_picture_file_id") @db.Uuid
-  createdAt             DateTime   @default(now()) @map("created_at")
-  updatedAt             DateTime   @updatedAt @map("updated_at")
-  deletedAt             DateTime?  @map("deleted_at")
-
-  company             Company             @relation(fields: [companyId], references: [id])
-  manager             User?               @relation("ManagerSubordinates", fields: [managerId], references: [id])
-  subordinates        User[]              @relation("ManagerSubordinates")
-  createdCustomers    Customer[]          @relation("CreatedCustomers")
-  branch              Branch?             @relation(fields: [branchId], references: [id])
-  department          Department?         @relation(fields: [departmentId], references: [id])
-  designation         Designation?        @relation(fields: [designationId], references: [id])
-  attendancePolicy    AttendancePolicy?   @relation(fields: [attendancePolicyId], references: [id], onDelete: SetNull)
-  profilePicture      File?               @relation("UserProfilePicture", fields: [profilePictureFileId], references: [id], onDelete: SetNull)
-  devices             Device[]
-  sessions            Session[]
-  attendances         Attendance[]
-  visits              Visit[]
-  sales               Sale[]
-  inspections         Inspection[]
-  gpsLocations        GpsLocation[]
-  timelineEvents      UserTimelineEvent[] @relation("UserTimelineEvents")
-  actedTimelineEvents UserTimelineEvent[] @relation("ActorTimelineEvents")
-  uploadedFiles       File[]              @relation("UserUploadedFiles")
-  regularizations     AttendanceRegularization[] @relation("regularization_user")
-  approvedRegularizations AttendanceRegularization[] @relation("regularization_approver")
-
-  @@unique([companyId, employeeId])
-  @@map("users")
-}
-
-model Session {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @map("userId") @db.Uuid
-  refreshToken String   @unique @map("refresh_token")
-  expiresAt    DateTime @map("expires_at")
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@map("sessions")
-}
-
-model Device {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @map("user_id") @db.Uuid
-  deviceId     String   @map("device_id")
-  os           String
-  model        String
-  appVersion   String   @map("app_version")
-  registeredAt DateTime @default(now()) @map("registered_at")
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@unique([userId, deviceId])
-  @@map("devices")
-}
-
-model Customer {
-  id          String    @id @default(uuid()) @db.Uuid
-  companyId   String    @map("company_id") @db.Uuid
-  name        String
-  phone       String?
-  email       String?
-  address     String?
-  village     String?
-  latitude    Decimal?  @db.Decimal(10, 7)
-  longitude   Decimal?  @db.Decimal(10, 7)
-  type        String?
-  createdById String?   @map("created_by") @db.Uuid
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
-
-  createdBy User?   @relation("CreatedCustomers", fields: [createdById], references: [id])
-  visits    Visit[]
-  sales     Sale[]
-
-  @@map("customers")
-}
-
-model Product {
-  id          String     @id @default(uuid()) @db.Uuid
-  companyId   String     @map("company_id") @db.Uuid
-  name        String
-  sku         String?
-  description String?
-  unit        String?
-  price       Decimal?   @db.Decimal(10, 2)
-  imageUrl    String?    @map("image_url")
-  isActive    Boolean    @default(true) @map("is_active")
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
-  deletedAt   DateTime?  @map("deleted_at")
-  saleItems   SaleItem[]
-
-  @@map("products")
-}
-
-model Branch {
-  id        String    @id @default(uuid()) @db.Uuid
-  companyId String    @map("company_id") @db.Uuid
-  name      String
-  address   String?
-  latitude  Decimal?  @db.Decimal(10, 7)
-  longitude Decimal?  @db.Decimal(10, 7)
-  isActive  Boolean   @default(true) @map("is_active")
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
-
-  company     Company      @relation(fields: [companyId], references: [id])
-  departments Department[]
-  users       User[]
-
-  @@map("branches")
-}
-
-model Department {
-  id        String    @id @default(uuid()) @db.Uuid
-  companyId String    @map("company_id") @db.Uuid
-  branchId  String?   @map("branch_id") @db.Uuid
-  name      String
-  isActive  Boolean   @default(true) @map("is_active")
-  attendancePolicyId String? @map("attendance_policy_id") @db.Uuid
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
-
-  company Company @relation(fields: [companyId], references: [id])
-  branch  Branch? @relation(fields: [branchId], references: [id])
-  attendancePolicy AttendancePolicy? @relation(fields: [attendancePolicyId], references: [id], onDelete: SetNull)
-  users   User[]
-
-  @@map("departments")
-}
-
-model Designation {
-  id        String    @id @default(uuid()) @db.Uuid
-  companyId String    @map("company_id") @db.Uuid
-  name      String
-  isActive  Boolean   @default(true) @map("is_active")
-  attendancePolicyId String? @map("attendance_policy_id") @db.Uuid
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
-
-  company Company @relation(fields: [companyId], references: [id])
-  attendancePolicy AttendancePolicy? @relation(fields: [attendancePolicyId], references: [id], onDelete: SetNull)
-  users   User[]
-
-  @@map("designations")
-}
-
-model Attendance {
-  id                String    @id @default(uuid()) @db.Uuid
-  companyId         String    @map("company_id") @db.Uuid
-  userId            String    @map("user_id") @db.Uuid
-  punchInTime       DateTime  @map("punch_in_time")
-  punchInLatitude   Decimal   @map("punch_in_latitude") @db.Decimal(10, 7)
-  punchInLongitude  Decimal   @map("punch_in_longitude") @db.Decimal(10, 7)
-  punchOutTime      DateTime? @map("punch_out_time")
-  punchOutLatitude  Decimal?  @map("punch_out_latitude") @db.Decimal(10, 7)
-  punchOutLongitude Decimal?  @map("punch_out_longitude") @db.Decimal(10, 7)
-  workingHours      Decimal?  @map("working_hours") @db.Decimal(5, 2)
-  attendancePolicyId String?  @map("attendance_policy_id") @db.Uuid
-  policySnapshot     Json?    @map("policy_snapshot")
-  punchInEvidence    Json?    @map("punch_in_evidence")
-  punchOutEvidence   Json?    @map("punch_out_evidence")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-
-  company      Company       @relation(fields: [companyId], references: [id])
-  user         User          @relation(fields: [userId], references: [id])
-  attendancePolicy AttendancePolicy? @relation(fields: [attendancePolicyId], references: [id], onDelete: SetNull)
-  gpsLocations GpsLocation[]
-  regularizations AttendanceRegularization[]
-
-  @@map("attendances")
-}
-
-model Visit {
-  id                String    @id @default(uuid()) @db.Uuid
-  /// Client-generated UUID for offline idempotency (BR-SY03)
-  localId           String?   @unique @map("local_id")
-  companyId         String    @map("company_id") @db.Uuid
-  userId            String    @map("user_id") @db.Uuid
-  customerId        String    @map("customer_id") @db.Uuid
-  checkInTime       DateTime  @map("check_in_time")
-  checkOutTime      DateTime? @map("check_out_time")
-  duration          Int?
-  latitude          Decimal   @db.Decimal(10, 7)
-  longitude         Decimal   @db.Decimal(10, 7)
-  productsDiscussed String?   @map("products_discussed")
-  notes             String?
-  imageUrl          String?   @map("image_url")
-  photoUrls         String[]  @default([]) @map("photo_urls")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  deletedAt         DateTime? @map("deleted_at")
-
-  company  Company  @relation(fields: [companyId], references: [id])
-  user     User     @relation(fields: [userId], references: [id])
-  customer Customer @relation(fields: [customerId], references: [id])
-
-  @@index([companyId, userId, checkInTime])
-  @@map("visits")
-}
-
-model Sale {
-  id          String     @id @default(uuid()) @db.Uuid
-  /// Client-generated UUID for offline idempotency (BR-SY03)
-  localId     String?    @unique @map("local_id")
-  companyId   String     @map("company_id") @db.Uuid
-  userId      String     @map("user_id") @db.Uuid
-  customerId  String     @map("customer_id") @db.Uuid
-  totalAmount Decimal    @map("total_amount") @db.Decimal(12, 2)
-  remarks     String?
-  createdAt   DateTime   @default(now()) @map("created_at")
-  updatedAt   DateTime   @updatedAt @map("updated_at")
-  deletedAt   DateTime?  @map("deleted_at")
-  items       SaleItem[]
-
-  company  Company  @relation(fields: [companyId], references: [id])
-  user     User     @relation(fields: [userId], references: [id])
-  customer Customer @relation(fields: [customerId], references: [id])
-
-  @@index([companyId, userId, createdAt])
-  @@map("sales")
-}
-
-model Inspection {
-  id             String    @id @default(uuid()) @db.Uuid
-  /// Client-generated UUID for offline idempotency (BR-SY03)
-  localId        String?   @unique @map("local_id")
-  companyId      String    @map("company_id") @db.Uuid
-  userId         String    @map("user_id") @db.Uuid
-  siteName       String    @map("site_name")
-  category       String?
-  latitude       Decimal   @db.Decimal(10, 7)
-  longitude      Decimal   @db.Decimal(10, 7)
-  observation    String
-  recommendation String?
-  imageUrls      String[]  @default([]) @map("image_urls")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-  deletedAt      DateTime? @map("deleted_at")
-
-  company Company @relation(fields: [companyId], references: [id])
-  user    User    @relation(fields: [userId], references: [id])
-
-  @@index([companyId, userId, createdAt])
-  @@map("inspections")
-}
-
-enum RegularizationStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-model AttendanceRegularization {
-  id               String               @id @default(uuid()) @db.Uuid
-  companyId        String               @map("company_id") @db.Uuid
-  userId           String               @map("user_id") @db.Uuid
-  attendanceId     String?              @map("attendance_id") @db.Uuid
-  date             DateTime             @map("date") @db.Date
-  requestedPunchIn DateTime?            @map("requested_punch_in")
-  requestedPunchOut DateTime?           @map("requested_punch_out")
-  originalPunchIn  DateTime?            @map("original_punch_in")
-  originalPunchOut DateTime?            @map("original_punch_out")
-  requestedPunchInOdometer  Int?       @map("requested_punch_in_odometer")
-  requestedPunchOutOdometer Int?       @map("requested_punch_out_odometer")
-  originalPunchInOdometer   Int?       @map("original_punch_in_odometer")
-  originalPunchOutOdometer  Int?       @map("original_punch_out_odometer")
-  reason           String
-  status           RegularizationStatus @default(PENDING)
-  approvedBy       String?              @map("approved_by") @db.Uuid
-  remarks          String?
-  createdAt        DateTime             @default(now()) @map("created_at")
-  updatedAt        DateTime             @updatedAt @map("updated_at")
-
-  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user       User        @relation("regularization_user", fields: [userId], references: [id], onDelete: Cascade)
-  approver   User?       @relation("regularization_approver", fields: [approvedBy], references: [id], onDelete: SetNull)
-  attendance Attendance? @relation(fields: [attendanceId], references: [id], onDelete: SetNull)
-
-  @@map("attendance_regularizations")
-  @@index([companyId])
-  @@index([userId])
-}
-
-model SaleItem {
-  id         String  @id @default(uuid()) @db.Uuid
-  saleId     String  @map("sale_id") @db.Uuid
-  productId  String  @map("product_id") @db.Uuid
-  quantity   Int
-  price      Decimal @db.Decimal(10, 2)
-  totalPrice Decimal @map("total_price") @db.Decimal(10, 2)
-
-  sale    Sale    @relation(fields: [saleId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
-
-  @@map("sale_items")
-}
-
-model GpsLocation {
-  id              String   @id @default(uuid()) @db.Uuid
-  /// Client-generated UUID for idempotent batch sync (BR-SY03, BR-G11)
-  localId         String?  @unique @map("local_id")
-  companyId       String   @map("company_id") @db.Uuid
-  userId          String   @map("user_id") @db.Uuid
-  attendanceId    String?  @map("attendance_id") @db.Uuid
-  latitude        Decimal  @db.Decimal(10, 7)
-  longitude       Decimal  @db.Decimal(10, 7)
-  accuracy        Decimal? @db.Decimal(8, 2)
-  speed           Decimal? @db.Decimal(8, 2)
-  heading         Decimal? @db.Decimal(6, 2)
-  altitude        Decimal? @db.Decimal(10, 2)
-  batteryLevel    Int?     @map("battery_level")
-  batteryCharging Boolean? @map("battery_charging")
-  networkType     String?  @map("network_type")
-  gpsProvider     String?  @map("gps_provider")
-  /// True when accuracy is within 100 m threshold (BR-G08)
-  isAccurate      Boolean? @map("is_accurate")
-  recordedAt      DateTime @map("recorded_at")
-  createdAt       DateTime @default(now()) @map("created_at")
-
-  company    Company     @relation(fields: [companyId], references: [id])
-  user       User        @relation(fields: [userId], references: [id])
-  attendance Attendance? @relation(fields: [attendanceId], references: [id])
-
-  @@index([companyId, userId, recordedAt])
-  @@index([companyId, userId])
-  @@map("gps_locations")
-}
-
-model AuditLog {
-  id         String   @id @default(uuid()) @db.Uuid
-  companyId  String?  @map("company_id") @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
-  action     String
-  entityType String   @map("entity_type")
-  entityId   String?  @map("entity_id")
-  oldValues  Json?    @map("old_values")
-  newValues  Json?    @map("new_values")
-  metadata   Json?
-  createdAt  DateTime @default(now()) @map("created_at")
-
-  @@index([companyId, createdAt])
-  @@index([userId, createdAt])
-  @@map("audit_logs")
 }
 
 enum TimelineEventType {
@@ -519,105 +477,4 @@ enum TimelineEventType {
   LOCATION_CHANGED
   DEPARTMENT_CHANGED
   COMPANY_CHANGED
-  ATTENDANCE_POLICY_ASSIGNED
-  ATTENDANCE_POLICY_CHANGED
-  POLICY_ASSIGNED
-  POLICY_CHANGED
-}
-
-model UserTimelineEvent {
-  id              String            @id @default(uuid()) @db.Uuid
-  userId          String            @map("user_id") @db.Uuid
-  companyId       String            @map("company_id") @db.Uuid
-  eventType       TimelineEventType @map("event_type")
-  title           String
-  description     String?
-  previousValue   String?           @map("previous_value")
-  newValue        String?           @map("new_value")
-  changedByUserId String?           @map("changed_by_user_id") @db.Uuid
-  changedByName   String?           @map("changed_by_name")
-  effectiveDate   DateTime          @default(now()) @map("effective_date")
-  createdAt       DateTime          @default(now()) @map("created_at")
-
-  user      User    @relation("UserTimelineEvents", fields: [userId], references: [id], onDelete: Cascade)
-  changedBy User?   @relation("ActorTimelineEvents", fields: [changedByUserId], references: [id], onDelete: SetNull)
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([companyId])
-  @@index([userId, effectiveDate])
-  @@map("user_timeline_events")
-}
-
-model File {
-  id               String     @id @default(uuid()) @db.Uuid
-  tenantId         String     @map("tenant_id") @db.Uuid
-  storageProvider  String     @map("storage_provider")
-  bucket           String
-  objectKey        String     @map("object_key")
-  fileName         String     @map("file_name")
-  mimeType         String     @map("mime_type")
-  size             Int
-  fileType         String     @map("file_type")
-  status           FileStatus @default(PENDING)
-  uploadedByUserId String     @map("uploaded_by_user_id") @db.Uuid
-  createdAt        DateTime   @default(now()) @map("created_at")
-  updatedAt        DateTime   @updatedAt @map("updated_at")
-
-  company    Company @relation("CompanyTenantFiles", fields: [tenantId], references: [id])
-  uploadedBy User    @relation("UserUploadedFiles", fields: [uploadedByUserId], references: [id])
-
-  userProfile User?    @relation("UserProfilePicture")
-  companyLogo Company? @relation("CompanyLogo")
-
-  @@index([tenantId])
-  @@map("files")
-}
-
-model AttendancePolicy {
-  id             String     @id @default(uuid()) @db.Uuid
-  companyId      String     @map("company_id") @db.Uuid
-  type           PolicyType @default(ATTENDANCE)
-  name           String
-  description    String?
-  isActive       Boolean    @default(true) @map("is_active")
-  config         Json       @default("{}")
-  punchInConfig  Json       @map("punch_in_config")
-  punchOutConfig Json       @map("punch_out_config")
-  regularizationConfig Json? @map("regularization_config")
-  createdAt      DateTime   @default(now()) @map("created_at")
-  updatedAt      DateTime   @updatedAt @map("updated_at")
-  deletedAt      DateTime?  @map("deleted_at")
-
-  company Company @relation("CompanyPolicies", fields: [companyId], references: [id], onDelete: Cascade)
-
-  defaultForCompanies Company[]          @relation("DefaultPolicy")
-  departments         Department[]
-  designations        Designation[]
-  users               User[]
-  attendances         Attendance[]
-  policyAssignments   PolicyAssignment[]
-
-  @@index([companyId])
-  @@index([companyId, type])
-  @@map("attendance_policies")
-}
-
-model PolicyAssignment {
-  id         String           @id @default(uuid()) @db.Uuid
-  companyId  String           @map("company_id") @db.Uuid
-  policyId   String           @map("policy_id") @db.Uuid
-  policyType PolicyType       @map("policy_type")
-  targetType PolicyTargetType @map("target_type")
-  targetId   String           @map("target_id") @db.Uuid
-  createdAt  DateTime         @default(now()) @map("created_at")
-  updatedAt  DateTime         @updatedAt @map("updated_at")
-
-  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  policy  AttendancePolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
-
-  @@unique([companyId, policyType, targetType, targetId])
-  @@index([companyId, policyType])
-  @@index([targetType, targetId])
-  @@map("policy_assignments")
 }

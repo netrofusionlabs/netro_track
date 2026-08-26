@@ -78,7 +78,35 @@ jobs:
             '${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_HOST }}:/opt/netrotrack/docker-compose.yml'
 
       # ---------------------------------------------------------
-      # 7. Deploy on VM
+      # 7. Create .env file on VM
+      # ---------------------------------------------------------
+      - name: Create .env on GCP VM
+        run: |
+          ssh \
+            -i ~/.ssh/netrotrack_github_actions \
+            '${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_HOST }}' \
+            'bash -s' <<'REMOTE_SCRIPT'
+            
+          cd /opt/netrotrack
+          cat <<EOF > .env
+          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+          JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
+          JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+          R2_ACCOUNT_ID=${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID=${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY=${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME=${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL=${{ secrets.R2_PUBLIC_URL }}
+          GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
+          LOG_LEVEL=info
+          EOF
+          REMOTE_SCRIPT
+
+      # ---------------------------------------------------------
+      # 8. Deploy on VM
       # ---------------------------------------------------------
       - name: Deploy to GCP VM
         run: |

@@ -70,4 +70,4 @@ WORKDIR /app/apps/backend
 
 EXPOSE 3000
 
-CMD ["node", "dist/server.js"]
+CMD ["sh", "-c", "npx -y prisma migrate deploy && node dist/server.js"]

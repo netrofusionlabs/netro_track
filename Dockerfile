@@ -3,6 +3,9 @@
 # ============================================
 FROM node:20-bookworm-slim AS builder
 
+# Install OpenSSL for Prisma engine generation
+RUN apt-get update -y && apt-get install -y openssl
+
 WORKDIR /app
 
 # Copy workspace manifests first for better Docker caching
@@ -34,6 +37,9 @@ RUN npm run build --workspace=apps/backend
 # Stage 2: Production
 # ============================================
 FROM node:20-bookworm-slim AS runner
+
+# Install OpenSSL for Prisma engine runtime
+RUN apt-get update -y && apt-get install -y openssl
 
 WORKDIR /app
 

@@ -49,9 +49,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
-
+      DIRECT_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
 
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}

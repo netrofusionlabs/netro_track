@@ -115,6 +115,22 @@ export class CompanyRepository {
         })),
       });
 
+      // 4. Create Default HQ Branch
+      const hqBranchName = payload.company.city ? `${payload.company.city} HQ` : 'Headquarters';
+      const hqAddress = [payload.company.addressLine1, payload.company.addressLine2, payload.company.city, payload.company.state, payload.company.zipCode]
+        .filter(Boolean)
+        .join(', ');
+
+      await tx.branch.create({
+        data: {
+          companyId: company.id,
+          name: hqBranchName,
+          address: hqAddress || null,
+          isHq: true,
+          isActive: true,
+        },
+      });
+
       return company;
     });
   }
@@ -148,7 +164,7 @@ export class CompanyRepository {
       });
 
       if (payload.modules) {
-        for (const [modKey, isEnabled] of Object.entries(payload.modules)) {
+        const modulePromises = Object.entries(payload.modules).map(async ([modKey, isEnabled]) => {
           const modType = modKey.toUpperCase() as ModuleType;
           if (Object.values(ModuleType).includes(modType)) {
             const finalEnabled = (modType === ModuleType.ATTENDANCE || modType === ModuleType.GPS || modType === ModuleType.REGULARIZATION) ? Boolean(isEnabled) : false;
@@ -170,11 +186,31 @@ export class CompanyRepository {
               });
             }
           }
-        }
+        });
+        await Promise.all(modulePromises);
+      }
+
+      // 3. Auto-generate HQ branch if the company has NO branches (for legacy companies)
+      const branchCount = await tx.branch.count({ where: { companyId: id, deletedAt: null } });
+      if (branchCount === 0) {
+        const hqBranchName = payload.city ? `${payload.city} HQ` : 'Headquarters';
+        const hqAddress = [payload.addressLine1, payload.addressLine2, payload.city, payload.state, payload.zipCode]
+          .filter(Boolean)
+          .join(', ');
+
+        await tx.branch.create({
+          data: {
+            companyId: id,
+            name: hqBranchName,
+            address: hqAddress || null,
+            isHq: true,
+            isActive: true,
+          },
+        });
       }
 
       return company;
-    });
+    }, { timeout: 15000 });
   }
 
   public async softDelete(id: string): Promise<Company> {

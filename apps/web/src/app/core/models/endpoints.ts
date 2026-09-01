@@ -7,6 +7,10 @@
  * that mismatch in a single place instead of scattered through every feature.
  */
 export const API = {
+  /** Organization structure */
+  BRANCHES: '/branches',
+  DEPARTMENTS: '/departments',
+  
   /** Workforce directory, org chart, and user lifecycle actions. */
   workforce: '/user-management',
   workforceSupervisors: '/user-management/supervisors',

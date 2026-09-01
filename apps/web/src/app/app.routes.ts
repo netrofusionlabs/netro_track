@@ -108,12 +108,17 @@ export const routes: Routes = [
         loadComponent: () => import('./features/reports/reports.component').then(m => m.ReportsComponent),
       },
 
-      // ---- Administration & account -------------------------------------
       {
         path: 'companies',
         title: 'Companies · NetroTrack',
         data: { roles: CAN.administerPlatform },
         loadComponent: () => import('./features/companies/companies.component').then(m => m.CompaniesComponent),
+      },
+      {
+        path: 'branches',
+        title: 'Branches · NetroTrack',
+        data: { roles: CAN.manageBranches },
+        loadComponent: () => import('./features/organization/components/branches.component').then(m => m.BranchesComponent),
       },
       {
         path: 'settings',

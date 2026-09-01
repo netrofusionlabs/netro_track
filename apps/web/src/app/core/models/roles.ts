@@ -100,6 +100,7 @@ export const CAN = {
   reviewApprovals: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER'] as const,
   viewTeamOperations: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER'] as const,
   viewCompanyOperations: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR'] as const,
+  manageBranches: ['SUPER_ADMIN', 'COMPANY_ADMIN'] as const,
   manageCatalogue: ['SUPER_ADMIN', 'COMPANY_ADMIN'] as const,
   manageCustomers: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'] as const,
   deleteCustomers: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR'] as const,

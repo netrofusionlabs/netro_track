@@ -31,6 +31,8 @@ import { uploadRouter } from './modules/upload/upload.routes';
 import { trackingRouter } from './modules/tracking/tracking.routes';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes';
 import { reportRouter } from './modules/report/report.routes';
+import { branchRouter } from './modules/branch/branch.routes';
+import { departmentRouter } from './modules/department/department.routes';
 import { userManagementRouter } from './modules/user-management/user-management.routes';
 import { profileRouter } from './modules/profile/profile.routes';
 import { attendancePolicyRouter } from './modules/attendance-policy/attendance-policy.routes';
@@ -58,6 +60,8 @@ app.use('/api/v1/uploads', uploadRouter);
 app.use('/api/v1/tracking', trackingRouter);
 app.use('/api/v1/dashboard', dashboardRouter);
 app.use('/api/v1/reports', reportRouter);
+app.use('/api/v1/branches', branchRouter);
+app.use('/api/v1/departments', departmentRouter);
 
 // Global Error Handler Middleware
 app.use(errorMiddleware);

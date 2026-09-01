@@ -147,7 +147,10 @@
                     />
                     <span class="identity__body">
                       <span class="identity__name">{{ person.name }}</span>
-                      <span class="identity__meta">{{ person.employeeId || person.email || '—' }}</span>
+                      <span class="identity__meta">
+                        {{ person.employeeId || person.email || '—' }}
+                        <ng-container *ngIf="isSuperAdmin() && person.company?.code"> · <netro-badge tone="neutral" style="font-size: 0.85em; padding: 0 4px">{{ person.company!.code }}</netro-badge></ng-container>
+                      </span>
                     </span>
                   </span>
                 </td>
@@ -434,6 +437,12 @@
             </select>
           </label>
 
+          <label class="field span-2" *ngIf="isSuperAdmin() && editing()">
+            <span class="field__label">Tenant Company</span>
+            <input class="input" disabled [value]="companyNameOf(editing())" />
+            <span class="field__hint">The company this user belongs to cannot be changed.</span>
+          </label>
+
           <label class="field">
             <span class="field__label">Employee ID / Login Code <span class="field__req">*</span></span>
             <input class="input" formControlName="employeeId" placeholder="e.g. NT-0142 or EMP001" />
@@ -593,6 +602,17 @@
               <option *ngFor="let pol of policies()" [value]="pol.id">{{ pol.name }}</option>
             </select>
             <span class="field__hint">Overrides company-level default rules for this employee.</span>
+          </label>
+
+          <label class="field span-2">
+            <span class="field__label">Assigned Branch</span>
+            <select class="select" formControlName="branchId">
+              <option value="">No branch assigned</option>
+              <option *ngFor="let branch of branches()" [value]="branch.id">
+                {{ branch.name }} {{ branch.isHq ? '(HQ)' : '' }}
+              </option>
+            </select>
+            <span class="field__hint">Assign this person to a specific physical branch or location.</span>
           </label>
 
           <!-- Modern GPS Toggle Card -->

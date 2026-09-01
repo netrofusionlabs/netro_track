@@ -14,3 +14,5 @@ export * from './schemas/user-management.validator';
 export * from './schemas/company.validator';
 export * from './schemas/attendance-policy.validator';
 export * from './schemas/policy.validator';
+export * from './schemas/branch.validator';
+export * from './schemas/department.validator';

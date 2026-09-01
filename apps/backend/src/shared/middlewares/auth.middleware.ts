@@ -32,7 +32,13 @@ export function authMiddleware(
       ...payload,
       isMasterAdmin: payload.role === Role.MASTER_SUPER_ADMIN
     };
-    req.companyId = payload.companyId; // Ensure tenant injection matches token
+    
+    const overrideCompanyId = req.headers['x-company-id'] as string | undefined;
+    if ((payload.role === Role.SUPER_ADMIN || payload.role === Role.MASTER_SUPER_ADMIN) && overrideCompanyId) {
+      req.companyId = overrideCompanyId;
+    } else {
+      req.companyId = payload.companyId; // Ensure tenant injection matches token
+    }
 
     next();
   } catch {

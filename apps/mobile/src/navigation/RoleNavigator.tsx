@@ -25,8 +25,12 @@ import { AddUserScreen } from '../features/employees/screens/AddUserScreen';
 import { EditUserScreen } from '../features/employees/screens/EditUserScreen';
 import { CompanyManagementScreen } from '../features/companies/screens/CompanyManagementScreen';
 import { CompanyWizardScreen } from '../features/companies/screens/CompanyWizardScreen';
+import { TenantModulesScreen } from '../features/companies/screens/TenantModulesScreen';
 import { EmployeeListScreen } from '../features/employees/EmployeeListScreen';
 import { EmployeeDetailScreen } from '../features/employees/EmployeeDetailScreen';
+import { OrganizationScreen } from '../features/organization/screens/OrganizationScreen';
+import { BranchFormScreen } from '../features/organization/screens/BranchFormScreen';
+import { DepartmentFormScreen } from '../features/organization/screens/DepartmentFormScreen';
 import { TeamMapScreen } from '../features/tracking/TeamMapScreen';
 import { RoutePlaybackScreen } from '../features/tracking/RoutePlaybackScreen';
 import { ProfileScreen } from '../features/profile/screens/ProfileScreen';
@@ -37,6 +41,7 @@ import { EditAttendancePolicyScreen } from '../features/attendance/EditAttendanc
 import { PunchFormScreen } from '../features/attendance/PunchFormScreen';
 import { NewRegularizationScreen } from '../features/attendance/NewRegularizationScreen';
 import { ManagerRegularizationsScreen } from '../features/attendance/ManagerRegularizationsScreen';
+import { BranchesListScreen } from '../features/organization/screens/BranchesListScreen';
 
 // ── Dashboards ────────────────────────────────────────────────────────────────
 import { EmployeeDashboard } from '../features/dashboard/screens/EmployeeDashboard';
@@ -51,6 +56,7 @@ const EmployeesStack = createStackNavigator();
 const VisitsStack = createStackNavigator();
 const SalesStack = createStackNavigator();
 const InspectionsStack = createStackNavigator();
+const OrganizationStack = createStackNavigator();
 
 type AppRole = 'EMPLOYEE' | 'MANAGER' | 'HR' | 'COMPANY_ADMIN' | 'SUPER_ADMIN' | 'MASTER_SUPER_ADMIN';
 
@@ -69,6 +75,8 @@ const ROUTE_ICON_MAP: Record<string, AppIconName> = {
   Reports: 'document',
   RoutePlayback: 'teamMap',
   AttendanceHistory: 'history',
+  Organization: 'employees',
+  Branches: 'building',
 };
 
 function normalizeRole(role?: string | null): AppRole | null {
@@ -121,6 +129,11 @@ function EmployeesStackScreen() {
       <EmployeesStack.Screen
         name="CompanyWizard"
         component={CompanyWizardScreen}
+        options={{ headerShown: false }}
+      />
+      <EmployeesStack.Screen
+        name="TenantModules"
+        component={TenantModulesScreen}
         options={{ headerShown: false }}
       />
       <EmployeesStack.Screen
@@ -341,6 +354,39 @@ function useRoleTabBar() {
   );
 }
 
+function OrganizationStackScreen() {
+  const theme = useTheme();
+  return (
+    <OrganizationStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: theme.colors.surface.card },
+        headerTintColor: theme.colors.text.primary,
+        headerTitleStyle: { fontWeight: '600' },
+      }}
+    >
+      <OrganizationStack.Screen name="Organization" component={OrganizationScreen} options={{ title: 'Organization' }} />
+      <OrganizationStack.Screen name="BranchForm" component={BranchFormScreen} options={{ title: 'Branch' }} />
+      <OrganizationStack.Screen name="DepartmentForm" component={DepartmentFormScreen} options={{ title: 'Department' }} />
+    </OrganizationStack.Navigator>
+  );
+}
+
+function BranchesStackScreen() {
+  const theme = useTheme();
+  return (
+    <OrganizationStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: theme.colors.surface.card },
+        headerTintColor: theme.colors.text.primary,
+        headerTitleStyle: { fontWeight: '600' },
+      }}
+    >
+      <OrganizationStack.Screen name="BranchesList" component={BranchesListScreen} options={{ title: 'Branches' }} />
+      <OrganizationStack.Screen name="BranchForm" component={BranchFormScreen} options={{ title: 'Branch' }} />
+    </OrganizationStack.Navigator>
+  );
+}
+
 // ── Activity stacks for field employees (list → create) ──────────────────────
 function VisitsStackScreen() {
   const theme = useTheme();
@@ -463,6 +509,9 @@ function ManagerTabs() {
 
 function AdminTabs() {
   const tabBar = useRoleTabBar();
+  const role = useAuthStore((s) => normalizeRole(s.user?.role));
+  const canManageBranches = role === 'COMPANY_ADMIN' || role === 'SUPER_ADMIN' || role === 'MASTER_SUPER_ADMIN';
+
   return (
     <Tab.Navigator tabBar={tabBar} screenOptions={{ headerShown: false }} backBehavior="history">
       <Tab.Screen
@@ -474,6 +523,10 @@ function AdminTabs() {
       <Tab.Screen name="Employees" component={EmployeesStackScreen} options={{ tabBarLabel: 'Workforce' }} />
       <Tab.Screen name="Customers" component={CustomerListScreen} options={{ tabBarLabel: 'Clients' }} />
       <Tab.Screen name="Reports" component={ReportsScreen} options={{ tabBarLabel: 'Reports' }} />
+      {canManageBranches && (
+        <Tab.Screen name="Branches" component={BranchesStackScreen} options={{ tabBarLabel: 'Branches' }} />
+      )}
+      <Tab.Screen name="Organization" component={OrganizationStackScreen} options={{ tabBarLabel: 'Org' }} />
       <Tab.Screen
         name="Products"
         component={ProductsScreen}

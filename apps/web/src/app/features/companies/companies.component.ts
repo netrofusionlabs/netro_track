@@ -595,12 +595,60 @@ export class CompaniesComponent {
     this.closeView();
   }
 
+  modulesDrawerOpen = signal(false);
+  activeModules = signal<Record<string, boolean>>({});
+  isSavingModules = signal(false);
+
   startEdit(c: Company): void {
     this.isEditMode.set(true);
     this.editingId.set(c.id);
     this.logoPreview.set(c.companyLogoUrl || c.logoUrl || null);
     this.createdResult.set(null);
     this.step.set(1);
+    this.populateWizard(c);
+  }
+
+  manageModules(c: Company): void {
+    this.editingId.set(c.id);
+    const modMap: Record<string, boolean> = {
+      attendance: false, leave: false, shift: false, gps: c.isGpsEnabled ?? true,
+      payroll: false, expense: false, asset: false, performance: false, recruitment: false, regularization: false
+    };
+    if (c.modules) {
+      c.modules.forEach(m => {
+        const key = m.module.toLowerCase();
+        if (key in modMap) modMap[key] = m.isEnabled;
+      });
+    }
+    this.activeModules.set(modMap);
+    this.modulesDrawerOpen.set(true);
+    this.closeView(); // Close main tenant drawer if open
+  }
+
+  toggleModule(key: string, value: boolean) {
+    this.activeModules.update(m => ({ ...m, [key]: value }));
+  }
+
+  saveModules() {
+    const id = this.editingId();
+    if (!id) return;
+    
+    this.isSavingModules.set(true);
+    this.api.put(`${API.companies}/${id}`, { modules: this.activeModules() }).subscribe({
+      next: () => {
+        this.isSavingModules.set(false);
+        this.modulesDrawerOpen.set(false);
+        this.toast.success('Tenant access updated successfully');
+        this.load();
+      },
+      error: (err) => {
+        this.isSavingModules.set(false);
+        this.toast.error(apiError(err) || 'Failed to update access');
+      }
+    });
+  }
+
+  private populateWizard(c: Company): void {
 
     // Build modules state map
     const modMap: Record<string, boolean> = {

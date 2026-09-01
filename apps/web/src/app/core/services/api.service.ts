@@ -86,6 +86,10 @@ export class ApiService {
   readonly companyName = computed(() => this.user()?.companyName ?? this.user()?.company?.name ?? (this.user() as any)?.company_name ?? null);
   readonly companyLogoUrl = computed(() => this.user()?.companyLogoUrl ?? this.user()?.company?.logoUrl ?? this.user()?.company?.companyLogoUrl ?? null);
   readonly companyId = computed(() => this.user()?.companyId ?? this.user()?.company?.id ?? null);
+  
+  /** Super Admins can set this to impersonate a specific tenant company across API calls. */
+  readonly tenantOverrideId = signal<string | null>(null);
+
   /** True until the first `/auth/me` round-trip settles, so the shell can hold. */
   readonly bootstrapping = signal<boolean>(!!liveStoredToken());
 
@@ -113,6 +117,13 @@ export class ApiService {
     let h = new HttpHeaders({ 'Content-Type': 'application/json' });
     const token = this.token$.value;
     if (token) h = h.set('Authorization', `Bearer ${token}`);
+    
+    const override = this.tenantOverrideId();
+    const currentRole = this.role();
+    if (override && (currentRole === 'SUPER_ADMIN' || currentRole === 'MASTER_SUPER_ADMIN')) {
+      h = h.set('x-company-id', override);
+    }
+    
     return h;
   }
 

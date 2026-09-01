@@ -103,31 +103,36 @@
                   <span class="row-actions">
                     <button
                       type="button"
-                      class="btn btn--subtle btn--sm btn--icon"
-                      [attr.aria-label]="'Edit ' + c.name"
-                      (click)="startEdit(c)"
-                      title="Edit company"
+                      class="btn btn--subtle btn--sm"
+                      [attr.aria-label]="'Manage access for ' + c.name"
+                      (click)="manageModules(c)"
                     >
-                      <netro-icon name="edit" [size]="14" />
+                      <netro-icon name="shield" [size]="14" /> Access
                     </button>
                     <button
                       type="button"
-                      class="btn btn--subtle btn--sm btn--icon"
+                      class="btn btn--subtle btn--sm"
+                      [attr.aria-label]="'Edit ' + c.name"
+                      (click)="startEdit(c)"
+                    >
+                      <netro-icon name="edit" [size]="14" /> Edit
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn--subtle btn--sm"
                       [attr.aria-label]="'Manage workforce for ' + c.name"
                       (click)="manageWorkforce(c)"
-                      title="Manage workforce"
                     >
-                      <netro-icon name="people" [size]="14" />
+                      <netro-icon name="people" [size]="14" /> Workforce
                     </button>
                     <button
                       *ngIf="!isMasterCompany(c)"
                       type="button"
-                      class="btn btn--subtle btn--sm btn--icon"
+                      class="btn btn--subtle btn--sm"
                       [attr.aria-label]="'Delete ' + c.name"
                       (click)="remove(c)"
-                      title="Delete company"
                     >
-                      <netro-icon name="x" [size]="14" />
+                      <netro-icon name="x" [size]="14" /> Delete
                     </button>
                   </span>
                 </td>
@@ -172,8 +177,11 @@
         <button type="button" class="btn btn--primary btn--sm" (click)="manageWorkforce(c)">
           <netro-icon name="people" [size]="14" /> Manage Workforce ({{ headcount(c) }})
         </button>
+        <button type="button" class="btn btn--default btn--sm" (click)="manageModules(c)">
+          <netro-icon name="shield" [size]="14" /> Tenant Access
+        </button>
         <button type="button" class="btn btn--default btn--sm" (click)="startEdit(c)">
-          <netro-icon name="edit" [size]="14" /> Edit Profile & Modules
+          <netro-icon name="edit" [size]="14" /> Edit Profile
         </button>
         <button type="button" class="btn btn--default btn--sm" (click)="toggleStatus(c)">
           <netro-icon [name]="c.status === 'INACTIVE' ? 'check' : 'x-circle'" [size]="14" />
@@ -675,4 +683,84 @@
       <button type="button" class="btn btn--default" (click)="closeAddressModal()">Close</button>
     </div>
   </netro-drawer>
+}
+
+@if (modulesDrawerOpen()) {
+  <netro-drawer
+    heading="Tenant Access & Modules"
+    (closed)="modulesDrawerOpen.set(false)"
+  >
+  <div class="drawer__body" style="padding: 24px;">
+    <p class="field__hint" style="margin-bottom: 24px;">Enable or disable modules for this tenant. This will restrict their access to these features platform-wide.</p>
+    
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <!-- Attendance Master Toggle -->
+      <div class="field" style="border: 1px solid var(--line-subtle); padding: var(--s-3) var(--s-4); border-radius: var(--r-md); background: var(--surface-sunken);">
+        <div class="row row--center row--nowrap" style="justify-content: space-between;">
+          <div class="row row--center row--nowrap" style="gap: 16px;">
+            <div style="width: 40px; height: 40px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line-subtle); display: flex; align-items: center; justify-content: center;">
+              <netro-icon name="clock" [size]="20" style="color: var(--brand-600);" />
+            </div>
+            <div>
+              <label class="field__label" style="color: var(--fg); font-weight: 500; font-size: 14px; margin-bottom: 2px;">Attendance</label>
+              <span class="field__hint">Punch-in/out, live shift timesheets, and attendance policies.</span>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" [checked]="activeModules()['attendance']" (change)="toggleModule('attendance', !activeModules()['attendance'])">
+            <div class="switch__track"><div class="switch__thumb"></div></div>
+          </label>
+        </div>
+
+        @if (activeModules()['attendance']) {
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line-subtle); display: flex; flex-direction: column; gap: 16px;">
+            <!-- Nested GPS Tracking -->
+            <div class="row row--center row--nowrap" style="justify-content: space-between;">
+              <div class="row row--center row--nowrap" style="gap: 16px;">
+                <div style="width: 40px; height: 40px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line-subtle); display: flex; align-items: center; justify-content: center;">
+                  <netro-icon name="location" [size]="20" style="color: var(--brand-600);" />
+                </div>
+                <div>
+                  <label class="field__label" style="color: var(--fg); font-weight: 500; font-size: 14px; margin-bottom: 2px;">GPS Tracking</label>
+                  <span class="field__hint">Track live worker locations, movement breadcrumbs, and route replays during duty.</span>
+                </div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" [checked]="activeModules()['gps']" (change)="toggleModule('gps', !activeModules()['gps'])">
+                <div class="switch__track"><div class="switch__thumb"></div></div>
+              </label>
+            </div>
+
+            <!-- Nested Regularization -->
+            <div class="row row--center row--nowrap" style="justify-content: space-between;">
+              <div class="row row--center row--nowrap" style="gap: 16px;">
+                <div style="width: 40px; height: 40px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line-subtle); display: flex; align-items: center; justify-content: center;">
+                  <netro-icon name="history" [size]="20" style="color: var(--brand-600);" />
+                </div>
+                <div>
+                  <label class="field__label" style="color: var(--fg); font-weight: 500; font-size: 14px; margin-bottom: 2px;">Attendance Regularization</label>
+                  <span class="field__hint">Allow field employees to request punch corrections and allow managers to approve them.</span>
+                </div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" [checked]="activeModules()['regularization']" (change)="toggleModule('regularization', !activeModules()['regularization'])">
+                <div class="switch__track"><div class="switch__thumb"></div></div>
+              </label>
+            </div>
+          </div>
+        }
+      </div>
+
+    </div>
+  </div>
+
+  <ng-container drawer-footer>
+    <div style="display: flex; justify-content: flex-end; gap: 12px; width: 100%;">
+      <button type="button" class="btn btn--default" (click)="modulesDrawerOpen.set(false)">Cancel</button>
+      <button type="button" class="btn btn--primary" [class.is-loading]="isSavingModules()" [disabled]="isSavingModules()" (click)="saveModules()">
+        Save Access
+      </button>
+    </div>
+  </ng-container>
+</netro-drawer>
 }

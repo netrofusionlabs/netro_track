@@ -116,6 +116,7 @@ export class PeopleComponent {
   readonly supervisors = signal<Person[]>([]);
   readonly policies = signal<AttendancePolicy[]>([]);
   readonly companies = signal<Company[]>([]);
+  readonly branches = signal<any[]>([]);
   readonly serverErrors = signal<Record<string, string>>({});
 
   readonly actorRole = this.api.role;
@@ -230,6 +231,7 @@ export class PeopleComponent {
     emergencyContactName: ['', [Validators.required]],
     emergencyContactPhone: ['', [Validators.required]],
     attendancePolicyId: [''],
+    branchId: [''],
     managerId: [''],
     personalEmail: [''],
     secondaryPhone: [''],
@@ -305,6 +307,7 @@ export class PeopleComponent {
   constructor() {
     this.load();
     this.loadPolicies();
+    this.loadBranches();
     if (this.isSuperAdmin()) this.loadCompanies();
     this.setupPolicySync();
   }
@@ -353,6 +356,17 @@ export class PeopleComponent {
   loadCompanies(): void {
     this.api.get<Company[]>(API.companies).subscribe({
       next: res => this.companies.set(Array.isArray(res.data) ? res.data : []),
+    });
+  }
+
+  loadBranches(companyId?: string): void {
+    const params: Record<string, string> = {};
+    if (companyId) params['companyId'] = companyId;
+    this.api.get<any[]>(API.BRANCHES, params).subscribe({
+      next: res => {
+        const data = (res as any)?.data ? (res as any).data : (Array.isArray(res) ? res : []);
+        this.branches.set(data);
+      },
     });
   }
 
@@ -459,6 +473,11 @@ export class PeopleComponent {
     return match?.name || 'Assigned Policy';
   }
 
+  companyNameOf(person: Person | null): string {
+    if (!person || !person.company) return '—';
+    return `${person.company.name} [${person.company.code || ''}]`;
+  }
+
   // ---- Create / edit ------------------------------------------------------
 
   startCreate(): void {
@@ -487,6 +506,7 @@ export class PeopleComponent {
       emergencyContactName: '',
       emergencyContactPhone: '',
       attendancePolicyId: '',
+      branchId: '',
       managerId: defaultManagerId,
       personalEmail: '',
       secondaryPhone: '',
@@ -521,6 +541,7 @@ export class PeopleComponent {
       emergencyContactName: person.emergencyContactName ?? '',
       emergencyContactPhone: person.emergencyContactPhone ?? '',
       attendancePolicyId: person.attendancePolicyId ?? '',
+      branchId: (person as any).branchId ?? '',
       managerId: person.managerId ?? '',
       personalEmail: person.personalEmail ?? '',
       secondaryPhone: person.secondaryPhone ?? '',
@@ -533,6 +554,12 @@ export class PeopleComponent {
     // Employee ID is the sign-in identifier and is immutable after creation.
     this.form.controls.employeeId.disable();
     this.loadSupervisors(person.role, person.id);
+    
+    if (this.isSuperAdmin() && person.companyId) {
+      this.loadBranches(person.companyId);
+      this.loadPolicies(person.companyId);
+    }
+    
     this.editorOpen.set(true);
     this.closeView();
   }
@@ -554,6 +581,7 @@ export class PeopleComponent {
 
     this.loadSupervisors(this.form.controls.role.value, this.editing()?.id);
     this.loadPolicies(companyId);
+    this.loadBranches(companyId);
   }
 
   onRoleChange(): void {
@@ -619,6 +647,7 @@ export class PeopleComponent {
       emergencyContactName: raw.emergencyContactName.trim(),
       emergencyContactPhone: raw.emergencyContactPhone.trim(),
       attendancePolicyId: raw.attendancePolicyId || null,
+      branchId: raw.branchId || null,
       companyId: this.isSuperAdmin() ? (raw.companyId || null) : undefined,
       managerId: finalManagerId,
       personalEmail: raw.personalEmail.trim() || null,

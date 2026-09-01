@@ -256,8 +256,12 @@ model Branch {
   companyId String    @map("company_id") @db.Uuid
   name      String
   address   String?
+  state     String?
+  zipCode   String?   @map("zip_code")
+  country   String?
   latitude  Decimal?  @db.Decimal(10, 7)
   longitude Decimal?  @db.Decimal(10, 7)
+  isHq      Boolean   @default(false) @map("is_hq")
   isActive  Boolean   @default(true) @map("is_active")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

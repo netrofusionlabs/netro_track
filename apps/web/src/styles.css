@@ -286,6 +286,13 @@ table { border-collapse: collapse; border-spacing: 0; }
   border: 0;
 }
 
+.toggle-switch {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .skip-link {
   position: absolute;
   left: var(--s-4);

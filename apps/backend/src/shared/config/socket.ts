@@ -61,11 +61,16 @@ export async function initSocketServer(httpServer: HttpServer): Promise<SocketSe
   const redisUrl = process.env.REDIS_URL;
   if (redisUrl) {
     try {
+      const isTunnel = redisUrl.includes(':6380');
+      const connectionType = isTunnel ? 'TUNNEL (Production Redis)' : 'LOCAL (Local Redis)';
+      // Mask password in logs
+      const maskedUrl = redisUrl.replace(/:[^:@]+@/, ':***@');
+      
       const pubClient = createClient({ url: redisUrl });
       const subClient = pubClient.duplicate();
       await Promise.all([pubClient.connect(), subClient.connect()]);
       io.adapter(createAdapter(pubClient, subClient));
-      logger.info('Socket.IO: Redis adapter connected');
+      logger.info(`Socket.IO: Redis adapter connected via ${connectionType} [${maskedUrl}]`);
     } catch (err) {
       logger.warn({ err }, 'Socket.IO: Redis adapter failed — running in single-node mode');
     }

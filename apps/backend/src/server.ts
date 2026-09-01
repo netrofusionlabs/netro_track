@@ -19,6 +19,13 @@ const httpServer = http.createServer(app);
 let server: http.Server;
 
 (async () => {
+  // Log Postgres connection type
+  const dbUrl = process.env.DATABASE_URL || '';
+  const isPgTunnel = dbUrl.includes(':5433');
+  const pgConnectionType = isPgTunnel ? 'TUNNEL (Production DB)' : (dbUrl.includes('.neon.tech') ? 'REMOTE (Neon DB)' : 'LOCAL (Local DB)');
+  const maskedDbUrl = dbUrl.replace(/:[^:@]+@/, ':***@');
+  logger.info(`Database: Connected to PostgreSQL via ${pgConnectionType} [${maskedDbUrl}]`);
+
   await initSocketServer(httpServer);
 
   server = httpServer.listen(PORT, () => {

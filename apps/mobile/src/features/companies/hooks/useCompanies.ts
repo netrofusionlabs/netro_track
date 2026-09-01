@@ -13,6 +13,7 @@ export function useCompanyDetail(id?: string) {
     queryKey: ['company-detail', id],
     queryFn: () => companyService.getCompanyById(id!),
     enabled: Boolean(id),
+    staleTime: 0, // Always fetch fresh data on navigation
   });
 }
 

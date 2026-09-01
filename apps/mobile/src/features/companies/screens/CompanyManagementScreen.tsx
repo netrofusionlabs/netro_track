@@ -11,6 +11,7 @@ import {
   Badge,
   AppIcon,
   Avatar,
+  Button,
 } from '../../../shared/components';
 import { useCompanies, useDeleteCompany } from '../hooks/useCompanies';
 import { useRefreshOnFocus } from '../../../shared/utils/useRefreshOnFocus';
@@ -183,23 +184,6 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
                     </Text>
                   </View>
                 </View>
-
-                {!isMasterCompany && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <TouchableOpacity
-                      onPress={() => navigation.navigate('CompanyWizard', { companyId: c.id })}
-                      style={{ padding: 6, marginRight: 4 }}
-                    >
-                      <AppIcon name="edit" color={theme.colors.text.secondary} size={18} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => handleDelete(c.id, c.name)}
-                      style={{ padding: 6 }}
-                    >
-                      <AppIcon name="close" color={theme.colors.semantic.error} size={18} />
-                    </TouchableOpacity>
-                  </View>
-                )}
               </View>
 
               <View style={[styles.statsRow, { borderTopColor: theme.colors.surface.border }]}>
@@ -224,6 +208,36 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
                   </Text>
                 </View>
               </View>
+
+              {!isMasterCompany && (
+                <View style={[styles.actionsRow, { borderTopColor: theme.colors.surface.border }]}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon="lock"
+                    label="Access"
+                    onPress={() => navigation.navigate('TenantModules', { companyId: c.id })}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon="edit"
+                    label="Edit"
+                    onPress={() => navigation.navigate('CompanyWizard', { companyId: c.id })}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon="close"
+                    label="Delete"
+                    labelStyle={{ color: theme.colors.semantic.error }}
+                    onPress={() => handleDelete(c.id, c.name)}
+                    style={{ flex: 1 }}
+                  />
+                </View>
+              )}
             </Card>
           );
         })
@@ -269,6 +283,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderTopWidth: 1,
     paddingTop: 10,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    paddingTop: 8,
+    marginTop: 10,
+    gap: 8,
   },
   statBox: {
     flex: 1,

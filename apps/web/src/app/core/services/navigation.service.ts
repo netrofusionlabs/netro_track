@@ -179,6 +179,14 @@ const IA: NavGroup[] = [
     label: 'Administration',
     items: [
       {
+        label: 'Branches',
+        route: '/branches',
+        icon: 'building',
+        roles: ['MASTER_SUPER_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'],
+        hint: 'Manage geographical or structural branch locations',
+        keywords: ['locations', 'offices', 'hq', 'branches'],
+      },
+      {
         label: 'Companies',
         route: '/companies',
         icon: 'globe',

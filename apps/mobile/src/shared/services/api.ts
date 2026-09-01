@@ -4,7 +4,8 @@ import { storage } from '../utils/storage';
 import { useAuthStore } from '../../features/auth/stores/authStore';
 import { stopTracking } from './trackingService';
 
-export const BASE_URL = 'https://netro-track-api.netrofusion.in';
+// export const BASE_URL = 'https://netro-track-api.netrofusion.in';
+export const BASE_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
 
 export const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
@@ -12,15 +13,25 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 });
 
+let tenantOverrideId: string | null = null;
+
+export function setTenantOverride(id: string | null) {
+  tenantOverrideId = id;
+}
+
 // Inject access token before every request
 api.interceptors.request.use((config) => {
   const raw = storage.getString('auth-store');
   if (raw) {
     try {
-      const parsed = JSON.parse(raw) as { state?: { accessToken?: string } };
+      const parsed = JSON.parse(raw) as { state?: { accessToken?: string, user?: { role?: string } } };
       const token = parsed?.state?.accessToken;
+      const role = parsed?.state?.user?.role;
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+      }
+      if (tenantOverrideId && (role === 'SUPER_ADMIN' || role === 'MASTER_SUPER_ADMIN')) {
+        config.headers['x-company-id'] = tenantOverrideId;
       }
     } catch {
       // ignore parse errors

@@ -685,7 +685,7 @@ a.metric:hover, button.metric:hover { border-color: var(--n-300); background: va
 .table tbody td:last-child { padding-right: var(--s-4); }
 
 /* Row actions reveal on hover but remain reachable by keyboard */
-.row-actions { display: inline-flex; gap: 2px; opacity: 0; transition: opacity var(--dur-1) var(--ease); }
+.row-actions { display: inline-flex; gap: 2px; opacity: 1; }
 tr:hover .row-actions,
 tr:focus-within .row-actions { opacity: 1; }
 @media (hover: none) { .row-actions { opacity: 1; } }

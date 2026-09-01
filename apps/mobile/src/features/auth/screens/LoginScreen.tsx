@@ -183,7 +183,7 @@ export function LoginScreen({ navigation }: { navigation: any }) {
           </Card>
 
           {/* Quick Demo Test Accounts (Organized by Tenant & Access Role) */}
-          {false && demoTenants.length > 0 && (
+          {demoTenants.length > 0 && (
             <View style={styles.demoSection}>
               <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 10, textAlign: 'center', fontWeight: '700' }]}>
                 Quick Demo Logins (Grouped by Tenant & Role)

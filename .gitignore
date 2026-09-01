@@ -54,3 +54,12 @@ netrotrack-one-touch/.setup-output
 
 # NetroTrack setup output (contains SSH keys)
 netrotrack-one-touch/outputs/
+
+# Infrastructure / Terraform outputs and secrets
+netrotrack-one-touch/.setup-output
+netrotrack-one-touch/outputs/
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan

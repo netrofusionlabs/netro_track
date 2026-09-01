@@ -1,6 +1,6 @@
 {
   "/api": {
-    "target": "http://localhost:3000",
+    "target": "https://netro-track-terraform-test-api.netrofusion.in",
     "secure": false,
     "changeOrigin": true,
     "logLevel": "warn"

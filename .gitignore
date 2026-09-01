@@ -48,3 +48,9 @@ apps/mobile/android/app/build/
 apps/mobile/android/build/
 apps/mobile/.expo/
 apps/mobile/.metro/
+
+# NetroTrack setup output (contains SSH keys)
+netrotrack-one-touch/.setup-output
+
+# NetroTrack setup output (contains SSH keys)
+netrotrack-one-touch/outputs/

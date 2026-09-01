@@ -38,8 +38,9 @@ RUN npm run build --workspace=apps/backend
 # ============================================
 FROM node:20-bookworm-slim AS runner
 
-# Install OpenSSL for Prisma engine runtime
+# Install OpenSSL for Prisma engine runtime and tsx for seeding
 RUN apt-get update -y && apt-get install -y openssl
+RUN npm install -g tsx
 
 WORKDIR /app
 
@@ -70,4 +71,4 @@ WORKDIR /app/apps/backend
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx -y prisma migrate deploy && node dist/server.js"]
+CMD ["sh", "-c", "npx -y prisma migrate deploy && tsx prisma/seed.ts && node dist/server.js"]

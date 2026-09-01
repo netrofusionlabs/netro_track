@@ -4,9 +4,7 @@ import { storage } from '../utils/storage';
 import { useAuthStore } from '../../features/auth/stores/authStore';
 import { stopTracking } from './trackingService';
 
-// Android emulator: localhost = 10.0.2.2; iOS simulator: localhost
-export const BASE_URL =
-  Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+export const BASE_URL = 'https://netro-track-api.netrofusion.in';
 
 export const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,

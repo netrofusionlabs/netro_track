@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal, isDevMode } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, tap, catchError, throwError, of, map } from 'rxjs';
@@ -72,7 +72,7 @@ export type QueryValue = string | number | boolean | null | undefined;
 export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
-  private readonly baseUrl = '/api/v1';
+  private readonly baseUrl = isDevMode() ? '/api/v1' : 'https://netro-track-api.netrofusion.in/api/v1';
   private endingSession = false;
 
   /** Retained as observables so existing call sites keep working. */

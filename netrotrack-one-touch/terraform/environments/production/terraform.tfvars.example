@@ -1,0 +1,20 @@
+project_id      = "netro-track-prod"
+name            = "netrotrack-prod"
+region          = "us-central1"
+zone            = "us-central1-a"
+# This VM must already exist and run Docker Compose at /opt/netrotrack.
+existing_vm_name = "netrotrack-production-vm"
+domain          = "netro-track-api.netrofusion.in"
+
+# These defaults match the currently deployed production load balancer.
+firewall_name                = "netrotrack-allow-lb"
+global_address_name          = "netrotrack-prod-ip"
+health_check_name            = "netrotrack-backend-health"
+backend_service_name         = "netrotrack-backend-service"
+https_url_map_name           = "netrotrack-prod-url-map"
+certificate_name             = "netrotrack-api-cert"
+https_proxy_name             = "netrotrack-prod-https-proxy"
+https_forwarding_rule_name   = "netrotrack-prod-https-rule"
+http_redirect_url_map_name   = "netrotrack-http-redirect-map"
+http_redirect_proxy_name     = "netrotrack-prod-http-redirect-proxy"
+http_forwarding_rule_name    = "netrotrack-prod-http-rule"

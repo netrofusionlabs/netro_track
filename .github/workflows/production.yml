@@ -10,7 +10,8 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/netrofusionlabs/netro_track-backend:production
+  IMAGE_NAME: ghcr.io/netrofusionlabs/netro_track-backend
+  SSH_PORT: ${{ secrets.GCP_VM_SSH_PORT || '22' }}
 
 jobs:
   build-and-deploy:
@@ -41,7 +42,8 @@ jobs:
       - name: Build backend image
         run: |
           docker build \
-            -t "$IMAGE_NAME" \
+            -t "$IMAGE_NAME:${{ github.sha }}" \
+            -t "$IMAGE_NAME:production" \
             .
 
       # ---------------------------------------------------------
@@ -49,7 +51,8 @@ jobs:
       # ---------------------------------------------------------
       - name: Push backend image
         run: |
-          docker push "$IMAGE_NAME"
+          docker push "$IMAGE_NAME:${{ github.sha }}"
+          docker push "$IMAGE_NAME:production"
 
       # ---------------------------------------------------------
       # 5. Configure SSH
@@ -64,7 +67,7 @@ jobs:
 
           chmod 600 ~/.ssh/netrotrack_github_actions
 
-          ssh-keyscan -H '${{ secrets.GCP_VM_HOST }}' \
+          ssh-keyscan -p "$SSH_PORT" -H '${{ secrets.GCP_VM_HOST }}' \
             >> ~/.ssh/known_hosts
 
       # ---------------------------------------------------------
@@ -74,6 +77,7 @@ jobs:
         run: |
           scp \
             -i ~/.ssh/netrotrack_github_actions \
+            -P "$SSH_PORT" \
             docker-compose.prod.yml \
             '${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_HOST }}:/opt/netrotrack/docker-compose.yml'
 
@@ -84,9 +88,11 @@ jobs:
         run: |
           ssh \
             -i ~/.ssh/netrotrack_github_actions \
+            -p "$SSH_PORT" \
             '${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_HOST }}' \
             'bash -s' <<'REMOTE_SCRIPT'
             
+          install -d -m 0700 /opt/netrotrack
           cd /opt/netrotrack
           cat <<EOF > .env
           POSTGRES_DB=${{ secrets.POSTGRES_DB }}
@@ -101,6 +107,7 @@ jobs:
           R2_BUCKET_NAME=${{ secrets.R2_BUCKET_NAME }}
           R2_PUBLIC_URL=${{ secrets.R2_PUBLIC_URL }}
           GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
+          BACKEND_IMAGE=${{ env.IMAGE_NAME }}:${{ github.sha }}
           LOG_LEVEL=info
           EOF
           REMOTE_SCRIPT
@@ -112,6 +119,7 @@ jobs:
         run: |
           ssh \
             -i ~/.ssh/netrotrack_github_actions \
+            -p "$SSH_PORT" \
             '${{ secrets.GCP_VM_USER }}@${{ secrets.GCP_VM_HOST }}' \
             'bash -s' <<'REMOTE_SCRIPT'
 
@@ -135,6 +143,10 @@ jobs:
           sleep 10
 
           docker compose up -d backend
+
+          until curl --fail --silent --show-error http://127.0.0.1:3000/health; do
+            sleep 2
+          done
 
           echo "Deployment completed."
 

@@ -1,0 +1,7 @@
+terraform.tfstate
+terraform.tfstate.*
+.terraform/
+*.tfplan
+terraform.tfvars
+.env
+restore/

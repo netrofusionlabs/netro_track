@@ -12,6 +12,7 @@ react {
     reactNativeDir = file("../../../../node_modules/react-native")
     codegenDir = file("../../../../node_modules/@react-native/codegen")
     cliFile = file("../../../../node_modules/react-native/cli.js")
+    hermesCommand = "$projectDir/../../../../node_modules/hermes-compiler/hermesc/%OS-BIN%/hermesc"
 
     /* Autolinking */
     autolinkLibrariesWithApp()
@@ -39,8 +40,8 @@ android {
         applicationId "com.netrotrack.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
     }
     signingConfigs {
         debug {
@@ -49,13 +50,21 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            if (project.hasProperty('NETROTRACK_RELEASE_STORE_FILE')) {
+                storeFile file(NETROTRACK_RELEASE_STORE_FILE)
+                storePassword NETROTRACK_RELEASE_STORE_PASSWORD
+                keyAlias NETROTRACK_RELEASE_KEY_ALIAS
+                keyPassword NETROTRACK_RELEASE_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

@@ -42,6 +42,8 @@ import { PunchFormScreen } from '../features/attendance/PunchFormScreen';
 import { NewRegularizationScreen } from '../features/attendance/NewRegularizationScreen';
 import { ManagerRegularizationsScreen } from '../features/attendance/ManagerRegularizationsScreen';
 import { BranchesListScreen } from '../features/organization/screens/BranchesListScreen';
+import { ConfigurationsScreen } from './ConfigurationsScreen';
+import { MoreScreen } from './MoreScreen';
 
 // ── Dashboards ────────────────────────────────────────────────────────────────
 import { EmployeeDashboard } from '../features/dashboard/screens/EmployeeDashboard';
@@ -57,6 +59,8 @@ const VisitsStack = createStackNavigator();
 const SalesStack = createStackNavigator();
 const InspectionsStack = createStackNavigator();
 const OrganizationStack = createStackNavigator();
+const ApprovalsStack = createStackNavigator();
+const CompanyManagementStack = createStackNavigator();
 
 type AppRole = 'EMPLOYEE' | 'MANAGER' | 'HR' | 'COMPANY_ADMIN' | 'SUPER_ADMIN' | 'MASTER_SUPER_ADMIN';
 
@@ -77,6 +81,11 @@ const ROUTE_ICON_MAP: Record<string, AppIconName> = {
   AttendanceHistory: 'history',
   Organization: 'employees',
   Branches: 'building',
+  Configurations: 'settings',
+  Approvals: 'document',
+  Company: 'building',
+  OrgChart: 'employees',
+  More: 'document',
 };
 
 function normalizeRole(role?: string | null): AppRole | null {
@@ -93,6 +102,56 @@ function normalizeRole(role?: string | null): AppRole | null {
     return normalized as AppRole;
   }
   return null;
+}
+
+// ── Approvals Stack ──────────────────────────────────────────────────────────
+function ApprovalsStackScreen() {
+  const theme = useTheme();
+  return (
+    <ApprovalsStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: theme.colors.surface.card },
+        headerTintColor: theme.colors.text.primary,
+        headerTitleStyle: { fontWeight: '600' },
+      }}
+    >
+      <ApprovalsStack.Screen
+        name="ManagerRegularizations"
+        component={ManagerRegularizationsScreen}
+        options={{ headerShown: false }}
+      />
+    </ApprovalsStack.Navigator>
+  );
+}
+
+// ── Company Management Stack ──────────────────────────────────────────────────
+function CompanyManagementStackScreen() {
+  const theme = useTheme();
+  return (
+    <CompanyManagementStack.Navigator
+      screenOptions={{
+        headerStyle: { backgroundColor: theme.colors.surface.card },
+        headerTintColor: theme.colors.text.primary,
+        headerTitleStyle: { fontWeight: '600' },
+      }}
+    >
+      <CompanyManagementStack.Screen
+        name="CompanyManagement"
+        component={CompanyManagementScreen}
+        options={{ headerShown: false }}
+      />
+      <CompanyManagementStack.Screen
+        name="CompanyWizard"
+        component={CompanyWizardScreen}
+        options={{ headerShown: false }}
+      />
+      <CompanyManagementStack.Screen
+        name="TenantModules"
+        component={TenantModulesScreen}
+        options={{ headerShown: false }}
+      />
+    </CompanyManagementStack.Navigator>
+  );
 }
 
 // ── Employees Stack (List → Detail) ──────────────────────────────────────────
@@ -254,13 +313,13 @@ function CustomBottomTabBar({ state, descriptors, navigation, insets, theme }: a
         }
 
         const isFocused = state.index === index;
-        const isUnreleased = route.name === 'Visits' || route.name === 'Sales' || route.name === 'Inspections' || route.name === 'Reports' || route.name === 'Customers' || route.name === 'Products';
+        const isUnreleased = route.name === 'Sales' || route.name === 'Inspections' || route.name === 'Reports' || route.name === 'Customers' || route.name === 'Products';
 
         const onPress = () => {
           if (isUnreleased) {
             Alert.alert(
               'Feature Coming Soon',
-              `${label} is currently in active development and will be released in an upcoming update.`
+              `${options.tabBarLabel ?? route.name} is currently in active development and will be released in an upcoming update.`
             );
             return;
           }
@@ -276,6 +335,10 @@ function CustomBottomTabBar({ state, descriptors, navigation, insets, theme }: a
               navigation.navigate('Employees', { screen: 'UserManagement' });
             } else if (route.name === 'Attendance') {
               navigation.navigate('Attendance', { screen: 'AttendanceToday' });
+            } else if (route.name === 'Approvals') {
+              navigation.navigate('Approvals', { screen: 'ManagerRegularizations' });
+            } else if (route.name === 'Company') {
+              navigation.navigate('Company', { screen: 'CompanyManagement' });
             } else {
               navigation.navigate(route.name);
             }
@@ -287,6 +350,8 @@ function CustomBottomTabBar({ state, descriptors, navigation, insets, theme }: a
               const rootScreenName =
                 route.name === 'Employees' ? 'UserManagement' :
                 route.name === 'Attendance' ? 'AttendanceToday' :
+                route.name === 'Approvals' ? 'ManagerRegularizations' :
+                route.name === 'Company' ? 'CompanyManagement' :
                 tabRoute.state.routes[0].name;
 
               navigation.navigate(route.name, {
@@ -418,44 +483,36 @@ function InspectionsStackScreen() {
   );
 }
 
+// ── Role Tab Navigators ──────────────────────────────────────────────────────
+
+// Generic list of hidden screens needed for proper stack routing
+const hiddenScreens = [
+  { name: 'Profile', component: ProfileScreen },
+  { name: 'RoutePlayback', component: RoutePlaybackScreen },
+  { name: 'Branches', component: BranchesStackScreen },
+  { name: 'Organization', component: OrganizationStackScreen },
+  { name: 'Customers', component: CustomerListScreen },
+  { name: 'Reports', component: ReportsScreen },
+  { name: 'Products', component: ProductsScreen },
+  { name: 'Sales', component: SalesScreen },
+  { name: 'Inspections', component: InspectionsScreen },
+  { name: 'AttendanceHistory', component: AttendanceHistoryScreen },
+];
+
 function FieldEmployeeTabs() {
   const tabBar = useRoleTabBar();
   return (
-    <Tab.Navigator tabBar={tabBar} screenOptions={{ headerShown: false }} backBehavior="history">
-      <Tab.Screen
-        name="Home"
-        component={EmployeeDashboard}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Home' }}
-      />
+    <Tab.Navigator tabBar={tabBar} initialRouteName="Home" screenOptions={{ headerShown: false }} backBehavior="history">
+      <Tab.Screen name="Home" component={EmployeeDashboard} options={{ tabBarLabel: 'Dashboard' }} />
+      <Tab.Screen name="OrgChart" component={OrgChartScreen} options={{ tabBarLabel: 'Org Chart' }} />
       <Tab.Screen name="Attendance" component={AttendanceStackScreen} options={{ tabBarLabel: 'Attendance' }} />
       <Tab.Screen name="Visits" component={VisitsStackScreen} options={{ tabBarLabel: 'Visits' }} />
-      <Tab.Screen name="Sales" component={SalesStackScreen} options={{ tabBarLabel: 'Sales' }} />
-      <Tab.Screen name="Inspections" component={InspectionsStackScreen} options={{ tabBarLabel: 'Inspect' }} />
-      <Tab.Screen
-        name="Customers"
-        component={CustomerListScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Customers' }}
-      />
-      <Tab.Screen
-        name="AttendanceHistory"
-        component={AttendanceHistoryScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'History' }}
-      />
-      <Tab.Screen
-        name="RoutePlayback"
-        component={RoutePlaybackScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Route' }}
-      />
-      <Tab.Screen
-        name="OrgChart"
-        component={OrgChartScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Org Chart' }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Profile' }}
-      />
+
+      {hiddenScreens.map((s) => (
+        <Tab.Screen key={s.name} name={s.name} component={s.component} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      ))}
+      <Tab.Screen name="Employees" component={EmployeesStackScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      <Tab.Screen name="TeamMap" component={TeamMapScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
     </Tab.Navigator>
   );
 }
@@ -463,100 +520,60 @@ function FieldEmployeeTabs() {
 function ManagerTabs() {
   const tabBar = useRoleTabBar();
   return (
-    <Tab.Navigator tabBar={tabBar} screenOptions={{ headerShown: false }} backBehavior="history">
-      <Tab.Screen
-        name="Home"
-        component={ManagerDashboard}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Dashboard' }}
-      />
+    <Tab.Navigator tabBar={tabBar} initialRouteName="Home" screenOptions={{ headerShown: false }} backBehavior="history">
+      <Tab.Screen name="Home" component={ManagerDashboard} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      <Tab.Screen name="Employees" component={EmployeesStackScreen} options={{ tabBarLabel: 'People' }} />
       <Tab.Screen name="Attendance" component={AttendanceStackScreen} options={{ tabBarLabel: 'Attendance' }} />
-      <Tab.Screen name="TeamMap" component={TeamMapScreen} options={{ tabBarLabel: 'Live Map' }} />
-      <Tab.Screen name="Employees" component={EmployeesStackScreen} options={{ tabBarLabel: 'Agents' }} />
-      <Tab.Screen name="Reports" component={ReportsScreen} options={{ tabBarLabel: 'Reports' }} />
-      <Tab.Screen
-        name="Visits"
-        component={VisitsScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Visits' }}
-      />
-      <Tab.Screen
-        name="Sales"
-        component={SalesScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Sales' }}
-      />
-      <Tab.Screen
-        name="RoutePlayback"
-        component={RoutePlaybackScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Route' }}
-      />
-      <Tab.Screen
-        name="Inspections"
-        component={InspectionsScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Inspections' }}
-      />
-      <Tab.Screen
-        name="OrgChart"
-        component={OrgChartScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Org Chart' }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Profile' }}
-      />
+      <Tab.Screen name="Approvals" component={ApprovalsStackScreen} options={{ tabBarLabel: 'Approvals' }} />
+
+      {hiddenScreens.map((s) => (
+        <Tab.Screen key={s.name} name={s.name} component={s.component} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      ))}
+      <Tab.Screen name="TeamMap" component={TeamMapScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      <Tab.Screen name="Visits" component={VisitsStackScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      <Tab.Screen name="OrgChart" component={OrgChartScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
     </Tab.Navigator>
   );
 }
 
-function AdminTabs() {
+function TenantAdminTabs() {
   const tabBar = useRoleTabBar();
-  const role = useAuthStore((s) => normalizeRole(s.user?.role));
-  const canManageBranches = role === 'COMPANY_ADMIN' || role === 'SUPER_ADMIN' || role === 'MASTER_SUPER_ADMIN';
-
   return (
-    <Tab.Navigator tabBar={tabBar} screenOptions={{ headerShown: false }} backBehavior="history">
-      <Tab.Screen
-        name="Home"
-        component={AdminDashboard}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Dashboard' }}
-      />
-      <Tab.Screen name="TeamMap" component={TeamMapScreen} options={{ tabBarLabel: 'Live Map' }} />
-      <Tab.Screen name="Employees" component={EmployeesStackScreen} options={{ tabBarLabel: 'Workforce' }} />
-      <Tab.Screen name="Customers" component={CustomerListScreen} options={{ tabBarLabel: 'Clients' }} />
-      <Tab.Screen name="Reports" component={ReportsScreen} options={{ tabBarLabel: 'Reports' }} />
-      {canManageBranches && (
-        <Tab.Screen name="Branches" component={BranchesStackScreen} options={{ tabBarLabel: 'Branches' }} />
-      )}
-      <Tab.Screen name="Organization" component={OrganizationStackScreen} options={{ tabBarLabel: 'Departments' }} />
-      <Tab.Screen
-        name="Products"
-        component={ProductsScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Products' }}
-      />
-      <Tab.Screen
-        name="Visits"
-        component={VisitsScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Visits' }}
-      />
-      <Tab.Screen
-        name="Sales"
-        component={SalesScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Sales' }}
-      />
-      <Tab.Screen
-        name="RoutePlayback"
-        component={RoutePlaybackScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Route' }}
-      />
-      <Tab.Screen
-        name="OrgChart"
-        component={OrgChartScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Org Chart' }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' }, tabBarLabel: 'Profile' }}
-      />
+    <Tab.Navigator tabBar={tabBar} initialRouteName="Home" screenOptions={{ headerShown: false }} backBehavior="history">
+      <Tab.Screen name="Home" component={AdminDashboard} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      <Tab.Screen name="Employees" component={EmployeesStackScreen} options={{ tabBarLabel: 'People' }} />
+      <Tab.Screen name="Attendance" component={AttendanceStackScreen} options={{ tabBarLabel: 'Attendance' }} />
+      <Tab.Screen name="Configurations" component={ConfigurationsScreen} options={{ tabBarLabel: 'Configs' }} />
+      <Tab.Screen name="Approvals" component={ApprovalsStackScreen} options={{ tabBarLabel: 'Approvals' }} />
+
+      {hiddenScreens.map((s) => (
+        <Tab.Screen key={s.name} name={s.name} component={s.component} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      ))}
+      <Tab.Screen name="TeamMap" component={TeamMapScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      <Tab.Screen name="Visits" component={VisitsStackScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      <Tab.Screen name="OrgChart" component={OrgChartScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+    </Tab.Navigator>
+  );
+}
+
+function SuperAdminTabs() {
+  const tabBar = useRoleTabBar();
+  return (
+    <Tab.Navigator tabBar={tabBar} initialRouteName="Home" screenOptions={{ headerShown: false }} backBehavior="history">
+      <Tab.Screen name="Home" component={AdminDashboard} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      <Tab.Screen name="Company" component={CompanyManagementStackScreen} options={{ tabBarLabel: 'Companies' }} />
+      <Tab.Screen name="Employees" component={EmployeesStackScreen} options={{ tabBarLabel: 'People' }} />
+      <Tab.Screen name="Configurations" component={ConfigurationsScreen} options={{ tabBarLabel: 'Configs' }} />
+      <Tab.Screen name="Approvals" component={ApprovalsStackScreen} options={{ tabBarLabel: 'Approvals' }} />
+      <Tab.Screen name="More" component={MoreScreen} options={{ tabBarLabel: 'More' }} />
+
+      {hiddenScreens.map((s) => (
+        <Tab.Screen key={s.name} name={s.name} component={s.component} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      ))}
+      <Tab.Screen name="Visits" component={VisitsStackScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      <Tab.Screen name="Attendance" component={AttendanceStackScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      <Tab.Screen name="OrgChart" component={OrgChartScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
+      <Tab.Screen name="TeamMap" component={TeamMapScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
     </Tab.Navigator>
   );
 }
@@ -598,10 +615,12 @@ export function RoleNavigator({ navigation }: any) {
   let tabs: React.ReactNode;
   if (role === 'EMPLOYEE') {
     tabs = <FieldEmployeeTabs />;
-  } else if (role === 'MANAGER') {
+  } else if (role === 'MANAGER' || role === 'HR') {
     tabs = <ManagerTabs />;
-  } else if (role === 'HR' || role === 'COMPANY_ADMIN' || role === 'SUPER_ADMIN' || role === 'MASTER_SUPER_ADMIN') {
-    tabs = <AdminTabs />;
+  } else if (role === 'COMPANY_ADMIN') {
+    tabs = <TenantAdminTabs />;
+  } else if (role === 'SUPER_ADMIN' || role === 'MASTER_SUPER_ADMIN') {
+    tabs = <SuperAdminTabs />;
   } else {
     tabs = <UnsupportedRoleScreen />;
   }

@@ -22,24 +22,32 @@ import { usePermissions } from '../../../shared/hooks/usePermissions';
 export function CompanyManagementScreen({ navigation }: { navigation: any }) {
   const theme = useTheme();
   const permissions = usePermissions();
-  const { data: companies = [], isLoading, refetch } = useCompanies();
-  const deleteCompanyMutation = useDeleteCompany();
-
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [uploadingCompanyId, setUploadingCompanyId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  const { data: companies = [], isLoading, refetch } = useCompanies(debouncedSearch);
+  const deleteCompanyMutation = useDeleteCompany();
 
   useRefreshOnFocus(refetch);
 
   if (!permissions.isSuperAdmin) {
     return (
       <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
-        <ScreenHeader title="Company Management" onBackPress={() => navigation.goBack()} />
+        <ScreenHeader title="Company Management" />
         <EmptyState
           title="Access Restricted"
           subtitle="Tenant company management is restricted to Platform Super Administrators."
           icon="document"
-          actionLabel="Back to Workforce"
-          onAction={() => navigation.goBack()}
+          actionLabel="Back to Dashboard"
+          onAction={() => navigation.navigate('Home')}
         />
       </View>
     );
@@ -78,11 +86,7 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
     }
   };
 
-  const filteredCompanies = companies.filter((c) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase().trim();
-    return c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q);
-  });
+  const filteredCompanies = companies; // Search is now handled server-side
 
   const handleDelete = (id: string, name: string) => {
     const targetCompany = companies.find((c) => c.id === id);
@@ -118,7 +122,6 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
         <ScreenHeader
           title="Company Management"
           subtitle={`${companies.length} active tenant companies registered in system`}
-          onBackPress={() => navigation.goBack()}
         />
 
         <View style={styles.searchRow}>

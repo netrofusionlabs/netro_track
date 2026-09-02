@@ -36,8 +36,9 @@ export interface CompanyRecord {
 }
 
 export const companyService = {
-  getCompanies: async (): Promise<CompanyRecord[]> => {
-    const res = await api.get('/companies');
+  getCompanies: async (search?: string): Promise<CompanyRecord[]> => {
+    const params = search ? { search } : undefined;
+    const res = await api.get('/companies', { params });
     return res.data.data;
   },
 

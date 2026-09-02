@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { companyService } from '../services/companyService';
 
-export function useCompanies() {
+export function useCompanies(search?: string) {
   return useQuery({
-    queryKey: ['companies'],
-    queryFn: () => companyService.getCompanies(),
+    queryKey: ['companies', search],
+    queryFn: () => companyService.getCompanies(search),
   });
 }
 

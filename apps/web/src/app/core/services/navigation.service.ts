@@ -34,16 +34,21 @@ export interface NavGroup {
  */
 const IA: NavGroup[] = [
   {
-    label: 'Command',
+    label: 'Dashboard',
     items: [
       {
-        label: 'Dashboard',
+        label: 'Dashboards',
         route: '/dashboard',
         icon: 'pulse',
         roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'],
         hint: 'What is happening right now',
         keywords: ['dashboard', 'home', 'overview', 'today'],
       },
+    ],
+  },
+  {
+    label: 'Command',
+    items: [
       {
         label: 'Live Operations',
         route: '/live',
@@ -66,7 +71,7 @@ const IA: NavGroup[] = [
         keywords: ['employees', 'staff', 'users', 'team', 'directory', 'headcount'],
       },
       {
-        label: 'Organization',
+        label: 'Organization Chart',
         route: '/organization',
         icon: 'hierarchy',
         roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'],
@@ -82,28 +87,6 @@ const IA: NavGroup[] = [
         keywords: ['punch', 'shift', 'clock in', 'timesheet', 'present', 'absent'],
       },
       {
-        label: 'Approvals',
-        route: '/approvals',
-        icon: 'approve',
-        roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER'],
-        hint: 'Regularization queue awaiting a decision',
-        keywords: ['regularization', 'requests', 'pending', 'approve', 'reject', 'queue'],
-        badge: 'approvals',
-      },
-      {
-        label: 'Policies',
-        route: '/policies',
-        icon: 'policy',
-        roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR'],
-        hint: 'Attendance, leave, expense, tracking, visit and inspection governance rules',
-        keywords: ['policy', 'attendance', 'leave', 'expense', 'tracking', 'gps', 'visit', 'inspection', 'rules', 'governance', 'assignment'],
-      },
-    ],
-  },
-  {
-    label: 'Field (Coming Soon)',
-    items: [
-      {
         label: 'Visits',
         route: '/visits',
         icon: 'pin',
@@ -113,6 +96,75 @@ const IA: NavGroup[] = [
         disabled: true,
         badgeText: 'Coming Soon',
       },
+    ],
+  },
+  {
+    label: 'Onboarding',
+    items: [
+      {
+        label: 'Company Onboarding',
+        route: '/companies',
+        icon: 'globe',
+        roles: ['SUPER_ADMIN'],
+        hint: 'Tenants, provisioning and module entitlements',
+        keywords: ['tenants', 'organisations', 'provisioning', 'modules', 'onboarding'],
+      },
+      {
+        label: 'Employee Onboarding',
+        route: '/people',
+        icon: 'people',
+        roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER'],
+        hint: 'Directory, roles, access and lifecycle',
+        keywords: ['employees', 'staff', 'users', 'team', 'directory', 'headcount'],
+      },
+    ],
+  },
+  {
+    label: 'Configuration',
+    items: [
+      {
+        label: 'Policy Configuration',
+        route: '/policies',
+        icon: 'policy',
+        roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR'],
+        hint: 'Attendance, leave, expense, tracking, visit and inspection governance rules',
+        keywords: ['policy', 'attendance', 'leave', 'expense', 'tracking', 'gps', 'visit', 'inspection', 'rules', 'governance', 'assignment'],
+      },
+      {
+        label: 'Branches Configuration',
+        route: '/branches',
+        icon: 'building',
+        roles: ['MASTER_SUPER_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'],
+        hint: 'Manage geographical or structural branch locations',
+        keywords: ['locations', 'offices', 'hq', 'branches'],
+      },
+      {
+        label: 'Department Setup',
+        route: '/departments',
+        icon: 'hierarchy',
+        roles: ['MASTER_SUPER_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'],
+        hint: 'Manage organizational departments and functional units',
+        keywords: ['departments', 'units', 'teams'],
+      },
+    ],
+  },
+  {
+    label: 'Approvals',
+    items: [
+      {
+        label: 'Approvals',
+        route: '/approvals',
+        icon: 'approve',
+        roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER'],
+        hint: 'Regularization queue awaiting a decision',
+        keywords: ['regularization', 'requests', 'pending', 'approve', 'reject', 'queue'],
+        badge: 'approvals',
+      },
+    ],
+  },
+  {
+    label: 'Field (Coming Soon)',
+    items: [
       {
         label: 'Inspections',
         route: '/inspections',
@@ -178,30 +230,6 @@ const IA: NavGroup[] = [
   {
     label: 'Administration',
     items: [
-      {
-        label: 'Branches',
-        route: '/branches',
-        icon: 'building',
-        roles: ['MASTER_SUPER_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'],
-        hint: 'Manage geographical or structural branch locations',
-        keywords: ['locations', 'offices', 'hq', 'branches'],
-      },
-      {
-        label: 'Departments',
-        route: '/departments',
-        icon: 'hierarchy',
-        roles: ['MASTER_SUPER_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'],
-        hint: 'Manage organizational departments and functional units',
-        keywords: ['departments', 'units', 'teams'],
-      },
-      {
-        label: 'Companies',
-        route: '/companies',
-        icon: 'globe',
-        roles: ['SUPER_ADMIN'],
-        hint: 'Tenants, provisioning and module entitlements',
-        keywords: ['tenants', 'organisations', 'provisioning', 'modules', 'onboarding'],
-      },
       {
         label: 'Settings',
         route: '/settings',

@@ -208,40 +208,13 @@ export function UserManagementScreen({ navigation }: { navigation: any }) {
     <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
       <ScreenHeader
         title="User Management"
-        subtitle="Manage company directory, credentials & role hierarchy"
-        actionLabel={permissions.canCreateUsers ? "Add User" : undefined}
+        subtitle={`${pagination.totalItems} active users in directory`}
+        actionLabel={permissions.canCreateUsers ? "Onboard" : undefined}
         actionIcon={permissions.canCreateUsers ? "addUser" : undefined}
         onAction={permissions.canCreateUsers ? () => navigation.navigate('AddUser') : undefined}
-        onBackPress={() => {
-          if (navigation) {
-            if (navigation.canGoBack()) {
-              navigation.goBack();
-            } else {
-              const parent = navigation.getParent();
-              if (parent && parent.canGoBack()) {
-                parent.goBack();
-              } else {
-                navigation.navigate('Home');
-              }
-            }
-          }
-        }}
       />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Tenant Companies Management Link (Super Admin only) */}
-        {permissions.isSuperAdmin && (
-          <TouchableOpacity
-            style={[styles.manageCompaniesBtn, { backgroundColor: theme.colors.brand.primaryLight, borderColor: theme.colors.brand.primary }]}
-            onPress={() => navigation.navigate('CompanyManagement')}
-          >
-            <AppIcon name="document" color={theme.colors.brand.primary} size={18} />
-            <Text style={[typography.bodySm, { color: theme.colors.brand.primary, fontWeight: '700', marginLeft: 8 }]}>
-              Manage Tenant Companies & Register New Company
-            </Text>
-          </TouchableOpacity>
-        )}
-
         {/* Company Profile & Logo Management (Company Admin only) */}
         {permissions.isCompanyAdmin && company && (
           <Card variant="outlined" style={styles.companyAdminCard}>
@@ -347,29 +320,7 @@ export function UserManagementScreen({ navigation }: { navigation: any }) {
           </Card>
         )}
 
-        {/* Company Admin Settings Panel */}
-        {(permissions.isCompanyAdmin || permissions.isHr) && (
-          <Card
-            variant="outlined"
-            onPress={() => navigation.navigate('AttendancePolicies')}
-            style={styles.quickActionCard}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={[styles.quickActionIconContainer, { backgroundColor: theme.colors.brand.secondary }]}>
-                <AppIcon name="attendance" size={20} color={theme.colors.brand.primary} />
-              </View>
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]}>
-                  Attendance / Punch Policies
-                </Text>
-                <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 1 }]}>
-                  Configure selfie, GPS & vehicle requirements
-                </Text>
-              </View>
-              <AppIcon name="chevronRight" size={16} color={theme.colors.text.tertiary} />
-            </View>
-          </Card>
-        )}
+
 
         {/* Tab Filters */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsRow}>
@@ -571,7 +522,7 @@ export function UserManagementScreen({ navigation }: { navigation: any }) {
         >
           <AppIcon name="add" color="#FFFFFF" size={24} />
           <Text style={[typography.bodySm, { color: '#FFFFFF', fontWeight: '700', marginLeft: 6 }]}>
-            Add User
+            Onboard
           </Text>
         </TouchableOpacity>
       )}

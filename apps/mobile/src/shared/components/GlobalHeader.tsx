@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeProvider';
 import { typography } from '../theme/typography';
@@ -60,6 +60,18 @@ export function GlobalHeader({
   const companyDisplayName = user?.companyName || subBrand;
 
   const nav = useNavigation<any>();
+
+  // Use navigation state to figure out if we are currently on Home
+  const activeRouteName = useNavigationState((state) => {
+    if (!state) return undefined;
+    let current: any = state;
+    while (current.routes && current.index != null && current.routes[current.index].state != null) {
+      current = current.routes[current.index].state;
+    }
+    return current.routes?.[current.index ?? 0]?.name;
+  });
+
+  const isHomeActive = activeRouteName === 'Home' || activeRouteName === 'AdminDashboard' || activeRouteName === 'EmployeeDashboard' || activeRouteName === 'ManagerDashboard';
 
   const handleHomePress = () => {
     const activeNav = navigation || nav;
@@ -143,11 +155,11 @@ export function GlobalHeader({
           <TouchableOpacity
             onPress={handleHomePress}
             activeOpacity={0.7}
-            style={[styles.utilityButton, { backgroundColor: theme.colors.surface.subtle }]}
+            style={[styles.utilityButton, { backgroundColor: isHomeActive ? theme.colors.brand.primary + '1A' : theme.colors.surface.subtle }]}
             accessibilityRole="button"
             accessibilityLabel="Home"
           >
-            <AppIcon name="home" color={theme.colors.text.secondary} size={16} />
+            <AppIcon name="home" color={isHomeActive ? theme.colors.brand.primary : theme.colors.text.secondary} size={16} />
           </TouchableOpacity>
 
           {/* Notification Bell Action */}

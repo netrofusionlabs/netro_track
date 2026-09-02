@@ -9,12 +9,12 @@ import { Role } from '@prisma/client';
 const router = Router();
 const controller = new DepartmentController();
 
-router.get('/', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR, Role.MANAGER, Role.EMPLOYEE), controller.getDepartments);
-router.get('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR, Role.MANAGER, Role.EMPLOYEE), controller.getDepartment);
+router.get('/', authMiddleware, requireRoles(Role.MASTER_SUPER_ADMIN, Role.SUPER_ADMIN, Role.COMPANY_ADMIN, Role.HR, Role.MANAGER, Role.EMPLOYEE), controller.getDepartments);
+router.get('/:id', authMiddleware, requireRoles(Role.MASTER_SUPER_ADMIN, Role.SUPER_ADMIN, Role.COMPANY_ADMIN, Role.HR, Role.MANAGER, Role.EMPLOYEE), controller.getDepartment);
 
-router.post('/', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR), validate(createDepartmentSchema), controller.createDepartment);
-router.put('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR), validate(updateDepartmentSchema), controller.updateDepartment);
+router.post('/', authMiddleware, requireRoles(Role.MASTER_SUPER_ADMIN, Role.SUPER_ADMIN, Role.COMPANY_ADMIN, Role.HR), validate(createDepartmentSchema), controller.createDepartment);
+router.put('/:id', authMiddleware, requireRoles(Role.MASTER_SUPER_ADMIN, Role.SUPER_ADMIN, Role.COMPANY_ADMIN, Role.HR), validate(updateDepartmentSchema), controller.updateDepartment);
 
-router.delete('/:id', authMiddleware, requireRoles(Role.COMPANY_ADMIN, Role.HR), controller.deleteDepartment);
+router.delete('/:id', authMiddleware, requireRoles(Role.MASTER_SUPER_ADMIN, Role.SUPER_ADMIN, Role.COMPANY_ADMIN, Role.HR), controller.deleteDepartment);
 
 export { router as departmentRouter };

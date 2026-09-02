@@ -22,6 +22,7 @@ import {
 import { usePermissions } from '../../../shared/hooks/usePermissions';
 import { useSupervisors, useCreateUser } from '../hooks/useUserManagement';
 import { useCompanies } from '../../companies/hooks/useCompanies';
+import { useBranches, useDepartments } from '../../organization/hooks/useOrganization';
 import { useAttendancePolicies } from '../../attendance/hooks/useAttendance';
 import { ROLE_DISPLAY_LABELS, UserRole } from '@netrotrack/shared';
 
@@ -32,7 +33,9 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
   const createUserMutation = useCreateUser();
   const { data: companies = [], isLoading: loadingCompanies } = useCompanies();
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
+  const [departmentId, setDepartmentId] = useState<string>('');
+  const [branchId, setBranchId] = useState<string>('');
 
   // Check if selected company is the platform company (NetroTrack, code 'NETRO')
   const availableRoles: UserRole[] = permissions.creatableRoles;
@@ -74,7 +77,9 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
   const [designationName, setDesignationName] = useState('');
   const [selectedAttendancePolicyId, setSelectedAttendancePolicyId] = useState<string | null>(null);
 
-  const { data: policies = [], isLoading: loadingPolicies } = useAttendancePolicies(undefined, 'ATTENDANCE');
+  const { data: policiesData = [], isLoading: policiesLoading } = useAttendancePolicies(selectedCompanyId || undefined, 'ATTENDANCE');
+  const { data: branchesData = [], isLoading: branchesLoading } = useBranches(selectedCompanyId || undefined);
+  const { data: departmentsData = [], isLoading: departmentsLoading } = useDepartments(selectedCompanyId || undefined);
 
   // Auto-switch selectedRole if current role is invalid for selected tenant company
   React.useEffect(() => {
@@ -87,13 +92,13 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
   // Auto-enable GPS tracking when a policy with GPS REQUIRED/OPTIONAL is selected
   React.useEffect(() => {
     if (!selectedAttendancePolicyId) return;
-    const selectedPolicy = policies.find((p) => p.id === selectedAttendancePolicyId);
+    const selectedPolicy = policiesData.find((p) => p.id === selectedAttendancePolicyId);
     if (!selectedPolicy) return;
     const punchInGps: string | undefined = selectedPolicy.punchInConfig?.gps;
     if (punchInGps === 'REQUIRED' || punchInGps === 'OPTIONAL') {
       setIsGpsTracked(true);
     }
-  }, [selectedAttendancePolicyId, policies]);
+  }, [selectedAttendancePolicyId, policiesData]);
 
   // Roles that need a supervisor picker (everything below Company Admin)
   const needsSupervisor = selectedRole === UserRole.EMPLOYEE ||
@@ -163,6 +168,8 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
         role: selectedRole,
         designationName: designationName.trim(),
         companyId: permissions.isSuperAdmin ? selectedCompanyId : undefined,
+        departmentId: departmentId || undefined,
+        branchId: branchId || undefined,
         isGpsTracked: isCompanyGpsDisabled ? false : isGpsTracked,
         managerId: needsSupervisor ? (selectedSupervisorId ?? null) : undefined,
         attendancePolicyId: selectedRole !== UserRole.MASTER_SUPER_ADMIN ? selectedAttendancePolicyId : null,
@@ -185,13 +192,57 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
         />
 
         <Card variant="elevated" style={styles.formCard}>
-          {/* Section Header: Professional Identity */}
           <Text style={[typography.headingSm, { color: theme.colors.brand.primary, marginBottom: 12 }]}>
             💼 Professional Identity
           </Text>
 
-          {/* Employee ID */}
           <Text style={[typography.label, { color: theme.colors.text.primary }]}>
+            Organization & Assignment
+          </Text>
+
+          <View style={{ marginTop: 14 }}>
+            <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 4 }]}>
+              Department
+            </Text>
+            <View style={[styles.pickerContainer, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.surface.border }]}>
+              {departmentsLoading ? (
+                <Text style={{ padding: 12 }}>Loading departments...</Text>
+              ) : (
+                <Picker
+                  selectedValue={departmentId}
+                  onValueChange={(val: any) => setDepartmentId(val)}
+                >
+                  <Picker.Item label="Select Department (Optional)" value="" />
+                  {departmentsData?.map((dept: any) => (
+                    <Picker.Item key={dept.id} label={dept.name} value={dept.id} />
+                  ))}
+                </Picker>
+              )}
+            </View>
+          </View>
+
+          <View style={{ marginTop: 14 }}>
+            <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 4 }]}>
+              Branch
+            </Text>
+            <View style={[styles.pickerContainer, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.surface.border }]}>
+              {branchesLoading ? (
+                <Text style={{ padding: 12 }}>Loading branches...</Text>
+              ) : (
+                <Picker
+                  selectedValue={branchId}
+                  onValueChange={(val: any) => setBranchId(val)}
+                >
+                  <Picker.Item label="Select Branch (Optional)" value="" />
+                  {branchesData?.map((b: any) => (
+                    <Picker.Item key={b.id} label={b.name} value={b.id} />
+                  ))}
+                </Picker>
+              )}
+            </View>
+          </View>
+
+          <Text style={[typography.label, { color: theme.colors.text.primary, marginTop: 14 }]}>
             Employee ID / Login Code *
           </Text>
           <SearchInput

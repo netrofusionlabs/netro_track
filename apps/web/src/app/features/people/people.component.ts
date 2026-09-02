@@ -115,8 +115,9 @@ export class PeopleComponent {
   readonly editing = signal<Person | null>(null);
   readonly supervisors = signal<Person[]>([]);
   readonly policies = signal<AttendancePolicy[]>([]);
-  readonly companies = signal<Company[]>([]);
   readonly branches = signal<any[]>([]);
+  readonly departments = signal<any[]>([]);
+  readonly companies = signal<Company[]>([]);
   readonly serverErrors = signal<Record<string, string>>({});
 
   readonly actorRole = this.api.role;
@@ -220,7 +221,10 @@ export class PeopleComponent {
 
   readonly form = this.fb.nonNullable.group({
     companyId: [''],
-    employeeId: ['', [Validators.required]],
+    employeeId: ['', []],
+    departmentId: ['', []],
+    branchId: ['', []],
+    managerId: ['', []],
     name: ['', [Validators.required, Validators.minLength(2)]],
     email: ['', [Validators.required, Validators.email]],
     phone: ['', [Validators.required]],
@@ -231,8 +235,6 @@ export class PeopleComponent {
     emergencyContactName: ['', [Validators.required]],
     emergencyContactPhone: ['', [Validators.required]],
     attendancePolicyId: [''],
-    branchId: [''],
-    managerId: [''],
     personalEmail: [''],
     secondaryPhone: [''],
     linkedinUrl: [''],
@@ -308,6 +310,7 @@ export class PeopleComponent {
     this.load();
     this.loadPolicies();
     this.loadBranches();
+    this.loadDepartments();
     if (this.isSuperAdmin()) this.loadCompanies();
     this.setupPolicySync();
   }
@@ -367,6 +370,25 @@ export class PeopleComponent {
         const data = (res as any)?.data ? (res as any).data : (Array.isArray(res) ? res : []);
         this.branches.set(data);
       },
+    });
+  }
+
+  loadDepartments(companyId?: string): void {
+    const params: Record<string, string> = {};
+    if (companyId) params['companyId'] = companyId;
+    this.api.get<any[]>('/api/v1/departments', params).subscribe({
+      next: res => {
+        const data = (res as any)?.data ? (res as any).data : (Array.isArray(res) ? res : []);
+        this.departments.set(data);
+      },
+    });
+  }
+
+  loadManagers(companyId?: string): void {
+    const params: Record<string, string> = {};
+    if (companyId) params['companyId'] = companyId;
+    this.api.get<Person[]>(API.workforceSupervisors, params).subscribe({
+      next: res => this.supervisors.set(Array.isArray(res) ? res : []),
     });
   }
 
@@ -496,6 +518,8 @@ export class PeopleComponent {
     this.form.reset({
       companyId: compId,
       employeeId: '',
+      departmentId: '',
+      branchId: '',
       name: '',
       email: '',
       phone: '',
@@ -506,7 +530,6 @@ export class PeopleComponent {
       emergencyContactName: '',
       emergencyContactPhone: '',
       attendancePolicyId: '',
-      branchId: '',
       managerId: defaultManagerId,
       personalEmail: '',
       secondaryPhone: '',
@@ -517,7 +540,10 @@ export class PeopleComponent {
     });
 
     this.form.controls.employeeId.enable();
-    this.loadSupervisors(defaultRole);
+    this.loadManagers(compId);
+    this.loadPolicies(compId);
+    this.loadBranches(compId);
+    this.loadDepartments(compId);
     this.editorOpen.set(true);
   }
 
@@ -531,6 +557,8 @@ export class PeopleComponent {
     this.form.reset({
       companyId: person.companyId || '',
       employeeId: person.employeeId ?? '',
+      departmentId: (person as any).departmentId || '',
+      branchId: (person as any).branchId ?? '',
       name: person.name,
       email: person.email ?? '',
       phone: person.phone ?? '',
@@ -541,7 +569,6 @@ export class PeopleComponent {
       emergencyContactName: person.emergencyContactName ?? '',
       emergencyContactPhone: person.emergencyContactPhone ?? '',
       attendancePolicyId: person.attendancePolicyId ?? '',
-      branchId: (person as any).branchId ?? '',
       managerId: person.managerId ?? '',
       personalEmail: person.personalEmail ?? '',
       secondaryPhone: person.secondaryPhone ?? '',
@@ -553,11 +580,13 @@ export class PeopleComponent {
 
     // Employee ID is the sign-in identifier and is immutable after creation.
     this.form.controls.employeeId.disable();
-    this.loadSupervisors(person.role, person.id);
     
-    if (this.isSuperAdmin() && person.companyId) {
-      this.loadBranches(person.companyId);
-      this.loadPolicies(person.companyId);
+    if (this.canEdit()) {
+      const targetCompanyId = person.companyId;
+      this.loadManagers(targetCompanyId);
+      this.loadPolicies(targetCompanyId);
+      this.loadBranches(targetCompanyId);
+      this.loadDepartments(targetCompanyId);
     }
     
     this.editorOpen.set(true);
@@ -579,9 +608,10 @@ export class PeopleComponent {
       this.form.controls.isGpsTracked.setValue(false);
     }
 
-    this.loadSupervisors(this.form.controls.role.value, this.editing()?.id);
+    this.loadManagers(companyId);
     this.loadPolicies(companyId);
     this.loadBranches(companyId);
+    this.loadDepartments(companyId);
   }
 
   onRoleChange(): void {

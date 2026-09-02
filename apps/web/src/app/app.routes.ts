@@ -121,6 +121,12 @@ export const routes: Routes = [
         loadComponent: () => import('./features/organization/components/branches.component').then(m => m.BranchesComponent),
       },
       {
+        path: 'departments',
+        title: 'Departments · NetroTrack',
+        data: { roles: CAN.manageBranches },
+        loadComponent: () => import('./features/organization/components/departments.component').then(m => m.DepartmentsComponent),
+      },
+      {
         path: 'settings',
         title: 'Settings · NetroTrack',
         loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent),

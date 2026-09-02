@@ -15,9 +15,22 @@ export class DepartmentController {
     this.deleteDepartment = this.deleteDepartment.bind(this);
   }
 
+  private getTargetCompanyId(req: Request): string {
+    const appReq = req as AppRequest;
+    const user = appReq.user;
+    if (
+      user &&
+      (user.role === 'SUPER_ADMIN' || user.role === 'MASTER_SUPER_ADMIN') &&
+      (req.query.companyId || req.body.companyId)
+    ) {
+      return (req.query.companyId || req.body.companyId) as string;
+    }
+    return appReq.companyId;
+  }
+
   async getDepartments(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = (req as AppRequest).companyId;
+      const companyId = this.getTargetCompanyId(req);
       const depts = await this.service.getDepartments(companyId);
 
       res.status(200).json({
@@ -32,7 +45,7 @@ export class DepartmentController {
 
   async getDepartment(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = (req as AppRequest).companyId;
+      const companyId = this.getTargetCompanyId(req);
       const dept = await this.service.getDepartment(req.params.id, companyId);
 
       res.status(200).json({
@@ -47,7 +60,7 @@ export class DepartmentController {
 
   async createDepartment(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = (req as AppRequest).companyId;
+      const companyId = this.getTargetCompanyId(req);
       const dept = await this.service.createDepartment(companyId, req.body);
 
       res.status(201).json({
@@ -62,7 +75,7 @@ export class DepartmentController {
 
   async updateDepartment(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = (req as AppRequest).companyId;
+      const companyId = this.getTargetCompanyId(req);
       const dept = await this.service.updateDepartment(req.params.id, companyId, req.body);
 
       res.status(200).json({
@@ -77,7 +90,7 @@ export class DepartmentController {
 
   async deleteDepartment(req: Request, res: Response, next: NextFunction) {
     try {
-      const companyId = (req as AppRequest).companyId;
+      const companyId = this.getTargetCompanyId(req);
       await this.service.deleteDepartment(req.params.id, companyId);
 
       res.status(200).json({

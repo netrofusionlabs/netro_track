@@ -5,28 +5,34 @@ import { ToastService } from '../../../core/services/toast.service';
 import { ConfirmService } from '../../../core/services/confirm.service';
 import { API } from '../../../core/models/endpoints';
 import { NetroIcon } from '../../../ui/icon';
-import { NetroPanel } from '../../../ui/patterns';
+import { NetroPanel, NetroPageHeader } from '../../../ui/patterns';
 import { NetroDrawer } from '../../../ui/overlays';
 import { FormsModule, NgForm } from '@angular/forms';
 
 @Component({
   selector: 'app-departments',
   standalone: true,
-  imports: [NgIf, NgFor, NetroIcon, NetroPanel, NetroDrawer, FormsModule],
+  imports: [NgIf, NgFor, NetroIcon, NetroPanel, NetroDrawer, FormsModule, NetroPageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <netro-panel
-      heading="Departments"
-      description="Manage organizational departments and functional units."
-      [flush]="true"
-    >
-      <div slot="actions">
-        <button type="button" class="btn btn--primary btn--sm" (click)="openDrawer()">
-          <netro-icon name="plus" [size]="13" /> Add department
-        </button>
-      </div>
+    <div class="page">
+      <netro-page-header
+        title="Departments"
+        description="Manage organizational departments and functional units."
+      >
+        <div slot="actions" class="row row--nowrap">
+          <select *ngIf="canImpersonate()" class="input" style="height: 32px; min-width: 200px;" [ngModel]="api.tenantOverrideId()" (ngModelChange)="onTenantChange($event)">
+            <option [ngValue]="null">My Company (Default)</option>
+            <option *ngFor="let c of companies()" [value]="c.id">{{ c.name }}</option>
+          </select>
+          <button type="button" class="btn btn--primary btn--sm" (click)="openDrawer()">
+            <netro-icon name="plus" [size]="13" /> Add department
+          </button>
+        </div>
+      </netro-page-header>
 
-      <div class="table-wrap">
+      <netro-panel [flush]="true" padding="none">
+        <div class="table-wrap">
         <table class="table">
           <thead>
             <tr>
@@ -62,7 +68,8 @@ import { FormsModule, NgForm } from '@angular/forms';
           </tbody>
         </table>
       </div>
-    </netro-panel>
+      </netro-panel>
+    </div>
 
     @if (drawerOpen()) {
       <netro-drawer
@@ -103,11 +110,10 @@ import { FormsModule, NgForm } from '@angular/forms';
   `
 })
 export class DepartmentsComponent {
-  private readonly api = inject(ApiService);
+  readonly api = inject(ApiService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
 
-  readonly departments = signal<any[]>([]);
   readonly branches = signal<any[]>([]);
   readonly loading = signal(true);
   
@@ -115,11 +121,35 @@ export class DepartmentsComponent {
   readonly saving = signal(false);
   readonly editingDepartment = signal<any>(null);
 
-  constructor() {
-    this.loadData();
+  readonly departments = signal<any[]>([]);
+
+  canImpersonate = computed(() => {
+    const role = this.api.user()?.role;
+    return role === 'SUPER_ADMIN' || role === 'MASTER_SUPER_ADMIN';
+  });
+
+  companies = signal<any[]>([]);
+
+  ngOnInit() {
+    this.load();
+    if (this.canImpersonate()) {
+      this.loadCompanies();
+    }
   }
 
-  loadData() {
+  onTenantChange(companyId: string | null) {
+    this.api.tenantOverrideId.set(companyId);
+    this.load();
+  }
+
+  loadCompanies() {
+    this.api.get<any>(API.companies).subscribe({
+      next: (res: any) => this.companies.set(res?.data ? res.data : (Array.isArray(res) ? res : [])),
+      error: (err) => console.error(err)
+    });
+  }
+
+  load() {
     this.loading.set(true);
     this.api.get<any>(API.BRANCHES).subscribe(res => this.branches.set(res?.data ? res.data : (Array.isArray(res) ? res : [])));
     this.api.get<any>(API.DEPARTMENTS).subscribe({
@@ -158,7 +188,7 @@ export class DepartmentsComponent {
         this.toast.success(`Department ${this.editingDepartment() ? 'updated' : 'created'}`);
         this.closeDrawer();
         this.saving.set(false);
-        this.loadData();
+        this.load();
       },
       error: (err) => {
         this.toast.error(err.error?.message || 'Failed to save department');
@@ -173,7 +203,7 @@ export class DepartmentsComponent {
       this.api.delete(`${API.DEPARTMENTS}/${id}`).subscribe({
         next: () => {
           this.toast.success('Department deleted');
-          this.loadData();
+          this.load();
         },
         error: (err: any) => this.toast.error(err.error?.message || 'Failed to delete department')
       });

@@ -187,6 +187,14 @@ const IA: NavGroup[] = [
         keywords: ['locations', 'offices', 'hq', 'branches'],
       },
       {
+        label: 'Departments',
+        route: '/departments',
+        icon: 'hierarchy',
+        roles: ['MASTER_SUPER_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'],
+        hint: 'Manage organizational departments and functional units',
+        keywords: ['departments', 'units', 'teams'],
+      },
+      {
         label: 'Companies',
         route: '/companies',
         icon: 'globe',

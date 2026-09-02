@@ -16,8 +16,6 @@ import { NetroPageHeader, NetroPanel, NetroMetric } from '../../ui/patterns';
 import { NetroDrawer } from '../../ui/overlays';
 import { NetroToolbar } from '../../ui/toolbar';
 import { BranchesComponent } from './components/branches.component';
-import { DepartmentsComponent } from './components/departments.component';
-
 /** One row of the flattened hierarchy the template renders. */
 interface OrgRow {
   node: OrgNode;
@@ -55,14 +53,12 @@ type Strategy = 'move-to-unassigned' | 'move-to-manager' | 'individual';
     NetroState,
     NetroDrawer,
     BranchesComponent,
-    DepartmentsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './organization.component.html',
   styleUrl: './organization.component.css',
 })
 export class OrganizationComponent {
-  readonly activeTab = signal<'chart' | 'departments'>('chart');
   private readonly api = inject(ApiService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);

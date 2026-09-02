@@ -41,13 +41,7 @@
     />
   </section>
 
-  <div class="tabs" style="margin-bottom: 24px; border-bottom: 1px solid var(--border-subtle); display: flex; gap: 24px;">
-    <button type="button" class="tab" [class.tab--active]="activeTab() === 'chart'" (click)="activeTab.set('chart')" style="padding-bottom: 8px; font-weight: 500; color: var(--text-main); border-bottom: 2px solid transparent;" [style.border-bottom-color]="activeTab() === 'chart' ? 'var(--primary)' : 'transparent'">Org Chart</button>
-    <button type="button" class="tab" [class.tab--active]="activeTab() === 'departments'" (click)="activeTab.set('departments')" style="padding-bottom: 8px; font-weight: 500; color: var(--text-main); border-bottom: 2px solid transparent;" [style.border-bottom-color]="activeTab() === 'departments' ? 'var(--primary)' : 'transparent'">Departments</button>
-  </div>
-
-  <div *ngIf="activeTab() === 'chart'">
-    <div class="org-layout" [class.org-layout--single]="!canManageWorkforce()">
+  <div class="org-layout" [class.org-layout--single]="!canManageWorkforce()">
     <netro-panel
       heading="Reporting structure"
       description="Select any manager or team member to view their direct reports and team structure."
@@ -227,12 +221,6 @@
         </ul>
       }
     </netro-panel>
-  </div>
-  </div>
-
-  <div *ngIf="activeTab() === 'departments'">
-    <app-departments></app-departments>
-  </div>
 </div>
 
 <!-- ==========================================================================

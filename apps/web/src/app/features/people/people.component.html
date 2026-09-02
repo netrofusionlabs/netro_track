@@ -605,6 +605,17 @@
           </label>
 
           <label class="field span-2">
+            <span class="field__label">Assigned Department</span>
+            <select class="select" formControlName="departmentId">
+              <option value="">No department assigned</option>
+              <option *ngFor="let dept of departments()" [value]="dept.id">
+                {{ dept.name }}
+              </option>
+            </select>
+            <span class="field__hint">Assign this person to a specific department or team.</span>
+          </label>
+
+          <label class="field span-2">
             <span class="field__label">Assigned Branch</span>
             <select class="select" formControlName="branchId">
               <option value="">No branch assigned</option>

@@ -23,6 +23,7 @@ import { usePermissions } from '../../../shared/hooks/usePermissions';
 import { useSupervisors, useUpdateUser } from '../hooks/useUserManagement';
 import { useAttendancePolicies } from '../../attendance/hooks/useAttendance';
 import { useCompanies } from '../../companies/hooks/useCompanies';
+import { useBranches, useDepartments } from '../../organization/hooks/useOrganization';
 import {
   ROLE_DISPLAY_LABELS,
   ROLE_HIERARCHY,
@@ -80,8 +81,14 @@ export function EditUserScreen({ route, navigation }: any) {
   const [selectedAttendancePolicyId, setSelectedAttendancePolicyId] = useState<string | null>(
     user.attendancePolicyId ?? null
   );
+  const [departmentId, setDepartmentId] = useState<string>(user.departmentId ?? '');
+  const [branchId, setBranchId] = useState<string>(user.branchId ?? '');
+  
   const [policyTouched, setPolicyTouched] = useState(false);
-  const { data: policies = [], isLoading: loadingPolicies } = useAttendancePolicies(undefined, 'ATTENDANCE');
+  const targetCompanyId = permissions.isSuperAdmin && user.companyId ? user.companyId : undefined;
+  const { data: policies = [], isLoading: loadingPolicies } = useAttendancePolicies(targetCompanyId, 'ATTENDANCE');
+  const { data: branchesData = [], isLoading: branchesLoading } = useBranches(targetCompanyId);
+  const { data: departmentsData = [], isLoading: departmentsLoading } = useDepartments(targetCompanyId);
 
   const { data: companies = [] } = useCompanies();
   const userCompany = companies.find((c) => c.id === user.companyId);
@@ -207,6 +214,9 @@ export function EditUserScreen({ route, navigation }: any) {
       payload.attendancePolicyId = selectedAttendancePolicyId;
     }
 
+    payload.departmentId = departmentId || null;
+    payload.branchId = branchId || null;
+
     if (gpsTouched) {
       payload.isGpsTracked = isGpsTracked;
     }
@@ -231,9 +241,74 @@ export function EditUserScreen({ route, navigation }: any) {
         />
 
         <Card variant="elevated" style={styles.formCard}>
+          <Text style={[typography.headingSm, { color: theme.colors.brand.primary, marginBottom: 12 }]}>
+            💼 Professional Identity
+          </Text>
+
+          {permissions.isSuperAdmin && (
+            <View style={{ marginBottom: 14 }}>
+              <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 4 }]}>
+                Tenant Company
+              </Text>
+              <View style={[styles.input, { backgroundColor: theme.colors.surface.disabled, borderColor: theme.colors.border.disabled }]}>
+                <Text style={{ color: theme.colors.text.tertiary, paddingVertical: 12, paddingHorizontal: 16 }}>
+                  {userCompany?.name || 'Unknown Company'}
+                </Text>
+              </View>
+              <Text style={[typography.caption, { color: theme.colors.text.tertiary, marginTop: 4 }]}>
+                The company this user belongs to cannot be changed.
+              </Text>
+            </View>
+          )}
+
+          <Text style={[typography.label, { color: theme.colors.text.primary }]}>
+            Organization & Assignment
+          </Text>
+
+          <View style={{ marginTop: 14 }}>
+            <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 4 }]}>
+              Department
+            </Text>
+            <View style={[styles.pickerContainer, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.surface.border }]}>
+              {departmentsLoading ? (
+                <Text style={{ padding: 12 }}>Loading departments...</Text>
+              ) : (
+                <Picker
+                  selectedValue={departmentId}
+                  onValueChange={(val: any) => setDepartmentId(val)}
+                >
+                  <Picker.Item label="Select Department (Optional)" value="" />
+                  {departmentsData?.map((dept: any) => (
+                    <Picker.Item key={dept.id} label={dept.name} value={dept.id} />
+                  ))}
+                </Picker>
+              )}
+            </View>
+          </View>
+
+          <View style={{ marginTop: 14 }}>
+            <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 4 }]}>
+              Branch
+            </Text>
+            <View style={[styles.pickerContainer, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.surface.border }]}>
+              {branchesLoading ? (
+                <Text style={{ padding: 12 }}>Loading branches...</Text>
+              ) : (
+                <Picker
+                  selectedValue={branchId}
+                  onValueChange={(val: any) => setBranchId(val)}
+                >
+                  <Picker.Item label="Select Branch (Optional)" value="" />
+                  {branchesData?.map((b: any) => (
+                    <Picker.Item key={b.id} label={b.name} value={b.id} />
+                  ))}
+                </Picker>
+              )}
+            </View>
+          </View>
 
           {/* ── Basic fields ── */}
-          <Text style={[typography.label, { color: theme.colors.text.primary }]}>Full Name *</Text>
+          <Text style={[typography.label, { color: theme.colors.text.primary, marginTop: 14 }]}>Full Name *</Text>
           <SearchInput value={name} onChangeText={setName} placeholder="Full name" />
 
           <Text style={[typography.label, { color: theme.colors.text.primary, marginTop: 14 }]}>

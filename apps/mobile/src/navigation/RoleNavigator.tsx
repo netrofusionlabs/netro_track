@@ -364,7 +364,7 @@ function OrganizationStackScreen() {
         headerTitleStyle: { fontWeight: '600' },
       }}
     >
-      <OrganizationStack.Screen name="Organization" component={OrganizationScreen} options={{ title: 'Organization' }} />
+      <OrganizationStack.Screen name="Organization" component={OrganizationScreen} options={{ title: 'Departments' }} />
       <OrganizationStack.Screen name="BranchForm" component={BranchFormScreen} options={{ title: 'Branch' }} />
       <OrganizationStack.Screen name="DepartmentForm" component={DepartmentFormScreen} options={{ title: 'Department' }} />
     </OrganizationStack.Navigator>
@@ -526,7 +526,7 @@ function AdminTabs() {
       {canManageBranches && (
         <Tab.Screen name="Branches" component={BranchesStackScreen} options={{ tabBarLabel: 'Branches' }} />
       )}
-      <Tab.Screen name="Organization" component={OrganizationStackScreen} options={{ tabBarLabel: 'Org' }} />
+      <Tab.Screen name="Organization" component={OrganizationStackScreen} options={{ tabBarLabel: 'Departments' }} />
       <Tab.Screen
         name="Products"
         component={ProductsScreen}

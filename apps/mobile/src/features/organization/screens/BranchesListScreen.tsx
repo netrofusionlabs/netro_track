@@ -33,7 +33,7 @@ export function BranchesListScreen() {
 
   const loadCompanies = async () => {
     try {
-      const res = await api.get('/api/v1/companies');
+      const res = await api.get('/companies');
       setCompanies(res.data.data || res.data);
     } catch (e) {
       console.warn('Failed to load companies', e);
@@ -43,7 +43,7 @@ export function BranchesListScreen() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const bRes = await api.get('/api/v1/branches');
+      const bRes = await api.get('/branches');
       setBranches(bRes.data.data);
     } catch (e) {
       console.error(e);

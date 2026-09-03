@@ -27,9 +27,9 @@ export function BranchFormScreen() {
     setSaving(true);
     try {
       if (branch) {
-        await api.put(`/api/v1/branches/${branch.id}`, { name, address, isHq });
+        await api.put(`/branches/${branch.id}`, { name, address, isHq });
       } else {
-        await api.post(`/api/v1/branches`, { name, address, isHq });
+        await api.post(`/branches`, { name, address, isHq });
       }
       navigation.goBack();
     } catch (e: any) {

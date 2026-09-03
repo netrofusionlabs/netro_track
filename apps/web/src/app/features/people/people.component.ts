@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
 import { ApiService, apiError, fieldErrors } from '../../core/services/api.service';
+import { PermissionService } from '../../core/services/permission.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { PulseService } from '../../core/services/pulse.service';
@@ -84,6 +85,7 @@ export const ROLE_RANK_MAP: Record<Role, number> = {
 })
 export class PeopleComponent {
   readonly api = inject(ApiService);
+  readonly perms = inject(PermissionService);
   private readonly fb = inject(FormBuilder);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
@@ -118,6 +120,8 @@ export class PeopleComponent {
   readonly branches = signal<any[]>([]);
   readonly departments = signal<any[]>([]);
   readonly companies = signal<Company[]>([]);
+  readonly accessGroups = signal<any[]>([]);
+  readonly selectedAccessGroupIds = signal<string[]>([]);
   readonly serverErrors = signal<Record<string, string>>({});
 
   readonly actorRole = this.api.role;
@@ -185,14 +189,44 @@ export class PeopleComponent {
 
   readonly targetRole = signal<Role>('EMPLOYEE');
 
-  readonly isCompanyGpsDisabled = computed(() => {
+  readonly hasGpsTrackingCapability = computed(() => {
     const c = this.selectedCompany();
-    if (!c || !c.modules) return false;
-    return !c.modules.some((m: any) => (m.module === 'GPS' || m.code === 'GPS') && m.isEnabled);
+    if (this.isPlatformCompany()) return true;
+    if (c) {
+      if (c.entitledSlugs && c.entitledSlugs.length > 0) {
+        return c.entitledSlugs.includes('attendance.punchin_punchout.gps_tracking');
+      }
+      if (c.entitlements && c.entitlements.length > 0) {
+        return c.entitlements.some((e: any) => e.isEnabled && e.capability?.slug === 'attendance.punchin_punchout.gps_tracking');
+      }
+      if (c.modules && c.modules.length > 0) {
+        return c.modules.some((m: any) => (m.module === 'GPS' || m.code === 'GPS') && m.isEnabled);
+      }
+      if (c.isGpsEnabled !== undefined) {
+        return !!c.isGpsEnabled;
+      }
+    }
+    return this.perms.has('attendance.punchin_punchout.gps_tracking') || this.perms.hasModule('attendance');
   });
 
+  readonly hasCustomPolicyCapability = computed(() => {
+    const c = this.selectedCompany();
+    if (this.isPlatformCompany()) return true;
+    if (c) {
+      if (c.entitledSlugs && c.entitledSlugs.length > 0) {
+        return c.entitledSlugs.some((s: string) => s === 'custom_policy_management' || s.startsWith('custom_policy_management.'));
+      }
+      if (c.entitlements && c.entitlements.length > 0) {
+        return c.entitlements.some((e: any) => e.isEnabled && (e.capability?.slug === 'custom_policy_management' || e.capability?.slug?.startsWith('custom_policy_management.')));
+      }
+    }
+    return this.perms.has('custom_policy_management') || this.perms.hasModule('custom_policy_management');
+  });
+
+  readonly isCompanyGpsDisabled = computed(() => !this.hasGpsTrackingCapability());
+
   readonly canToggleGps = computed(() => {
-    if (this.isCompanyGpsDisabled()) return false;
+    if (!this.hasGpsTrackingCapability()) return false;
     const actorRole = this.actorRole();
     if (!actorRole) return false;
     const actorRank = ROLE_RANK_MAP[actorRole] ?? 0;
@@ -536,14 +570,16 @@ export class PeopleComponent {
       linkedinUrl: '',
       twitterUrl: '',
       bloodGroup: '',
-      isGpsTracked: !this.isCompanyGpsDisabled(),
+      isGpsTracked: this.hasGpsTrackingCapability(),
     });
 
     this.form.controls.employeeId.enable();
+    this.selectedAccessGroupIds.set([]);
     this.loadManagers(compId);
     this.loadPolicies(compId);
     this.loadBranches(compId);
     this.loadDepartments(compId);
+    this.loadAccessGroups(compId);
     this.editorOpen.set(true);
   }
 
@@ -553,6 +589,9 @@ export class PeopleComponent {
     this.serverErrors.set({});
     this.isDesignationChanged.set(false);
     this.targetRole.set(person.role);
+
+    const groupIds = (person.accessGroups || []).map((ag: any) => ag.accessGroupId || ag.accessGroup?.id).filter(Boolean);
+    this.selectedAccessGroupIds.set(groupIds);
 
     this.form.reset({
       companyId: person.companyId || '',
@@ -568,14 +607,14 @@ export class PeopleComponent {
       isPromotion: false,
       emergencyContactName: person.emergencyContactName ?? '',
       emergencyContactPhone: person.emergencyContactPhone ?? '',
-      attendancePolicyId: person.attendancePolicyId ?? '',
+      attendancePolicyId: this.hasCustomPolicyCapability() ? (person.attendancePolicyId ?? '') : '',
       managerId: person.managerId ?? '',
       personalEmail: person.personalEmail ?? '',
       secondaryPhone: person.secondaryPhone ?? '',
       linkedinUrl: person.linkedinUrl ?? '',
       twitterUrl: person.twitterUrl ?? '',
       bloodGroup: person.bloodGroup ?? '',
-      isGpsTracked: person.isGpsTracked ?? true,
+      isGpsTracked: this.hasGpsTrackingCapability() ? (person.isGpsTracked ?? true) : false,
     });
 
     // Employee ID is the sign-in identifier and is immutable after creation.
@@ -587,10 +626,31 @@ export class PeopleComponent {
       this.loadPolicies(targetCompanyId);
       this.loadBranches(targetCompanyId);
       this.loadDepartments(targetCompanyId);
+      this.loadAccessGroups(targetCompanyId);
     }
     
     this.editorOpen.set(true);
     this.closeView();
+  }
+
+  toggleAccessGroup(id: string): void {
+    const current = this.selectedAccessGroupIds();
+    if (current.includes(id)) {
+      this.selectedAccessGroupIds.set(current.filter(gid => gid !== id));
+    } else {
+      this.selectedAccessGroupIds.set([...current, id]);
+    }
+  }
+
+  private loadAccessGroups(companyId?: string): void {
+    const params = companyId ? { companyId } : undefined;
+    this.api.get<any[]>(API.accessGroups, params).subscribe({
+      next: (res) => {
+        const list = Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+        this.accessGroups.set(list);
+      },
+      error: () => this.accessGroups.set([]),
+    });
   }
 
   onCompanyChange(): void {
@@ -604,14 +664,18 @@ export class PeopleComponent {
       this.form.controls.role.setValue(fallback);
     }
 
-    if (this.isCompanyGpsDisabled()) {
+    if (!this.hasGpsTrackingCapability()) {
       this.form.controls.isGpsTracked.setValue(false);
+    }
+    if (!this.hasCustomPolicyCapability()) {
+      this.form.controls.attendancePolicyId.setValue('');
     }
 
     this.loadManagers(companyId);
     this.loadPolicies(companyId);
     this.loadBranches(companyId);
     this.loadDepartments(companyId);
+    this.loadAccessGroups(companyId);
   }
 
   onRoleChange(): void {
@@ -676,7 +740,7 @@ export class PeopleComponent {
       designationName: raw.designationName.trim(),
       emergencyContactName: raw.emergencyContactName.trim(),
       emergencyContactPhone: raw.emergencyContactPhone.trim(),
-      attendancePolicyId: raw.attendancePolicyId || null,
+      attendancePolicyId: this.hasCustomPolicyCapability() ? (raw.attendancePolicyId || null) : null,
       branchId: raw.branchId || null,
       companyId: this.isSuperAdmin() ? (raw.companyId || null) : undefined,
       managerId: finalManagerId,
@@ -685,7 +749,8 @@ export class PeopleComponent {
       linkedinUrl: raw.linkedinUrl.trim() || null,
       twitterUrl: raw.twitterUrl.trim() || null,
       bloodGroup: raw.bloodGroup.trim() || null,
-      isGpsTracked: this.isCompanyGpsDisabled() ? false : raw.isGpsTracked,
+      isGpsTracked: this.hasGpsTrackingCapability() ? (this.canToggleGps() ? raw.isGpsTracked : false) : false,
+      accessGroupIds: this.selectedAccessGroupIds(),
     };
 
     if (raw.password && raw.password.trim().length >= 6) {

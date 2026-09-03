@@ -23,6 +23,7 @@ export const createUserSchema = z.object({
   companyId: z.string().uuid('Invalid company ID').optional(),
   isGpsTracked: z.boolean().optional(),
   attendancePolicyId: z.string().uuid('Invalid policy ID').optional().nullable(),
+  accessGroupIds: z.array(z.string().uuid('Invalid access group ID')).optional(),
 });
 
 export const updateUserSchema = z.object({
@@ -46,6 +47,7 @@ export const updateUserSchema = z.object({
   designationId: z.string().uuid('Invalid designation ID').optional().nullable(),
   designationName: z.string().optional().nullable(),
   attendancePolicyId: z.string().uuid('Invalid policy ID').optional().nullable(),
+  accessGroupIds: z.array(z.string().uuid('Invalid access group ID')).optional(),
   isPromotion: z.boolean().optional(),
   effectiveDate: z.string().optional(),
 });

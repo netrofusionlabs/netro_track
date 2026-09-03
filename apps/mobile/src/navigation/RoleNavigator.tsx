@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../shared/theme/ThemeProvider';
 import { typography } from '../shared/theme/typography';
 import { useAuthStore } from '../features/auth/stores/authStore';
+import { useHasModule } from '../shared/hooks/usePermission';
 import { AppIcon, AppIconName } from '../shared/components/AppIcon';
 import { BrandLogo, Button } from '../shared/components';
 import { GlobalHeader } from '../shared/components/GlobalHeader';
@@ -44,6 +45,8 @@ import { ManagerRegularizationsScreen } from '../features/attendance/ManagerRegu
 import { BranchesListScreen } from '../features/organization/screens/BranchesListScreen';
 import { ConfigurationsScreen } from './ConfigurationsScreen';
 import { MoreScreen } from './MoreScreen';
+import { PlatformCapabilitiesScreen } from '../features/authorization/screens/PlatformCapabilitiesScreen';
+import { AccessGroupsScreen } from '../features/authorization/screens/AccessGroupsScreen';
 
 // ── Dashboards ────────────────────────────────────────────────────────────────
 import { EmployeeDashboard } from '../features/dashboard/screens/EmployeeDashboard';
@@ -308,7 +311,11 @@ function CustomBottomTabBar({ state, descriptors, navigation, insets, theme }: a
         const { options } = descriptors[route.key];
 
         // Skip non-visible screens
-        if (options.tabBarItemStyle?.display === 'none' || options.tabBarButton === null) {
+        if (
+          options.tabBarItemStyle?.display === 'none' ||
+          options.tabBarButton === null ||
+          (typeof options.tabBarButton === 'function' && options.tabBarButton({} as any) === null)
+        ) {
           return null;
         }
 
@@ -497,15 +504,27 @@ const hiddenScreens = [
   { name: 'Sales', component: SalesScreen },
   { name: 'Inspections', component: InspectionsScreen },
   { name: 'AttendanceHistory', component: AttendanceHistoryScreen },
+  { name: 'PlatformCapabilities', component: PlatformCapabilitiesScreen },
+  { name: 'AccessGroups', component: AccessGroupsScreen },
 ];
 
 function FieldEmployeeTabs() {
   const tabBar = useRoleTabBar();
+  const hasAttendance = useHasModule('attendance');
+
   return (
     <Tab.Navigator tabBar={tabBar} initialRouteName="Home" screenOptions={{ headerShown: false }} backBehavior="history">
       <Tab.Screen name="Home" component={EmployeeDashboard} options={{ tabBarLabel: 'Dashboard' }} />
       <Tab.Screen name="OrgChart" component={OrgChartScreen} options={{ tabBarLabel: 'Org Chart' }} />
-      <Tab.Screen name="Attendance" component={AttendanceStackScreen} options={{ tabBarLabel: 'Attendance' }} />
+      <Tab.Screen
+        name="Attendance"
+        component={AttendanceStackScreen}
+        options={
+          hasAttendance
+            ? { tabBarLabel: 'Attendance' }
+            : { tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }
+        }
+      />
       <Tab.Screen name="Visits" component={VisitsStackScreen} options={{ tabBarLabel: 'Visits' }} />
 
       {hiddenScreens.map((s) => (
@@ -519,12 +538,30 @@ function FieldEmployeeTabs() {
 
 function ManagerTabs() {
   const tabBar = useRoleTabBar();
+  const hasAttendance = useHasModule('attendance');
+
   return (
     <Tab.Navigator tabBar={tabBar} initialRouteName="Home" screenOptions={{ headerShown: false }} backBehavior="history">
       <Tab.Screen name="Home" component={ManagerDashboard} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
       <Tab.Screen name="Employees" component={EmployeesStackScreen} options={{ tabBarLabel: 'People' }} />
-      <Tab.Screen name="Attendance" component={AttendanceStackScreen} options={{ tabBarLabel: 'Attendance' }} />
-      <Tab.Screen name="Approvals" component={ApprovalsStackScreen} options={{ tabBarLabel: 'Approvals' }} />
+      <Tab.Screen
+        name="Attendance"
+        component={AttendanceStackScreen}
+        options={
+          hasAttendance
+            ? { tabBarLabel: 'Attendance' }
+            : { tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }
+        }
+      />
+      <Tab.Screen
+        name="Approvals"
+        component={ApprovalsStackScreen}
+        options={
+          hasAttendance
+            ? { tabBarLabel: 'Approvals' }
+            : { tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }
+        }
+      />
 
       {hiddenScreens.map((s) => (
         <Tab.Screen key={s.name} name={s.name} component={s.component} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
@@ -538,13 +575,31 @@ function ManagerTabs() {
 
 function TenantAdminTabs() {
   const tabBar = useRoleTabBar();
+  const hasAttendance = useHasModule('attendance');
+
   return (
     <Tab.Navigator tabBar={tabBar} initialRouteName="Home" screenOptions={{ headerShown: false }} backBehavior="history">
       <Tab.Screen name="Home" component={AdminDashboard} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
       <Tab.Screen name="Employees" component={EmployeesStackScreen} options={{ tabBarLabel: 'People' }} />
-      <Tab.Screen name="Attendance" component={AttendanceStackScreen} options={{ tabBarLabel: 'Attendance' }} />
+      <Tab.Screen
+        name="Attendance"
+        component={AttendanceStackScreen}
+        options={
+          hasAttendance
+            ? { tabBarLabel: 'Attendance' }
+            : { tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }
+        }
+      />
       <Tab.Screen name="Configurations" component={ConfigurationsScreen} options={{ tabBarLabel: 'Configs' }} />
-      <Tab.Screen name="Approvals" component={ApprovalsStackScreen} options={{ tabBarLabel: 'Approvals' }} />
+      <Tab.Screen
+        name="Approvals"
+        component={ApprovalsStackScreen}
+        options={
+          hasAttendance
+            ? { tabBarLabel: 'Approvals' }
+            : { tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }
+        }
+      />
 
       {hiddenScreens.map((s) => (
         <Tab.Screen key={s.name} name={s.name} component={s.component} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
@@ -558,13 +613,23 @@ function TenantAdminTabs() {
 
 function SuperAdminTabs() {
   const tabBar = useRoleTabBar();
+  const hasAttendance = useHasModule('attendance');
+
   return (
     <Tab.Navigator tabBar={tabBar} initialRouteName="Home" screenOptions={{ headerShown: false }} backBehavior="history">
       <Tab.Screen name="Home" component={AdminDashboard} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
       <Tab.Screen name="Company" component={CompanyManagementStackScreen} options={{ tabBarLabel: 'Companies' }} />
       <Tab.Screen name="Employees" component={EmployeesStackScreen} options={{ tabBarLabel: 'People' }} />
       <Tab.Screen name="Configurations" component={ConfigurationsScreen} options={{ tabBarLabel: 'Configs' }} />
-      <Tab.Screen name="Approvals" component={ApprovalsStackScreen} options={{ tabBarLabel: 'Approvals' }} />
+      <Tab.Screen
+        name="Approvals"
+        component={ApprovalsStackScreen}
+        options={
+          hasAttendance
+            ? { tabBarLabel: 'Approvals' }
+            : { tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }
+        }
+      />
       <Tab.Screen name="More" component={MoreScreen} options={{ tabBarLabel: 'More' }} />
 
       {hiddenScreens.map((s) => (

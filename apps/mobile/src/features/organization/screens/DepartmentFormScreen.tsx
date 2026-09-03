@@ -20,7 +20,7 @@ export function DepartmentFormScreen() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api.get('/api/v1/branches').then(res => setBranches(res.data.data)).catch(console.error);
+    api.get('/branches').then(res => setBranches(res.data.data)).catch(console.error);
   }, []);
 
   const handleSave = async () => {
@@ -33,9 +33,9 @@ export function DepartmentFormScreen() {
     try {
       const payload = { name, branchId };
       if (department) {
-        await api.put(`/api/v1/departments/${department.id}`, payload);
+        await api.put(`/departments/${department.id}`, payload);
       } else {
-        await api.post(`/api/v1/departments`, payload);
+        await api.post(`/departments`, payload);
       }
       navigation.goBack();
     } catch (e: any) {

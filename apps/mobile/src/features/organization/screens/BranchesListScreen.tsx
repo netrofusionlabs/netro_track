@@ -76,7 +76,7 @@ export function BranchesListScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface.background }]}>
       {canImpersonate && companies.length > 0 && (
-        <View style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.border.subtle, paddingVertical: 12, paddingHorizontal: 16 }}>
+        <View style={{ borderBottomWidth: 1, borderBottomColor: theme.colors.surface.border, paddingVertical: 12, paddingHorizontal: 16 }}>
           <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginBottom: 8, fontWeight: '600' }]}>MANAGE BRANCHES FOR TENANT:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
             <TouchableOpacity

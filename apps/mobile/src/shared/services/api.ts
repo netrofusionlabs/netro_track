@@ -2,6 +2,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import { storage } from '../utils/storage';
 import { useAuthStore } from '../../features/auth/stores/authStore';
+import { useLoadingStore } from '../stores/loadingStore';
 import { stopTracking } from './trackingService';
 
 // export const BASE_URL = 'https://netro-track-api.netrofusion.in';
@@ -19,8 +20,10 @@ export function setTenantOverride(id: string | null) {
   tenantOverrideId = id;
 }
 
-// Inject access token before every request
+// Inject access token before every request & notify global loader
 api.interceptors.request.use((config) => {
+  useLoadingStore.getState().startLoading();
+
   const raw = storage.getString('auth-store');
   if (raw) {
     try {
@@ -38,12 +41,19 @@ api.interceptors.request.use((config) => {
     }
   }
   return config;
+}, (error) => {
+  useLoadingStore.getState().stopLoading();
+  return Promise.reject(error);
 });
 
-// Handle 401 Unauthorized / Expired Tokens -> Stop tracking & force redirect to Login
+// Handle responses & 401 Unauthorized / Expired Tokens -> Stop tracking & force redirect to Login
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    useLoadingStore.getState().stopLoading();
+    return response;
+  },
   (error) => {
+    useLoadingStore.getState().stopLoading();
     if (error.response && error.response.status === 401) {
       console.warn('[api] Session expired (401). Redirecting to login...');
       void stopTracking();

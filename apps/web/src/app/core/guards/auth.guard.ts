@@ -2,18 +2,17 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router, UrlTree } from '@angular/router';
 import { Observable, of } from 'rxjs';
 import { catchError, filter, map, take } from 'rxjs/operators';
-import { ApiService } from '../services/api.service';
+import { ApiService, CurrentUser } from '../services/api.service';
+import { PermissionService } from '../services/permission.service';
 import { Role, hasRole } from '../models/roles';
 
 /**
- * Gate on the session first, then on capability.
- *
- * On a cold load the identity has not arrived yet, so the guard waits for the
- * first `/auth/me` rather than guessing. Getting this wrong sends a legitimate
- * admin to the Dashboard on every hard refresh of a deep link.
+ * Enterprise Route Guard: Gates on session first, then on dynamic effective permissions,
+ * with seamless fallback to legacy role arrays.
  */
 export const authGuard: CanActivateFn = (route): boolean | UrlTree | Observable<boolean | UrlTree> => {
   const api = inject(ApiService);
+  const perms = inject(PermissionService);
   const router = inject(Router);
 
   if (!api.isAuthenticated()) {
@@ -27,22 +26,57 @@ export const authGuard: CanActivateFn = (route): boolean | UrlTree | Observable<
     });
   }
 
-  const required = route.data?.['roles'] as readonly Role[] | undefined;
-  if (!required?.length) return true;
+  const permission = route.data?.['permission'] as string | undefined;
+  const permissions = route.data?.['permissions'] as string[] | undefined;
+  const requiredRoles = route.data?.['roles'] as readonly Role[] | undefined;
+
+  // No specific access constraints on route
+  if (!permission && !permissions?.length && !requiredRoles?.length) {
+    return true;
+  }
 
   const known = api.currentUser$.value;
-  if (known) return decide(known.role, required, router);
+  if (known) {
+    return decideAccess(known, perms, permission, permissions, requiredRoles, router);
+  }
 
   return api.currentUser$.pipe(
-    filter(user => user !== null),
+    filter((user) => user !== null),
     take(1),
-    map(user => decide(user!.role, required, router)),
-    catchError(() => of(router.createUrlTree(['/login']))),
+    map((user) => decideAccess(user!, perms, permission, permissions, requiredRoles, router)),
+    catchError(() => of(router.createUrlTree(['/login'])))
   );
 };
 
-function decide(role: string, required: readonly Role[], router: Router): boolean | UrlTree {
-  if (hasRole(role, required)) return true;
-  // Land somewhere useful rather than on a dead end, and say why.
-  return router.createUrlTree(['/dashboard'], { queryParams: { denied: '1' } });
+function decideAccess(
+  user: CurrentUser,
+  perms: PermissionService,
+  permission: string | undefined,
+  permissions: string[] | undefined,
+  requiredRoles: readonly Role[] | undefined,
+  router: Router
+): boolean | UrlTree {
+  // Master Super Admin bypasses all checks
+  if (user.role === 'MASTER_SUPER_ADMIN') {
+    return true;
+  }
+
+  // 1. Dynamic permission check (Primary)
+  if (permission) {
+    if (perms.has(permission)) return true;
+    return router.createUrlTree(['/dashboard'], { queryParams: { denied: '1' } });
+  }
+
+  if (permissions?.length) {
+    if (perms.hasAny(...permissions)) return true;
+    return router.createUrlTree(['/dashboard'], { queryParams: { denied: '1' } });
+  }
+
+  // 2. Legacy role array fallback
+  if (requiredRoles?.length) {
+    if (hasRole(user.role, requiredRoles)) return true;
+    return router.createUrlTree(['/dashboard'], { queryParams: { denied: '1' } });
+  }
+
+  return true;
 }

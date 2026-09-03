@@ -16,3 +16,4 @@ export * from './schemas/attendance-policy.validator';
 export * from './schemas/policy.validator';
 export * from './schemas/branch.validator';
 export * from './schemas/department.validator';
+export * from './schemas/authorization.validator';

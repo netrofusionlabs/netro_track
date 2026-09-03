@@ -1,0 +1,246 @@
+.panel-padding {
+  padding: var(--s-4, 16px);
+}
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.group-title-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.group-name {
+  font-weight: 600;
+  color: var(--fg, #111827);
+  font-size: 13px;
+}
+
+.group-desc {
+  color: var(--fg-muted, #6b7280);
+  font-size: 11px;
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.member-count-tag,
+.capability-count-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: var(--r-full, 9999px);
+  background: var(--surface-subtle, #f3f4f6);
+  color: var(--fg-muted, #4b5563);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.capability-count-tag {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--ok-fg, #059669);
+}
+
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Drawer Form Styles */
+.drawer-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4, 16px);
+  padding: var(--s-1, 4px) 0;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-muted, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.form-label.required::after {
+  content: ' *';
+  color: var(--risk-fg, #dc2626);
+}
+
+.checkbox-group {
+  margin-top: -2px;
+}
+
+.toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--fg, #1f2937);
+  cursor: pointer;
+}
+
+.divider {
+  height: 1px;
+  background: var(--line, #e5e7eb);
+  margin: var(--s-2, 8px) 0;
+}
+
+/* Capabilities Section */
+.capabilities-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3, 12px);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg, #111827);
+  margin: 0 0 2px;
+}
+
+.section-subtitle {
+  font-size: 12px;
+  color: var(--fg-muted, #6b7280);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.highlight-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: var(--r-full, 9999px);
+  background: rgba(79, 70, 229, 0.1);
+  color: var(--brand-600, #4f46e5);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.empty-caps-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--surface-subtle, #f9fafb);
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: var(--r-md, 8px);
+  color: var(--fg-muted, #6b7280);
+  font-size: 12px;
+}
+
+.capability-modules-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3, 12px);
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.capability-module-card {
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: var(--r-lg, 10px);
+  background: var(--surface, #ffffff);
+  overflow: hidden;
+}
+
+.module-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--surface-subtle, #f9fafb);
+  border-bottom: 1px solid var(--line, #e5e7eb);
+  cursor: pointer;
+  user-select: none;
+}
+
+.module-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.module-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg, #111827);
+}
+
+.action-count-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--r-full, 9999px);
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e5e7eb);
+  color: var(--fg-muted, #6b7280);
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  padding: 12px;
+}
+
+.action-checkbox-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--r-md, 6px);
+  border: 1px solid var(--line, #e5e7eb);
+  background: var(--surface, #ffffff);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.action-checkbox-card:hover {
+  border-color: var(--brand-400, #818cf8);
+  background: var(--surface-hover, #fbfbfe);
+}
+
+.action-checkbox-card.selected {
+  border-color: var(--brand-600, #4f46e5);
+  background: rgba(79, 70, 229, 0.04);
+}
+
+.action-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.action-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg, #111827);
+}
+
+.action-slug {
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
+  color: var(--fg-subtle, #9ca3af);
+}

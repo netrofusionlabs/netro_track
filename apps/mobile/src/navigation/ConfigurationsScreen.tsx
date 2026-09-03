@@ -13,6 +13,8 @@ interface ConfigMenuItem {
   label: string;
   icon: AppIconName;
   roles: Role[];
+  permission?: string;
+  moduleSlug?: string;
   onPress: (navigation: any) => void;
 }
 
@@ -20,6 +22,8 @@ const CONFIG_MENU_ITEMS: ConfigMenuItem[] = [
   {
     label: 'Policy Configuration',
     icon: 'document',
+    permission: 'custom_policy_management',
+    moduleSlug: 'attendance',
     roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR'],
     onPress: (nav) => nav.navigate('Employees', { screen: 'AttendancePolicies' }),
   },
@@ -35,15 +39,73 @@ const CONFIG_MENU_ITEMS: ConfigMenuItem[] = [
     roles: ['MASTER_SUPER_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'],
     onPress: (nav) => nav.navigate('Organization'),
   },
+  {
+    label: 'Access Groups & Permissions',
+    icon: 'lock',
+    permission: 'access_control.groups.view',
+    roles: ['MASTER_SUPER_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'HR'],
+    onPress: (nav) => nav.navigate('AccessGroups'),
+  },
+  {
+    label: 'Platform Capabilities',
+    icon: 'document',
+    roles: ['MASTER_SUPER_ADMIN', 'SUPER_ADMIN'],
+    onPress: (nav) => nav.navigate('PlatformCapabilities'),
+  },
 ];
 
 export function ConfigurationsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const role = useAuthStore((s) => s.user?.role) as Role;
+  const user = useAuthStore((s) => s.user);
+  const role = user?.role as Role;
+  const userPermissions = user?.permissions || [];
+  const companyEntitledSlugs = user?.companyEntitledSlugs;
 
-  const visibleItems = CONFIG_MENU_ITEMS.filter((item) => item.roles.includes(role));
+  const isPlatformCompany = user?.companyName?.toLowerCase().includes('netro') ?? false;
+
+  const visibleItems = CONFIG_MENU_ITEMS.filter((item) => {
+    // 1. Master super admin sees everything
+    if (user?.role === 'MASTER_SUPER_ADMIN') return true;
+
+    // 2. Netro platform super admin sees everything
+    if (isPlatformCompany && (user?.role === 'SUPER_ADMIN' || user?.role === 'MASTER_SUPER_ADMIN')) return true;
+
+    // 3. User must have an eligible role
+    if (!item.roles.includes(role)) return false;
+
+    // 4. Company Admins & Super Admins have administrative access to their company's core configs
+    if (role === 'COMPANY_ADMIN' || role === 'SUPER_ADMIN') {
+      // If moduleSlug is specified (e.g. attendance for policy), company must be entitled to that module
+      if (item.moduleSlug && companyEntitledSlugs && companyEntitledSlugs.length > 0) {
+        const prefix = `${item.moduleSlug}.`;
+        const hasModule = companyEntitledSlugs.some((s) => s === item.moduleSlug || s.startsWith(prefix));
+        if (!hasModule) return false;
+      }
+
+      // If specific policy permission is required (e.g. custom_policy_management)
+      if (item.permission === 'custom_policy_management' && companyEntitledSlugs && companyEntitledSlugs.length > 0) {
+        const hasPolicy = companyEntitledSlugs.some((s) => s === 'custom_policy_management' || s.startsWith('custom_policy_management'));
+        if (!hasPolicy) return false;
+      }
+
+      // Company admin always has access to Branches, Departments, and Access Groups
+      return true;
+    }
+
+    // 5. Non-admin roles (e.g. HR): check explicit user permissions
+    if (item.permission) {
+      if (userPermissions.includes(item.permission)) return true;
+      if (item.permission.endsWith('.*')) {
+        const prefix = item.permission.slice(0, -1);
+        return userPermissions.some((p) => p.startsWith(prefix));
+      }
+      return false;
+    }
+
+    return true;
+  });
 
   if (visibleItems.length === 0) {
     return (

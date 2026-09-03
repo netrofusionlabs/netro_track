@@ -155,4 +155,18 @@ export class CompanyController {
       next(error);
     }
   };
+
+  public resetAdminPassword = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await this.companyService.resetAdminPassword(req.params.id, req.body?.password);
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result,
+        meta: { timestamp: new Date().toISOString() }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

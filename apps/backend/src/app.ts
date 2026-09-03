@@ -37,6 +37,7 @@ import { userManagementRouter } from './modules/user-management/user-management.
 import { profileRouter } from './modules/profile/profile.routes';
 import { attendancePolicyRouter } from './modules/attendance-policy/attendance-policy.routes';
 import { policyRouter } from './modules/policy/policy.routes';
+import { authorizationRouter } from './modules/authorization/authorization.routes';
 import path from 'path';
 
 // Static assets serving
@@ -44,6 +45,7 @@ app.use('/static/uploads', express.static(path.join(__dirname, '../public/upload
 
 // Register routes
 app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/authorization', authorizationRouter);
 app.use('/api/v1/users/me', profileRouter);
 app.use('/api/v1/user-management', userManagementRouter);
 app.use('/api/v1/companies', companyRouter);

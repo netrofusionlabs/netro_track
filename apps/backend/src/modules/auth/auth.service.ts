@@ -84,6 +84,9 @@ export class AuthService {
     await this.authRepository.createSession(user.id, refreshToken, expiresAt);
 
     const storageService = (await import('../../shared/services/storage.service')).StorageService.getInstance();
+    const permissionService = (await import('../../shared/services/permission.service')).PermissionService.getInstance();
+    const permissions = user.companyId ? Array.from(await permissionService.getEffectivePermissions(user.id, user.companyId)) : [];
+    const companyEntitledSlugs = user.companyId ? Array.from(await permissionService.getTenantEntitledSlugs(user.companyId)) : [];
     
     return {
       accessToken,
@@ -97,6 +100,8 @@ export class AuthService {
         name: user.name,
         role: normalizedRole,
         isMasterAdmin: user.role === 'MASTER_SUPER_ADMIN',
+        permissions,
+        companyEntitledSlugs,
         isGpsEnabled: this.getGpsStatus(user),
         isRegularizationEnabled: this.getRegularizationStatus(user),
         isGpsTracked: user.isGpsTracked ?? true,
@@ -146,6 +151,10 @@ export class AuthService {
     }
     const normalizedRole = user.role;
     const storageService = (await import('../../shared/services/storage.service')).StorageService.getInstance();
+    const permissionService = (await import('../../shared/services/permission.service')).PermissionService.getInstance();
+    const permissions = user.companyId ? Array.from(await permissionService.getEffectivePermissions(user.id, user.companyId)) : [];
+    const companyEntitledSlugs = user.companyId ? Array.from(await permissionService.getTenantEntitledSlugs(user.companyId)) : [];
+
     return {
       id: user.id,
       companyId: user.companyId,
@@ -159,6 +168,8 @@ export class AuthService {
       emergencyContactName: user.emergencyContactName ?? null,
       emergencyContactPhone: user.emergencyContactPhone ?? null,
       role: normalizedRole,
+      permissions,
+      companyEntitledSlugs,
       managerId: user.manager?.id ?? null,
       managerName: user.manager?.name ?? null,
       managerEmployeeId: user.manager?.employeeId ?? null,
@@ -241,6 +252,10 @@ export class AuthService {
     expiresAt.setDate(expiresAt.getDate() + 7);
     await this.authRepository.createSession(user.id, refreshToken, expiresAt);
 
+    const permissionService = (await import('../../shared/services/permission.service')).PermissionService.getInstance();
+    const permissions = user.companyId ? Array.from(await permissionService.getEffectivePermissions(user.id, user.companyId)) : [];
+    const companyEntitledSlugs = user.companyId ? Array.from(await permissionService.getTenantEntitledSlugs(user.companyId)) : [];
+
     return {
       accessToken,
       refreshToken,
@@ -252,6 +267,8 @@ export class AuthService {
         name: user.name,
         role: normalizedRole,
         isMasterAdmin: normalizedRole === 'MASTER_SUPER_ADMIN',
+        permissions,
+        companyEntitledSlugs,
         isGpsEnabled: this.getGpsStatus(user),
         isRegularizationEnabled: this.getRegularizationStatus(user),
         isGpsTracked: user.isGpsTracked ?? true,

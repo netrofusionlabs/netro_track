@@ -127,6 +127,22 @@ export const routes: Routes = [
         loadComponent: () => import('./features/organization/components/departments.component').then(m => m.DepartmentsComponent),
       },
       {
+        path: 'access-groups',
+        title: 'Access Groups · NetroTrack',
+        data: { permission: 'access_control.groups.view' },
+        loadComponent: () =>
+          import('./features/access-groups/access-groups.component').then(m => m.AccessGroupsComponent),
+      },
+      {
+        path: 'platform-capabilities',
+        title: 'Platform Capabilities · NetroTrack',
+        data: { roles: CAN.administerPlatform },
+        loadComponent: () =>
+          import('./features/platform-capabilities/platform-capabilities.component').then(
+            m => m.PlatformCapabilitiesComponent
+          ),
+      },
+      {
         path: 'settings',
         title: 'Settings · NetroTrack',
         loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent),

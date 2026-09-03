@@ -24,6 +24,7 @@ import { useSupervisors, useUpdateUser } from '../hooks/useUserManagement';
 import { useAttendancePolicies } from '../../attendance/hooks/useAttendance';
 import { useCompanies } from '../../companies/hooks/useCompanies';
 import { useBranches, useDepartments } from '../../organization/hooks/useOrganization';
+import { useAccessGroups } from '../../authorization/hooks/useAccessGroups';
 import {
   ROLE_DISPLAY_LABELS,
   ROLE_HIERARCHY,
@@ -41,7 +42,7 @@ export function EditUserScreen({ route, navigation }: any) {
   const updateMutation = useUpdateUser();
 
   // ── Basic & Communication fields ─────────────────────────────────────────────
-  const [name, setName] = useState(user.name);
+  const [name, setName] = useState(user.name ?? '');
   const [email, setEmail] = useState(user.email ?? '');
   const [personalEmail, setPersonalEmail] = useState(user.personalEmail ?? '');
   const [phone, setPhone] = useState(user.phone ?? '');
@@ -51,7 +52,8 @@ export function EditUserScreen({ route, navigation }: any) {
   const [linkedinUrl, setLinkedinUrl] = useState(user.linkedinUrl ?? '');
   const [twitterUrl, setTwitterUrl] = useState(user.twitterUrl ?? '');
   const [bloodGroup, setBloodGroup] = useState(user.bloodGroup ?? '');
-  const [designationName, setDesignationName] = useState(user.designation?.name ?? '');
+  const [designationName, setDesignationName] = useState(user.designation?.name ?? user.designationName ?? '');
+  const [isPromotion, setIsPromotion] = useState(false);
 
   // ── Role change ───────────────────────────────────────────────────────────────
   const currentUserRank = ROLE_HIERARCHY[permissions.userRole] ?? 0;
@@ -89,26 +91,81 @@ export function EditUserScreen({ route, navigation }: any) {
   const { data: policies = [], isLoading: loadingPolicies } = useAttendancePolicies(targetCompanyId, 'ATTENDANCE');
   const { data: branchesData = [], isLoading: branchesLoading } = useBranches(targetCompanyId);
   const { data: departmentsData = [], isLoading: departmentsLoading } = useDepartments(targetCompanyId);
+  const { data: accessGroups = [], isLoading: loadingAccessGroups } = useAccessGroups(targetCompanyId);
+
+  const initialGroupIds = (user.accessGroups || []).map((ag: any) => ag.accessGroupId || ag.accessGroup?.id).filter(Boolean);
+  const [selectedAccessGroupIds, setSelectedAccessGroupIds] = useState<string[]>(initialGroupIds);
+  const [accessGroupsTouched, setAccessGroupsTouched] = useState(false);
+
+  const toggleAccessGroup = (id: string) => {
+    setAccessGroupsTouched(true);
+    setSelectedAccessGroupIds((prev) =>
+      prev.includes(id) ? prev.filter((gid) => gid !== id) : [...prev, id]
+    );
+  };
 
   const { data: companies = [] } = useCompanies();
   const userCompany = companies.find((c) => c.id === user.companyId);
-  const isCompanyGpsDisabled = userCompany
-    ? !userCompany.modules?.some((m: any) => m.module === 'GPS' && m.isEnabled)
-    : false;
+  const isPlatformCompany = userCompany
+    ? (userCompany.code === 'NETRO' || userCompany.name?.toLowerCase().includes('netro'))
+    : (!permissions.isSuperAdmin ? (permissions.user?.companyName?.toLowerCase().includes('netro') ?? false) : true);
 
-  const [isGpsTracked, setIsGpsTracked] = useState(user.isGpsTracked ?? true);
+  const userEntitledSlugs = permissions.user?.companyEntitledSlugs;
+  const userRole = permissions.user?.role;
+  const isCompanyAdminOrHigher = userRole === 'COMPANY_ADMIN' || userRole === 'SUPER_ADMIN' || userRole === 'MASTER_SUPER_ADMIN';
+
+  const hasGpsTrackingCapability = userCompany
+    ? (
+        isPlatformCompany ||
+        ((userCompany as any).entitledSlugs?.includes('attendance.punchin_punchout.gps_tracking')) ||
+        ((userCompany as any).entitlements?.some((e: any) => e.isEnabled && e.capability?.slug === 'attendance.punchin_punchout.gps_tracking')) ||
+        (userCompany.modules?.some((m: any) => (m.module === 'GPS' || m.code === 'GPS') && m.isEnabled)) ||
+        userCompany.isGpsEnabled === true
+      )
+    : (
+        isPlatformCompany ||
+        (userEntitledSlugs && userEntitledSlugs.length > 0
+          ? (
+              userEntitledSlugs.includes('attendance.punchin_punchout.gps_tracking') ||
+              userEntitledSlugs.includes('attendance.punchin_punchout') ||
+              userEntitledSlugs.includes('attendance')
+            )
+          : (
+              isCompanyAdminOrHigher ||
+              (permissions.user?.permissions?.includes('attendance.punchin_punchout.gps_tracking') ?? true)
+            ))
+      );
+
+  const hasCustomPolicyCapability = userCompany
+    ? (
+        isPlatformCompany ||
+        ((userCompany as any).entitledSlugs?.some((s: string) => s === 'custom_policy_management' || s.startsWith('custom_policy_management.'))) ||
+        ((userCompany as any).entitlements?.some((e: any) => e.isEnabled && (e.capability?.slug === 'custom_policy_management' || e.capability?.slug?.startsWith('custom_policy_management.')))) ||
+        (permissions.user?.permissions?.some((s: string) => s === 'custom_policy_management' || s.startsWith('custom_policy_management.')))
+      )
+    : (
+        isPlatformCompany ||
+        (userEntitledSlugs && userEntitledSlugs.length > 0
+          ? userEntitledSlugs.some((s: string) => s === 'custom_policy_management' || s.startsWith('custom_policy_management.'))
+          : (
+              isCompanyAdminOrHigher ||
+              (permissions.user?.permissions?.some((s: string) => s === 'custom_policy_management' || s.startsWith('custom_policy_management.')) ?? false)
+            ))
+      );
+
+  const [isGpsTracked, setIsGpsTracked] = useState(hasGpsTrackingCapability ? (user.isGpsTracked ?? true) : false);
   const [gpsTouched, setGpsTouched] = useState(false);
 
   // Auto-enable GPS tracking when admin switches to a policy with GPS REQUIRED/OPTIONAL
   React.useEffect(() => {
-    if (!policyTouched || !selectedAttendancePolicyId) return;
+    if (!hasGpsTrackingCapability || !policyTouched || !selectedAttendancePolicyId) return;
     const selectedPolicy = policies.find((p) => p.id === selectedAttendancePolicyId);
     if (!selectedPolicy) return;
     const punchInGps: string | undefined = selectedPolicy.punchInConfig?.gps;
     if (punchInGps === 'REQUIRED' || punchInGps === 'OPTIONAL') {
       setIsGpsTracked(true);
     }
-  }, [selectedAttendancePolicyId, policyTouched, policies]);
+  }, [selectedAttendancePolicyId, policyTouched, policies, hasGpsTrackingCapability]);
 
   const handleRoleChange = (role: UserRole) => {
     setSelectedRole(role);
@@ -157,8 +214,6 @@ export function EditUserScreen({ route, navigation }: any) {
     setSelectedSupervisorId(id);
     setSupervisorTouched(true);
   };
-
-  const [isPromotion, setIsPromotion] = useState(false);
 
   // ── Save ──────────────────────────────────────────────────────────────────────
   const handleSave = async () => {
@@ -210,15 +265,19 @@ export function EditUserScreen({ route, navigation }: any) {
       payload.managerId = selectedSupervisorId;
     }
 
-    if (policyTouched) {
-      payload.attendancePolicyId = selectedAttendancePolicyId;
+    if (policyTouched || !hasCustomPolicyCapability) {
+      payload.attendancePolicyId = hasCustomPolicyCapability ? selectedAttendancePolicyId : null;
     }
 
     payload.departmentId = departmentId || null;
     payload.branchId = branchId || null;
 
-    if (gpsTouched) {
-      payload.isGpsTracked = isGpsTracked;
+    if (gpsTouched || !hasGpsTrackingCapability) {
+      payload.isGpsTracked = hasGpsTrackingCapability ? isGpsTracked : false;
+    }
+
+    if (accessGroupsTouched) {
+      payload.accessGroupIds = selectedAccessGroupIds;
     }
 
     try {
@@ -250,7 +309,7 @@ export function EditUserScreen({ route, navigation }: any) {
               <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 4 }]}>
                 Tenant Company
               </Text>
-              <View style={[styles.input, { backgroundColor: theme.colors.surface.disabled, borderColor: theme.colors.border.disabled }]}>
+              <View style={{ backgroundColor: theme.colors.surface.disabled, borderColor: theme.colors.surface.border, borderWidth: 1, borderRadius: 8 }}>
                 <Text style={{ color: theme.colors.text.tertiary, paddingVertical: 12, paddingHorizontal: 16 }}>
                   {userCompany?.name || 'Unknown Company'}
                 </Text>
@@ -269,42 +328,82 @@ export function EditUserScreen({ route, navigation }: any) {
             <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 4 }]}>
               Department
             </Text>
-            <View style={[styles.pickerContainer, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.surface.border }]}>
-              {departmentsLoading ? (
-                <Text style={{ padding: 12 }}>Loading departments...</Text>
-              ) : (
-                <Picker
-                  selectedValue={departmentId}
-                  onValueChange={(val: any) => setDepartmentId(val)}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+              <TouchableOpacity
+                style={[
+                  styles.roleChip,
+                  {
+                    borderColor: !departmentId ? theme.colors.brand.primary : theme.colors.surface.border,
+                    backgroundColor: !departmentId ? theme.colors.brand.primaryLight : theme.colors.surface.card,
+                    marginRight: 6,
+                  },
+                ]}
+                onPress={() => setDepartmentId('')}
+              >
+                <Text style={[typography.caption, { color: theme.colors.text.primary, fontWeight: !departmentId ? '700' : '400' }]}>
+                  None
+                </Text>
+              </TouchableOpacity>
+              {departmentsData?.map((dept: any) => (
+                <TouchableOpacity
+                  key={dept.id}
+                  style={[
+                    styles.roleChip,
+                    {
+                      borderColor: departmentId === dept.id ? theme.colors.brand.primary : theme.colors.surface.border,
+                      backgroundColor: departmentId === dept.id ? theme.colors.brand.primaryLight : theme.colors.surface.card,
+                      marginRight: 6,
+                    },
+                  ]}
+                  onPress={() => setDepartmentId(dept.id)}
                 >
-                  <Picker.Item label="Select Department (Optional)" value="" />
-                  {departmentsData?.map((dept: any) => (
-                    <Picker.Item key={dept.id} label={dept.name} value={dept.id} />
-                  ))}
-                </Picker>
-              )}
-            </View>
+                  <Text style={[typography.caption, { color: theme.colors.text.primary, fontWeight: departmentId === dept.id ? '700' : '400' }]}>
+                    {dept.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
 
           <View style={{ marginTop: 14 }}>
             <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 4 }]}>
               Branch
             </Text>
-            <View style={[styles.pickerContainer, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.surface.border }]}>
-              {branchesLoading ? (
-                <Text style={{ padding: 12 }}>Loading branches...</Text>
-              ) : (
-                <Picker
-                  selectedValue={branchId}
-                  onValueChange={(val: any) => setBranchId(val)}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+              <TouchableOpacity
+                style={[
+                  styles.roleChip,
+                  {
+                    borderColor: !branchId ? theme.colors.brand.primary : theme.colors.surface.border,
+                    backgroundColor: !branchId ? theme.colors.brand.primaryLight : theme.colors.surface.card,
+                    marginRight: 6,
+                  },
+                ]}
+                onPress={() => setBranchId('')}
+              >
+                <Text style={[typography.caption, { color: theme.colors.text.primary, fontWeight: !branchId ? '700' : '400' }]}>
+                  None
+                </Text>
+              </TouchableOpacity>
+              {branchesData?.map((b: any) => (
+                <TouchableOpacity
+                  key={b.id}
+                  style={[
+                    styles.roleChip,
+                    {
+                      borderColor: branchId === b.id ? theme.colors.brand.primary : theme.colors.surface.border,
+                      backgroundColor: branchId === b.id ? theme.colors.brand.primaryLight : theme.colors.surface.card,
+                      marginRight: 6,
+                    },
+                  ]}
+                  onPress={() => setBranchId(b.id)}
                 >
-                  <Picker.Item label="Select Branch (Optional)" value="" />
-                  {branchesData?.map((b: any) => (
-                    <Picker.Item key={b.id} label={b.name} value={b.id} />
-                  ))}
-                </Picker>
-              )}
-            </View>
+                  <Text style={[typography.caption, { color: theme.colors.text.primary, fontWeight: branchId === b.id ? '700' : '400' }]}>
+                    {b.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
 
           {/* ── Basic fields ── */}
@@ -442,59 +541,6 @@ export function EditUserScreen({ route, navigation }: any) {
                 onValueChange={setIsPromotion}
                 trackColor={{ false: theme.colors.surface.border, true: theme.colors.brand.primary }}
               />
-            </View>
-          )}
-
-          {/* ── Role Change ── */}
-          {canChangeRole && assignableRoles.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <AppIcon name="employees" color={theme.colors.brand.primary} size={16} />
-                <Text style={[typography.label, { color: theme.colors.text.primary, marginLeft: 6 }]}>
-                  Permission Role
-                </Text>
-              </View>
-              <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 10 }]}>
-                Current:{' '}
-                <Text style={{ fontWeight: '700', color: theme.colors.brand.primary }}>
-                  {ROLE_DISPLAY_LABELS[user.role as UserRole] || user.role}
-                </Text>
-              </Text>
-
-              <View style={styles.chipRow}>
-                {assignableRoles.map((role) => {
-                  const isSelected = selectedRole === role;
-                  const isCurrent = role === (user.role as UserRole);
-                  return (
-                    <TouchableOpacity
-                      key={role}
-                      style={[
-                        styles.roleChip,
-                        {
-                          borderColor: isSelected
-                            ? theme.colors.brand.primary
-                            : theme.colors.surface.border,
-                          backgroundColor: isSelected
-                            ? theme.colors.brand.primaryLight
-                            : theme.colors.surface.card,
-                        },
-                      ]}
-                      onPress={() => handleRoleChange(role)}
-                    >
-                      <Text style={[
-                        typography.caption,
-                        {
-                          color: isSelected ? theme.colors.brand.primary : theme.colors.text.primary,
-                          fontWeight: isSelected ? '700' : '500',
-                        },
-                      ]}>
-                        {ROLE_DISPLAY_LABELS[role] || role}
-                        {isCurrent ? ' ✓' : ''}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
             </View>
           )}
 
@@ -642,10 +688,11 @@ export function EditUserScreen({ route, navigation }: any) {
             </View>
           )}
 
-          {/* User GPS Tracking Option (For all roles below MASTER_SUPER_ADMIN) */}
-          {selectedRole !== UserRole.MASTER_SUPER_ADMIN && (() => {
+          {/* GPS Tracking Toggle (Only shown if company has attendance.punchin_punchout.gps_tracking entitlement) */}
+          {hasGpsTrackingCapability && selectedRole !== UserRole.MASTER_SUPER_ADMIN && (() => {
             const ROLE_RANK_MAP: Record<string, number> = {
               EMPLOYEE: 0,
+              FIELD_EMPLOYEE: 0,
               MANAGER: 1,
               HR: 2,
               COMPANY_ADMIN: 3,
@@ -656,7 +703,7 @@ export function EditUserScreen({ route, navigation }: any) {
             const actorRank = ROLE_RANK_MAP[actorRole] ?? 0;
             const targetRank = ROLE_RANK_MAP[user.role] ?? 0;
             const isOwnProfile = permissions.user?.id === user.id;
-            const canToggleGps = !isCompanyGpsDisabled && !isOwnProfile && actorRank > targetRank;
+            const canToggleGps = !isOwnProfile && actorRank > targetRank;
 
             return (
               <View style={styles.section}>
@@ -666,9 +713,7 @@ export function EditUserScreen({ route, navigation }: any) {
                       Record GPS Tracking & Live Map for User?
                     </Text>
                     <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
-                      {isCompanyGpsDisabled
-                        ? '⚠️ Disabled because GPS tracking module is not enabled for this company.'
-                        : isOwnProfile
+                      {isOwnProfile
                         ? '⚠️ You cannot modify your own GPS tracking settings.'
                         : !canToggleGps
                         ? '⚠️ Only administrators of higher role rank can enable/disable tracking.'
@@ -678,7 +723,7 @@ export function EditUserScreen({ route, navigation }: any) {
                     </Text>
                   </View>
                   <Switch
-                    value={isCompanyGpsDisabled ? false : (canToggleGps ? isGpsTracked : false)}
+                    value={canToggleGps ? isGpsTracked : false}
                     disabled={!canToggleGps}
                     onValueChange={(val) => {
                       setIsGpsTracked(val);
@@ -691,8 +736,8 @@ export function EditUserScreen({ route, navigation }: any) {
             );
           })()}
 
-          {/* Attendance Policy override (Optional) */}
-          {selectedRole !== UserRole.MASTER_SUPER_ADMIN && (
+          {/* Attendance Policy override (Optional, only shown if company has custom_policy_management entitlement) */}
+          {hasCustomPolicyCapability && selectedRole !== UserRole.MASTER_SUPER_ADMIN && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <AppIcon name="attendance" color={theme.colors.brand.primary} size={16} />
@@ -776,6 +821,82 @@ export function EditUserScreen({ route, navigation }: any) {
                   })}
                 </View>
               )}
+            </View>
+          )}
+
+          {/* Access Profiles & Groups (Dynamic Capabilities) */}
+          {accessGroups.length > 0 && (
+            <View style={{ marginTop: 20, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.surface.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Text style={[typography.headingSm, { color: theme.colors.brand.primary }]}>
+                  🛡️ Access Profiles & Groups
+                </Text>
+                {selectedAccessGroupIds.length > 0 && (
+                  <Text style={[typography.caption, { color: theme.colors.brand.primary, fontWeight: '600' }]}>
+                    {selectedAccessGroupIds.length} Selected
+                  </Text>
+                )}
+              </View>
+              <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 12 }]}>
+                Assign custom permission bundles entitled to this organization
+              </Text>
+
+              <View style={{ gap: 8 }}>
+                {accessGroups.map((g) => {
+                  const isSelected = selectedAccessGroupIds.includes(g.id);
+                  const permCount = g._count?.permissions ?? 0;
+                  return (
+                    <TouchableOpacity
+                      key={g.id}
+                      style={[
+                        styles.supervisorItem,
+                        {
+                          borderColor: isSelected ? theme.colors.brand.primary : theme.colors.surface.border,
+                          backgroundColor: isSelected ? theme.colors.brand.primaryLight : theme.colors.surface.card,
+                        },
+                      ]}
+                      onPress={() => toggleAccessGroup(g.id)}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]}>
+                              {g.name}
+                            </Text>
+                            {g.isSystem && (
+                              <View style={{ backgroundColor: theme.colors.surface.subtle, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                <Text style={[typography.caption, { color: theme.colors.text.secondary, fontSize: 10 }]}>SYSTEM</Text>
+                              </View>
+                            )}
+                          </View>
+                          {Boolean(g.description) && (
+                            <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]} numberOfLines={2}>
+                              {g.description}
+                            </Text>
+                          )}
+                          <Text style={[typography.caption, { color: theme.colors.brand.primary, marginTop: 4, fontWeight: '500' }]}>
+                            ⚡ {permCount} {permCount === 1 ? 'Capability' : 'Capabilities'} Included
+                          </Text>
+                        </View>
+                        <View
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: 6,
+                            borderWidth: 1.5,
+                            borderColor: isSelected ? theme.colors.brand.primary : theme.colors.surface.border,
+                            backgroundColor: isSelected ? theme.colors.brand.primary : 'transparent',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {isSelected && <AppIcon name="check" size={14} color="#FFFFFF" />}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
           )}
 

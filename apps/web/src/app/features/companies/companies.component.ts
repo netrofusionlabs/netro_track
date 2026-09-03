@@ -476,33 +476,152 @@ export class CompaniesComponent {
   readonly adminData = computed(() => this.wizard.controls.admin.value);
   readonly modulesData = computed(() => this.wizard.controls.modules.value);
 
+  readonly platformCapabilities = signal<any[]>([]);
+  readonly selectedCapabilityIds = signal<Set<string>>(new Set());
+
   readonly activeModulesSummary = computed(() => {
-    const m = this.modulesData();
-    const active: string[] = [];
-    if (m.attendance) {
-      active.push('ATTENDANCE');
-      if (m.gps) active.push('GPS TRACKING');
-      if (m.regularization) active.push('ATTENDANCE REGULARIZATION');
+    const selected = this.selectedCapabilityIds();
+    const names: string[] = [];
+    for (const mod of this.platformCapabilities()) {
+      if (selected.has(mod.id)) {
+        names.push(mod.name);
+      }
     }
-    return active.length ? active.join(', ') : 'None';
+    return names.length ? names.join(', ') : 'None';
+  });
+
+  readonly selectedCapabilitiesDetailed = computed(() => {
+    const selected = this.selectedCapabilityIds();
+    const result: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      submodules: Array<{
+        id: string;
+        name: string;
+        slug: string;
+        actions: Array<{ id: string; name: string; slug: string }>;
+      }>;
+    }> = [];
+
+    for (const mod of this.platformCapabilities()) {
+      if (!selected.has(mod.id)) continue;
+
+      const subList: typeof result[0]['submodules'] = [];
+      if (mod.children) {
+        for (const sub of mod.children) {
+          if (!selected.has(sub.id)) continue;
+
+          const actList: typeof subList[0]['actions'] = [];
+          if (sub.children) {
+            for (const act of sub.children) {
+              if (selected.has(act.id)) {
+                actList.push({ id: act.id, name: act.name, slug: act.slug });
+              }
+            }
+          }
+          subList.push({ id: sub.id, name: sub.name, slug: sub.slug, actions: actList });
+        }
+      }
+      result.push({ id: mod.id, name: mod.name, slug: mod.slug, submodules: subList });
+    }
+    return result;
   });
 
   constructor() {
     this.load();
-    this.setupModuleCascading();
   }
 
-  private setupModuleCascading(): void {
-    const modulesGroup = this.wizard.controls.modules;
-    modulesGroup.controls.attendance.valueChanges.subscribe(attendanceOn => {
-      if (!attendanceOn) {
-        // If Attendance is disabled, GPS & Regularization must turn off
-        modulesGroup.patchValue({ gps: false, regularization: false }, { emitEvent: false });
+  toggleModule(mod: any): void {
+    this.selectedCapabilityIds.update(set => {
+      const next = new Set(set);
+      const isSelected = next.has(mod.id);
+      if (isSelected) {
+        next.delete(mod.id);
+        if (mod.children) {
+          for (const sub of mod.children) {
+            next.delete(sub.id);
+            if (sub.children) {
+              for (const act of sub.children) {
+                next.delete(act.id);
+              }
+            }
+          }
+        }
       } else {
-        // If Attendance is enabled, auto-enable Regularization and GPS
-        modulesGroup.patchValue({ regularization: true, gps: true }, { emitEvent: false });
+        next.add(mod.id);
+        if (mod.children) {
+          for (const sub of mod.children) {
+            next.add(sub.id);
+            if (sub.children) {
+              for (const act of sub.children) {
+                next.add(act.id);
+              }
+            }
+          }
+        }
       }
+      return next;
     });
+  }
+
+  toggleSubmodule(mod: any, sub: any): void {
+    this.selectedCapabilityIds.update(set => {
+      const next = new Set(set);
+      const isSelected = next.has(sub.id);
+      if (isSelected) {
+        next.delete(sub.id);
+        if (sub.children) {
+          for (const act of sub.children) {
+            next.delete(act.id);
+          }
+        }
+        const hasOtherSelectedSub = mod.children?.some(
+          (s: any) => s.id !== sub.id && (next.has(s.id) || s.children?.some((a: any) => next.has(a.id)))
+        );
+        if (!hasOtherSelectedSub) {
+          next.delete(mod.id);
+        }
+      } else {
+        next.add(sub.id);
+        next.add(mod.id);
+        if (sub.children) {
+          for (const act of sub.children) {
+            next.add(act.id);
+          }
+        }
+      }
+      return next;
+    });
+  }
+
+  toggleAction(mod: any, sub: any, act: any): void {
+    this.selectedCapabilityIds.update(set => {
+      const next = new Set(set);
+      const isSelected = next.has(act.id);
+      if (isSelected) {
+        next.delete(act.id);
+        const hasOtherSelectedAction = sub.children?.some((a: any) => a.id !== act.id && next.has(a.id));
+        if (!hasOtherSelectedAction) {
+          next.delete(sub.id);
+          const hasOtherSelectedSub = mod.children?.some(
+            (s: any) => s.id !== sub.id && (next.has(s.id) || s.children?.some((a: any) => next.has(a.id)))
+          );
+          if (!hasOtherSelectedSub) {
+            next.delete(mod.id);
+          }
+        }
+      } else {
+        next.add(act.id);
+        next.add(sub.id);
+        next.add(mod.id);
+      }
+      return next;
+    });
+  }
+
+  isCapabilitySelected(id: string): boolean {
+    return this.selectedCapabilityIds().has(id);
   }
 
   load(): void {
@@ -516,6 +635,12 @@ export class CompaniesComponent {
       error: err => {
         this.error.set(apiError(err, 'Could not load companies.'));
         this.loading.set(false);
+      },
+    });
+
+    this.api.get<any[]>(API.platformCapabilities).subscribe({
+      next: res => {
+        this.platformCapabilities.set(Array.isArray(res.data) ? res.data : []);
       },
     });
   }
@@ -554,6 +679,17 @@ export class CompaniesComponent {
     this.logoPreview.set(null);
     this.createdResult.set(null);
     this.step.set(1);
+
+    const allIds = new Set<string>();
+    const collect = (nodes: any[]) => {
+      for (const n of nodes) {
+        allIds.add(n.id);
+        if (n.children) collect(n.children);
+      }
+    };
+    collect(this.platformCapabilities());
+    this.selectedCapabilityIds.set(allIds);
+
     this.wizard.reset({
       company: {
         name: '',
@@ -577,18 +713,7 @@ export class CompaniesComponent {
         logoUrl: '',
       },
       admin: { name: '', email: '', mobile: '', password: '', confirmPassword: '' },
-      modules: {
-        attendance: true,
-        gps: true,
-        regularization: true,
-        leave: false,
-        shift: false,
-        payroll: false,
-        expense: false,
-        asset: false,
-        performance: false,
-        recruitment: false,
-      },
+      modules: {},
     });
     this.wizard.controls.admin.enable();
     this.wizardOpen.set(true);
@@ -606,27 +731,49 @@ export class CompaniesComponent {
     this.createdResult.set(null);
     this.step.set(1);
     this.populateWizard(c);
+
+    // Prepopulate entitled capabilities from backend
+    this.selectedCapabilityIds.set(new Set());
+    this.api.get<any[]>(API.tenantEntitlements(c.id)).subscribe({
+      next: res => {
+        const entitledList = res.data || [];
+        const entitledIds = new Set<string>(
+          entitledList
+            .filter((e: any) => e.isEnabled !== false)
+            .map((e: any) => e.capabilityId || e.capability?.id || e.id)
+        );
+        this.selectedCapabilityIds.set(entitledIds);
+      },
+      error: () => {
+        this.selectedCapabilityIds.set(new Set());
+      },
+    });
   }
+
+  isLoadingEntitlements = signal(false);
 
   manageModules(c: Company): void {
     this.editingId.set(c.id);
-    const modMap: Record<string, boolean> = {
-      attendance: false, leave: false, shift: false, gps: c.isGpsEnabled ?? true,
-      payroll: false, expense: false, asset: false, performance: false, recruitment: false, regularization: false
-    };
-    if (c.modules) {
-      c.modules.forEach(m => {
-        const key = m.module.toLowerCase();
-        if (key in modMap) modMap[key] = m.isEnabled;
-      });
-    }
-    this.activeModules.set(modMap);
+    this.selectedCapabilityIds.set(new Set());
+    this.isLoadingEntitlements.set(true);
+    this.api.get<any[]>(API.tenantEntitlements(c.id)).subscribe({
+      next: res => {
+        this.isLoadingEntitlements.set(false);
+        const entitledList = res.data || [];
+        const entitledIds = new Set<string>(
+          entitledList
+            .filter((e: any) => e.isEnabled !== false)
+            .map((e: any) => e.capabilityId || e.capability?.id || e.id)
+        );
+        this.selectedCapabilityIds.set(entitledIds);
+      },
+      error: () => {
+        this.isLoadingEntitlements.set(false);
+        this.selectedCapabilityIds.set(new Set());
+      },
+    });
     this.modulesDrawerOpen.set(true);
-    this.closeView(); // Close main tenant drawer if open
-  }
-
-  toggleModule(key: string, value: boolean) {
-    this.activeModules.update(m => ({ ...m, [key]: value }));
+    this.closeView();
   }
 
   saveModules() {
@@ -634,7 +781,7 @@ export class CompaniesComponent {
     if (!id) return;
     
     this.isSavingModules.set(true);
-    this.api.put(`${API.companies}/${id}`, { modules: this.activeModules() }).subscribe({
+    this.api.put(`${API.companies}/${id}`, { capabilityIds: Array.from(this.selectedCapabilityIds()) }).subscribe({
       next: () => {
         this.isSavingModules.set(false);
         this.modulesDrawerOpen.set(false);
@@ -850,6 +997,7 @@ export class CompaniesComponent {
 
       const payload = {
         ...rawCompany,
+        capabilityIds: Array.from(this.selectedCapabilityIds()),
         isGpsEnabled: cleanModules.gps,
         modules: cleanModules,
       };
@@ -894,6 +1042,7 @@ export class CompaniesComponent {
 
     const payload = {
       ...rawVal,
+      capabilityIds: Array.from(this.selectedCapabilityIds()),
       modules: cleanModules,
     };
 
@@ -944,6 +1093,36 @@ export class CompaniesComponent {
     this.closeView();
     this.closeWizard();
     this.router.navigate(['/people'], { queryParams: { companyId: c.id } });
+  }
+
+  async resetPassword(c: Company): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: `Reset Admin Password for ${c.name}?`,
+      body: `Are you sure you want to reset the administrator password for "${c.name}" to the default temporary password ("Password123!")?`,
+      confirmLabel: 'Reset Password',
+      tone: 'default',
+      facts: [
+        { label: 'Company', value: c.name },
+        { label: 'Code', value: c.code || '—' },
+        { label: 'Default Password', value: 'Password123!' },
+      ],
+    });
+    if (!ok) return;
+
+    this.api.post(`${API.companies}/${c.id}/reset-admin-password`, { password: 'Password123!' }).subscribe({
+      next: (res: any) => {
+        this.toast.success(
+          'Password Reset',
+          res.message || `Administrator password for ${c.name} has been reset to "Password123!".`
+        );
+      },
+      error: (err: any) => {
+        this.toast.error(
+          'Reset Failed',
+          apiError(err) || 'Could not reset administrator password.'
+        );
+      },
+    });
   }
 
   async remove(c: Company): Promise<void> {

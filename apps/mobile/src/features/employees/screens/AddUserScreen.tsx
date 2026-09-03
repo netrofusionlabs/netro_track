@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Switch,
+  Modal,
 } from 'react-native';
 import { useTheme } from '../../../shared/theme/ThemeProvider';
 import { typography } from '../../../shared/theme/typography';
@@ -24,6 +25,7 @@ import { useSupervisors, useCreateUser } from '../hooks/useUserManagement';
 import { useCompanies } from '../../companies/hooks/useCompanies';
 import { useBranches, useDepartments } from '../../organization/hooks/useOrganization';
 import { useAttendancePolicies } from '../../attendance/hooks/useAttendance';
+import { useAccessGroups } from '../../authorization/hooks/useAccessGroups';
 import { ROLE_DISPLAY_LABELS, UserRole } from '@netrotrack/shared';
 
 export function AddUserScreen({ navigation }: { navigation: any }) {
@@ -34,19 +36,90 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
   const { data: companies = [], isLoading: loadingCompanies } = useCompanies();
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
+  const [companyModalVisible, setCompanyModalVisible] = useState(false);
+  const [companySearchQuery, setCompanySearchQuery] = useState('');
   const [departmentId, setDepartmentId] = useState<string>('');
   const [branchId, setBranchId] = useState<string>('');
+
+  // Auto-initialize selectedCompanyId for Super Admins
+  useEffect(() => {
+    if (!selectedCompanyId && companies.length > 0) {
+      const defaultCompany = companies.find((c) => c.id === actorUser?.companyId) || companies[0];
+      if (defaultCompany) {
+        setSelectedCompanyId(defaultCompany.id);
+      }
+    }
+  }, [companies, selectedCompanyId, actorUser?.companyId]);
+
+  const handleSelectCompany = (comp: any) => {
+    setSelectedCompanyId(comp.id);
+    setDepartmentId('');
+    setBranchId('');
+    setSelectedAttendancePolicyId(null);
+    setCompanyModalVisible(false);
+  };
+
+  const filteredCompanies = companies.filter((c) => {
+    if (!companySearchQuery.trim()) return true;
+    const q = companySearchQuery.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(q) ||
+      c.code.toLowerCase().includes(q) ||
+      (c.officialEmail && c.officialEmail.toLowerCase().includes(q))
+    );
+  });
 
   // Check if selected company is the platform company (NetroTrack, code 'NETRO')
   const availableRoles: UserRole[] = permissions.creatableRoles;
   const selectedCompany = companies.find((c) => c.id === selectedCompanyId) || (companies.length === 1 ? companies[0] : null);
-  const isCompanyGpsDisabled = selectedCompany
-    ? !selectedCompany.modules?.some((m: any) => m.module === 'GPS' && m.isEnabled)
-    : false;
 
   const isPlatformCompany = selectedCompany
     ? (selectedCompany.code === 'NETRO' || selectedCompany.name.toLowerCase().includes('netro'))
     : (!permissions.isSuperAdmin ? (permissions.user?.companyName?.toLowerCase().includes('netro') ?? false) : true);
+
+  // Gated by company dynamic platform capabilities
+  const userEntitledSlugs = permissions.user?.companyEntitledSlugs;
+  const userRole = permissions.user?.role;
+  const isCompanyAdminOrHigher = userRole === 'COMPANY_ADMIN' || userRole === 'SUPER_ADMIN' || userRole === 'MASTER_SUPER_ADMIN';
+
+  const hasGpsTrackingCapability = selectedCompany
+    ? (
+        isPlatformCompany ||
+        ((selectedCompany as any).entitledSlugs?.includes('attendance.punchin_punchout.gps_tracking')) ||
+        ((selectedCompany as any).entitlements?.some((e: any) => e.isEnabled && e.capability?.slug === 'attendance.punchin_punchout.gps_tracking')) ||
+        (selectedCompany.modules?.some((m: any) => (m.module === 'GPS' || m.code === 'GPS') && m.isEnabled)) ||
+        selectedCompany.isGpsEnabled === true
+      )
+    : (
+        isPlatformCompany ||
+        (userEntitledSlugs && userEntitledSlugs.length > 0
+          ? (
+              userEntitledSlugs.includes('attendance.punchin_punchout.gps_tracking') ||
+              userEntitledSlugs.includes('attendance.punchin_punchout') ||
+              userEntitledSlugs.includes('attendance')
+            )
+          : (
+              isCompanyAdminOrHigher ||
+              (permissions.user?.permissions?.includes('attendance.punchin_punchout.gps_tracking') ?? true)
+            ))
+      );
+
+  const hasCustomPolicyCapability = selectedCompany
+    ? (
+        isPlatformCompany ||
+        ((selectedCompany as any).entitledSlugs?.some((s: string) => s === 'custom_policy_management' || s.startsWith('custom_policy_management.'))) ||
+        ((selectedCompany as any).entitlements?.some((e: any) => e.isEnabled && (e.capability?.slug === 'custom_policy_management' || e.capability?.slug?.startsWith('custom_policy_management.')))) ||
+        (permissions.user?.permissions?.some((s: string) => s === 'custom_policy_management' || s.startsWith('custom_policy_management.')))
+      )
+    : (
+        isPlatformCompany ||
+        (userEntitledSlugs && userEntitledSlugs.length > 0
+          ? userEntitledSlugs.some((s: string) => s === 'custom_policy_management' || s.startsWith('custom_policy_management.'))
+          : (
+              isCompanyAdminOrHigher ||
+              (permissions.user?.permissions?.some((s: string) => s === 'custom_policy_management' || s.startsWith('custom_policy_management.')) ?? false)
+            ))
+      );
 
   // Super Admin & Master Super Admin are ONLY allowed for the platform company (NetroTrack).
   // For tenant companies (e.g. Infobell), restrict available roles to tenant roles.
@@ -73,13 +146,26 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
     displayedRoles[0] || UserRole.COMPANY_ADMIN
   );
   const [selectedSupervisorId, setSelectedSupervisorId] = useState<string | null>(null);
-  const [isGpsTracked, setIsGpsTracked] = useState(true);
+  const [isGpsTracked, setIsGpsTracked] = useState(hasGpsTrackingCapability);
   const [designationName, setDesignationName] = useState('');
   const [selectedAttendancePolicyId, setSelectedAttendancePolicyId] = useState<string | null>(null);
+  const [selectedAccessGroupIds, setSelectedAccessGroupIds] = useState<string[]>([]);
 
-  const { data: policiesData = [], isLoading: policiesLoading } = useAttendancePolicies(selectedCompanyId || undefined, 'ATTENDANCE');
+  const { data: policiesData = [], isLoading: policiesLoading } = useAttendancePolicies(
+    hasCustomPolicyCapability ? (selectedCompanyId || undefined) : undefined,
+    'ATTENDANCE'
+  );
   const { data: branchesData = [], isLoading: branchesLoading } = useBranches(selectedCompanyId || undefined);
   const { data: departmentsData = [], isLoading: departmentsLoading } = useDepartments(selectedCompanyId || undefined);
+  const { data: accessGroups = [], isLoading: accessGroupsLoading } = useAccessGroups(
+    permissions.isSuperAdmin ? (selectedCompanyId || undefined) : undefined
+  );
+
+  const toggleAccessGroup = (id: string) => {
+    setSelectedAccessGroupIds((prev) =>
+      prev.includes(id) ? prev.filter((gid) => gid !== id) : [...prev, id]
+    );
+  };
 
   // Auto-switch selectedRole if current role is invalid for selected tenant company
   React.useEffect(() => {
@@ -89,16 +175,32 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
     }
   }, [selectedCompanyId, isPlatformCompany, selectedRole, displayedRoles]);
 
+  // Sync GPS state when capability changes
+  React.useEffect(() => {
+    if (!hasGpsTrackingCapability) {
+      setIsGpsTracked(false);
+    } else {
+      setIsGpsTracked(true);
+    }
+  }, [hasGpsTrackingCapability]);
+
+  // Sync Attendance Policy state when custom policy capability changes
+  React.useEffect(() => {
+    if (!hasCustomPolicyCapability) {
+      setSelectedAttendancePolicyId(null);
+    }
+  }, [hasCustomPolicyCapability]);
+
   // Auto-enable GPS tracking when a policy with GPS REQUIRED/OPTIONAL is selected
   React.useEffect(() => {
-    if (!selectedAttendancePolicyId) return;
+    if (!hasGpsTrackingCapability || !selectedAttendancePolicyId) return;
     const selectedPolicy = policiesData.find((p) => p.id === selectedAttendancePolicyId);
     if (!selectedPolicy) return;
     const punchInGps: string | undefined = selectedPolicy.punchInConfig?.gps;
     if (punchInGps === 'REQUIRED' || punchInGps === 'OPTIONAL') {
       setIsGpsTracked(true);
     }
-  }, [selectedAttendancePolicyId, policiesData]);
+  }, [selectedAttendancePolicyId, policiesData, hasGpsTrackingCapability]);
 
   // Roles that need a supervisor picker (everything below Company Admin)
   const needsSupervisor = selectedRole === UserRole.EMPLOYEE ||
@@ -170,9 +272,10 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
         companyId: permissions.isSuperAdmin ? selectedCompanyId : undefined,
         departmentId: departmentId || undefined,
         branchId: branchId || undefined,
-        isGpsTracked: isCompanyGpsDisabled ? false : isGpsTracked,
+        isGpsTracked: hasGpsTrackingCapability ? isGpsTracked : false,
         managerId: needsSupervisor ? (selectedSupervisorId ?? null) : undefined,
-        attendancePolicyId: selectedRole !== UserRole.MASTER_SUPER_ADMIN ? selectedAttendancePolicyId : null,
+        attendancePolicyId: (hasCustomPolicyCapability && selectedRole !== UserRole.MASTER_SUPER_ADMIN) ? selectedAttendancePolicyId : null,
+        accessGroupIds: selectedAccessGroupIds.length > 0 ? selectedAccessGroupIds : undefined,
       });
 
       Alert.alert('Success', `User ${name} created successfully!`, [
@@ -196,6 +299,79 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
             💼 Professional Identity
           </Text>
 
+          {/* Super Admin / Master Super Admin: Target Tenant Company Selector */}
+          {permissions.isSuperAdmin && (
+            <View style={{ marginBottom: 16 }}>
+              <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 6 }]}>
+                Target Tenant Company *
+              </Text>
+              
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[
+                  styles.companySelectorTrigger,
+                  {
+                    borderColor: selectedCompanyId ? theme.colors.brand.primary : theme.colors.surface.border,
+                    backgroundColor: theme.colors.surface.card,
+                  },
+                ]}
+                onPress={() => setCompanyModalVisible(true)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <View style={[styles.companyIconBox, { backgroundColor: theme.colors.brand.primaryLight }]}>
+                    <AppIcon name="building" size={18} color={theme.colors.brand.primary} />
+                  </View>
+                  <View style={{ marginLeft: 10, flex: 1 }}>
+                    <Text style={[typography.bodyMd, { color: theme.colors.text.primary, fontWeight: '600' }]} numberOfLines={1}>
+                      {selectedCompany ? selectedCompany.name : 'Select Tenant Company...'}
+                    </Text>
+                    {selectedCompany && (
+                      <Text style={[typography.caption, { fontFamily: 'monospace', color: theme.colors.text.tertiary, marginTop: 1 }]}>
+                        Code: {selectedCompany.code} {selectedCompany.industry ? `• ${selectedCompany.industry}` : ''}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <AppIcon name="chevron-down" size={18} color={theme.colors.text.tertiary} />
+              </TouchableOpacity>
+
+              {/* Quick 1-Tap Switching Chips */}
+              {companies.length > 1 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                  {companies.map((c) => {
+                    const isSelected = selectedCompanyId === c.id;
+                    return (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={[
+                          styles.roleChip,
+                          {
+                            borderColor: isSelected ? theme.colors.brand.primary : theme.colors.surface.border,
+                            backgroundColor: isSelected ? theme.colors.brand.primaryLight : theme.colors.surface.card,
+                            marginRight: 6,
+                          },
+                        ]}
+                        onPress={() => handleSelectCompany(c)}
+                      >
+                        <Text
+                          style={[
+                            typography.caption,
+                            {
+                              color: isSelected ? theme.colors.brand.primary : theme.colors.text.primary,
+                              fontWeight: isSelected ? '700' : '400',
+                            },
+                          ]}
+                        >
+                          {c.name} [{c.code}]
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </View>
+          )}
+
           <Text style={[typography.label, { color: theme.colors.text.primary }]}>
             Organization & Assignment
           </Text>
@@ -204,42 +380,82 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
             <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 4 }]}>
               Department
             </Text>
-            <View style={[styles.pickerContainer, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.surface.border }]}>
-              {departmentsLoading ? (
-                <Text style={{ padding: 12 }}>Loading departments...</Text>
-              ) : (
-                <Picker
-                  selectedValue={departmentId}
-                  onValueChange={(val: any) => setDepartmentId(val)}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+              <TouchableOpacity
+                style={[
+                  styles.roleChip,
+                  {
+                    borderColor: !departmentId ? theme.colors.brand.primary : theme.colors.surface.border,
+                    backgroundColor: !departmentId ? theme.colors.brand.primaryLight : theme.colors.surface.card,
+                    marginRight: 6,
+                  },
+                ]}
+                onPress={() => setDepartmentId('')}
+              >
+                <Text style={[typography.caption, { color: theme.colors.text.primary, fontWeight: !departmentId ? '700' : '400' }]}>
+                  None
+                </Text>
+              </TouchableOpacity>
+              {departmentsData?.map((dept: any) => (
+                <TouchableOpacity
+                  key={dept.id}
+                  style={[
+                    styles.roleChip,
+                    {
+                      borderColor: departmentId === dept.id ? theme.colors.brand.primary : theme.colors.surface.border,
+                      backgroundColor: departmentId === dept.id ? theme.colors.brand.primaryLight : theme.colors.surface.card,
+                      marginRight: 6,
+                    },
+                  ]}
+                  onPress={() => setDepartmentId(dept.id)}
                 >
-                  <Picker.Item label="Select Department (Optional)" value="" />
-                  {departmentsData?.map((dept: any) => (
-                    <Picker.Item key={dept.id} label={dept.name} value={dept.id} />
-                  ))}
-                </Picker>
-              )}
-            </View>
+                  <Text style={[typography.caption, { color: theme.colors.text.primary, fontWeight: departmentId === dept.id ? '700' : '400' }]}>
+                    {dept.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
 
           <View style={{ marginTop: 14 }}>
             <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 4 }]}>
               Branch
             </Text>
-            <View style={[styles.pickerContainer, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.surface.border }]}>
-              {branchesLoading ? (
-                <Text style={{ padding: 12 }}>Loading branches...</Text>
-              ) : (
-                <Picker
-                  selectedValue={branchId}
-                  onValueChange={(val: any) => setBranchId(val)}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+              <TouchableOpacity
+                style={[
+                  styles.roleChip,
+                  {
+                    borderColor: !branchId ? theme.colors.brand.primary : theme.colors.surface.border,
+                    backgroundColor: !branchId ? theme.colors.brand.primaryLight : theme.colors.surface.card,
+                    marginRight: 6,
+                  },
+                ]}
+                onPress={() => setBranchId('')}
+              >
+                <Text style={[typography.caption, { color: theme.colors.text.primary, fontWeight: !branchId ? '700' : '400' }]}>
+                  None
+                </Text>
+              </TouchableOpacity>
+              {branchesData?.map((b: any) => (
+                <TouchableOpacity
+                  key={b.id}
+                  style={[
+                    styles.roleChip,
+                    {
+                      borderColor: branchId === b.id ? theme.colors.brand.primary : theme.colors.surface.border,
+                      backgroundColor: branchId === b.id ? theme.colors.brand.primaryLight : theme.colors.surface.card,
+                      marginRight: 6,
+                    },
+                  ]}
+                  onPress={() => setBranchId(b.id)}
                 >
-                  <Picker.Item label="Select Branch (Optional)" value="" />
-                  {branchesData?.map((b: any) => (
-                    <Picker.Item key={b.id} label={b.name} value={b.id} />
-                  ))}
-                </Picker>
-              )}
-            </View>
+                  <Text style={[typography.caption, { color: theme.colors.text.primary, fontWeight: branchId === b.id ? '700' : '400' }]}>
+                    {b.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
 
           <Text style={[typography.label, { color: theme.colors.text.primary, marginTop: 14 }]}>
@@ -427,80 +643,8 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
             placeholder="Enter custom password..."
           />
 
-          {/* Company Selection (For Super Admin & Master Super Admin) */}
-          {permissions.isSuperAdmin && selectedRole !== UserRole.MASTER_SUPER_ADMIN && (
-            <View style={{ marginTop: 16 }}>
-              <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 6 }]}>
-                Target Tenant Company *
-              </Text>
-              {loadingCompanies ? (
-                <LoadingState message="Loading companies..." />
-              ) : companies.length === 0 ? (
-                <Text style={[typography.caption, { color: theme.colors.semantic.error }]}>
-                  No companies available. Please register a company first.
-                </Text>
-              ) : (
-                <View style={{ gap: 6 }}>
-                  {companies.map((c) => {
-                    const isSelected = selectedCompanyId === c.id;
-                    return (
-                      <TouchableOpacity
-                        key={c.id}
-                        style={[
-                          styles.companySelectItem,
-                          { borderColor: isSelected ? theme.colors.brand.primary : theme.colors.surface.border },
-                          isSelected && { backgroundColor: theme.colors.brand.primaryLight },
-                        ]}
-                        onPress={() => setSelectedCompanyId(c.id)}
-                      >
-                        <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]}>
-                          {c.name} [{c.code}]
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Role Selection */}
-          <Text style={[typography.label, { color: theme.colors.text.primary, marginTop: 16, marginBottom: 8 }]}>
-            System Access Role *
-          </Text>
-          <View style={styles.rolePickerRow}>
-            {displayedRoles.map((role) => {
-              const isSelected = selectedRole === role;
-              return (
-                <TouchableOpacity
-                  key={role}
-                  style={[
-                    styles.roleChip,
-                    {
-                      borderColor: isSelected ? theme.colors.brand.primary : theme.colors.surface.border,
-                      backgroundColor: isSelected ? theme.colors.brand.primaryLight : theme.colors.surface.card,
-                    },
-                  ]}
-                  onPress={() => setSelectedRole(role)}
-                >
-                  <Text
-                    style={[
-                      typography.caption,
-                      {
-                        color: isSelected ? theme.colors.brand.primary : theme.colors.text.primary,
-                        fontWeight: isSelected ? '700' : '500',
-                      },
-                    ]}
-                  >
-                    {ROLE_DISPLAY_LABELS[role] || role}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* User GPS Tracking Option (For all roles below MASTER_SUPER_ADMIN) */}
-          {selectedRole !== UserRole.MASTER_SUPER_ADMIN && (() => {
+          {/* User GPS Tracking Option (Only shown if company has attendance.punchin_punchout.gps_tracking entitlement) */}
+          {hasGpsTrackingCapability && selectedRole !== UserRole.MASTER_SUPER_ADMIN && (() => {
             const ROLE_RANK_MAP: Record<UserRole, number> = {
               [UserRole.EMPLOYEE]: 0,
               [UserRole.MANAGER]: 1,
@@ -512,7 +656,7 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
             const actorRole = actorUser?.role as UserRole;
             const actorRank = ROLE_RANK_MAP[actorRole] ?? 0;
             const targetRank = ROLE_RANK_MAP[selectedRole] ?? 0;
-            const canToggleGps = !isCompanyGpsDisabled && actorRank > targetRank;
+            const canToggleGps = actorRank > targetRank;
 
             return (
               <View style={[styles.gpsToggleCard, { borderColor: theme.colors.surface.border }]}>
@@ -521,9 +665,7 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
                     Record GPS Tracking & Live Map for User?
                   </Text>
                   <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>
-                    {isCompanyGpsDisabled
-                      ? '⚠️ Disabled because GPS tracking module is not enabled for this company.'
-                      : !canToggleGps
+                    {!canToggleGps
                       ? '⚠️ Only administrators of higher role rank can enable/disable tracking.'
                       : isGpsTracked
                       ? 'Record background GPS routes and display on Live Map.'
@@ -531,7 +673,7 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
                   </Text>
                 </View>
                 <Switch
-                  value={isCompanyGpsDisabled ? false : (canToggleGps ? isGpsTracked : false)}
+                  value={canToggleGps ? isGpsTracked : false}
                   disabled={!canToggleGps}
                   onValueChange={setIsGpsTracked}
                   trackColor={{ false: '#CBD5E1', true: theme.colors.brand.primary }}
@@ -540,13 +682,13 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
             );
           })()}
 
-          {/* Attendance Policy override (Optional) */}
-          {selectedRole !== UserRole.MASTER_SUPER_ADMIN && (
+          {/* Attendance Policy override (Optional, only shown if company has custom_policy_management entitlement) */}
+          {hasCustomPolicyCapability && selectedRole !== UserRole.MASTER_SUPER_ADMIN && (
             <View style={{ marginTop: 16 }}>
               <Text style={[typography.label, { color: theme.colors.text.primary, marginBottom: 6 }]}>
                 Attendance Punch Policy (Optional Override)
               </Text>
-              {loadingPolicies ? (
+              {policiesLoading ? (
                 <LoadingState message="Loading attendance policies..." />
               ) : (
                 <View style={{ gap: 6 }}>
@@ -569,7 +711,7 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
                   </TouchableOpacity>
 
                   {/* All custom policies */}
-                  {policies.map((p) => {
+                  {policiesData.map((p: any) => {
                     const isSelected = selectedAttendancePolicyId === p.id;
                     return (
                       <TouchableOpacity
@@ -688,6 +830,82 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
             </View>
           )}
 
+          {/* Access Profiles & Groups (Dynamic Capabilities) */}
+          {accessGroups.length > 0 && (
+            <View style={{ marginTop: 20, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.colors.surface.border }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <Text style={[typography.headingSm, { color: theme.colors.brand.primary }]}>
+                  🛡️ Access Profiles & Groups
+                </Text>
+                {selectedAccessGroupIds.length > 0 && (
+                  <Text style={[typography.caption, { color: theme.colors.brand.primary, fontWeight: '600' }]}>
+                    {selectedAccessGroupIds.length} Selected
+                  </Text>
+                )}
+              </View>
+              <Text style={[typography.caption, { color: theme.colors.text.secondary, marginBottom: 12 }]}>
+                Assign custom permission bundles entitled to this organization
+              </Text>
+
+              <View style={{ gap: 8 }}>
+                {accessGroups.map((g) => {
+                  const isSelected = selectedAccessGroupIds.includes(g.id);
+                  const permCount = g._count?.permissions ?? 0;
+                  return (
+                    <TouchableOpacity
+                      key={g.id}
+                      style={[
+                        styles.managerItem,
+                        {
+                          borderColor: isSelected ? theme.colors.brand.primary : theme.colors.surface.border,
+                          backgroundColor: isSelected ? theme.colors.brand.primaryLight : theme.colors.surface.card,
+                        },
+                      ]}
+                      onPress={() => toggleAccessGroup(g.id)}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]}>
+                              {g.name}
+                            </Text>
+                            {g.isSystem && (
+                              <View style={{ backgroundColor: theme.colors.surface.subtle, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                <Text style={[typography.caption, { color: theme.colors.text.secondary, fontSize: 10 }]}>SYSTEM</Text>
+                              </View>
+                            )}
+                          </View>
+                          {Boolean(g.description) && (
+                            <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]} numberOfLines={2}>
+                              {g.description}
+                            </Text>
+                          )}
+                          <Text style={[typography.caption, { color: theme.colors.brand.primary, marginTop: 4, fontWeight: '500' }]}>
+                            ⚡ {permCount} {permCount === 1 ? 'Capability' : 'Capabilities'} Included
+                          </Text>
+                        </View>
+                        <View
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: 6,
+                            borderWidth: 1.5,
+                            borderColor: isSelected ? theme.colors.brand.primary : theme.colors.surface.border,
+                            backgroundColor: isSelected ? theme.colors.brand.primary : 'transparent',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {isSelected && <AppIcon name="check" size={14} color="#FFFFFF" />}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
           {/* Submit Action */}
           <Button
             label="Create User"
@@ -700,6 +918,72 @@ export function AddUserScreen({ navigation }: { navigation: any }) {
           />
         </Card>
       </ScrollView>
+
+      {/* Searchable Company Picker Modal for Super Admins */}
+      <Modal
+        visible={companyModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setCompanyModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface.card }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[typography.headingMd, { color: theme.colors.text.primary }]}>Select Tenant Company</Text>
+                <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>Choose the target organization for this user</Text>
+              </View>
+              <TouchableOpacity onPress={() => setCompanyModalVisible(false)} style={styles.closeBtn}>
+                <AppIcon name="x" size={20} color={theme.colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+              <SearchInput
+                value={companySearchQuery}
+                onChangeText={setCompanySearchQuery}
+                placeholder="Search by company name or code..."
+              />
+            </View>
+
+            <ScrollView style={{ maxHeight: 380, paddingHorizontal: 16 }}>
+              {filteredCompanies.length === 0 ? (
+                <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                  <Text style={[typography.bodySm, { color: theme.colors.text.tertiary }]}>No companies found</Text>
+                </View>
+              ) : (
+                filteredCompanies.map((c) => {
+                  const isSelected = selectedCompanyId === c.id;
+                  return (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={[
+                        styles.companyModalItem,
+                        {
+                          borderColor: isSelected ? theme.colors.brand.primary : theme.colors.surface.border,
+                          backgroundColor: isSelected ? theme.colors.brand.primaryLight : theme.colors.surface.subtle,
+                        },
+                      ]}
+                      onPress={() => handleSelectCompany(c)}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[typography.bodyMd, { color: theme.colors.text.primary, fontWeight: '600' }]}>{c.name}</Text>
+                          <Text style={[typography.caption, { fontFamily: 'monospace', color: theme.colors.text.tertiary }]}>[{c.code}]</Text>
+                        </View>
+                        {Boolean(c.officialEmail) && (
+                          <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>{c.officialEmail}</Text>
+                        )}
+                      </View>
+                      {isSelected && <AppIcon name="check" size={18} color={theme.colors.brand.primary} />}
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -748,5 +1032,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
+  },
+  companySelectorTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderWidth: 1.5,
+    borderRadius: 10,
+  },
+  companyIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 32,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+  },
+  closeBtn: {
+    padding: 6,
+  },
+  companyModalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 8,
   },
 });

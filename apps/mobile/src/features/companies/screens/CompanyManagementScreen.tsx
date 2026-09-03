@@ -116,6 +116,33 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
     );
   };
 
+  const handleResetPassword = (id: string, name: string) => {
+    Alert.alert(
+      'Reset Admin Password',
+      `Are you sure you want to reset the administrator password for "${name}" to the default temporary password ("Password123!")?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset Password',
+          onPress: async () => {
+            try {
+              const res = await companyService.resetAdminPassword(id);
+              Alert.alert(
+                'Password Reset',
+                res.message || `Administrator password for ${name} has been reset to "Password123!".`
+              );
+            } catch (err: any) {
+              Alert.alert(
+                'Reset Failed',
+                err?.response?.data?.message || 'Failed to reset administrator password.'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={[styles.safe, { backgroundColor: theme.colors.surface.background }]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -212,24 +239,32 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
                 </View>
               </View>
 
-              {!isMasterCompany && (
-                <View style={[styles.actionsRow, { borderTopColor: theme.colors.surface.border }]}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon="lock"
-                    label="Access"
-                    onPress={() => navigation.navigate('TenantModules', { companyId: c.id })}
-                    style={{ flex: 1 }}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon="edit"
-                    label="Edit"
-                    onPress={() => navigation.navigate('CompanyWizard', { companyId: c.id })}
-                    style={{ flex: 1 }}
-                  />
+              <View style={[styles.actionsRow, { borderTopColor: theme.colors.surface.border }]}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon="lock"
+                  label="Access"
+                  onPress={() => navigation.navigate('TenantModules', { companyId: c.id })}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon="edit"
+                  label="Edit"
+                  onPress={() => navigation.navigate('CompanyWizard', { companyId: c.id })}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon="refresh"
+                  label="Reset"
+                  onPress={() => handleResetPassword(c.id, c.name)}
+                  style={{ flex: 1 }}
+                />
+                {!isMasterCompany && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -239,8 +274,8 @@ export function CompanyManagementScreen({ navigation }: { navigation: any }) {
                     onPress={() => handleDelete(c.id, c.name)}
                     style={{ flex: 1 }}
                   />
-                </View>
-              )}
+                )}
+              </View>
             </Card>
           );
         })

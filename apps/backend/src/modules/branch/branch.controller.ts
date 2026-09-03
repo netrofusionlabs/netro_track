@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { BranchService } from './branch.service';
-import { AppRequest } from '../../shared/types/express';
+import { AuthenticatedRequest } from '../../shared/middlewares/auth.middleware';
 
 export class BranchController {
   private service: BranchService;
@@ -16,7 +16,7 @@ export class BranchController {
   }
 
   private getTargetCompanyId(req: Request): string {
-    const appReq = req as AppRequest;
+    const appReq = req as AuthenticatedRequest;
     const user = appReq.user;
     if (
       user &&
@@ -25,7 +25,7 @@ export class BranchController {
     ) {
       return (req.query.companyId || req.body.companyId) as string;
     }
-    return appReq.companyId;
+    return appReq.companyId || (user?.companyId as string);
   }
 
   async getBranches(req: Request, res: Response, next: NextFunction) {

@@ -9,6 +9,7 @@ import { useConsentStore } from './src/shared/stores/consentStore';
 import RootNavigator from './src/navigation/index';
 import { startSyncEngine } from './src/shared/utils/syncEngine';
 import { OfflineBanner } from './src/shared/components/OfflineBanner';
+import { GlobalLoadingBar } from './src/shared/components/GlobalLoadingBar';
 
 const SPLASH_BACKGROUND = '#E8ECF0';
 
@@ -52,6 +53,7 @@ function App() {
           <StatusBar barStyle="dark-content" backgroundColor={SPLASH_BACKGROUND} />
           {hydrated ? (
             <>
+              <GlobalLoadingBar />
               <OfflineBanner />
               <RootNavigator />
             </>

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { DepartmentService } from './department.service';
-import { AppRequest } from '../../shared/types/express';
+import { AuthenticatedRequest } from '../../shared/middlewares/auth.middleware';
 
 export class DepartmentController {
   private service: DepartmentService;
@@ -16,7 +16,7 @@ export class DepartmentController {
   }
 
   private getTargetCompanyId(req: Request): string {
-    const appReq = req as AppRequest;
+    const appReq = req as AuthenticatedRequest;
     const user = appReq.user;
     if (
       user &&
@@ -25,7 +25,7 @@ export class DepartmentController {
     ) {
       return (req.query.companyId || req.body.companyId) as string;
     }
-    return appReq.companyId;
+    return appReq.companyId || (user?.companyId as string);
   }
 
   async getDepartments(req: Request, res: Response, next: NextFunction) {

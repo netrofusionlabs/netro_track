@@ -35,29 +35,8 @@ export const CompanyWizardSchema = z.object({
     message: "Passwords don't match",
     path: ["confirmPassword"],
   }),
-  modules: z.object({
-    attendance: z.boolean().default(false),
-    leave: z.boolean().default(false),
-    shift: z.boolean().default(false),
-    gps: z.boolean().default(true),
-    payroll: z.boolean().default(false),
-    expense: z.boolean().default(false),
-    asset: z.boolean().default(false),
-    performance: z.boolean().default(false),
-    recruitment: z.boolean().default(false),
-    regularization: z.boolean().default(false),
-  }).default({
-    attendance: false,
-    leave: false,
-    shift: false,
-    gps: true,
-    payroll: false,
-    expense: false,
-    asset: false,
-    performance: false,
-    recruitment: false,
-    regularization: false,
-  })
+  modules: z.record(z.boolean()).optional().default({}),
+  capabilityIds: z.array(z.string()).optional().default([]),
 });
 
 export type CreateCompanyWizardInput = z.infer<typeof CompanyWizardSchema>;
@@ -65,6 +44,7 @@ export type CreateCompanyWizardInput = z.infer<typeof CompanyWizardSchema>;
 export const UpdateCompanySchema = CompanyProfileSchema.partial().extend({
   isGpsEnabled: z.boolean().optional(),
   modules: z.record(z.boolean()).optional(),
+  capabilityIds: z.array(z.string()).optional(),
 });
 
 export type UpdateCompanyInput = z.infer<typeof UpdateCompanySchema>;

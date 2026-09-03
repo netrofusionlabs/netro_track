@@ -109,6 +109,9 @@ model Company {
   modules        CompanyModule[]
   regularizations AttendanceRegularization[]
   policyAssignments PolicyAssignment[]
+  entitlements   CompanyEntitlement[]
+  accessGroups   AccessGroup[]
+  directPermissions UserDirectPermission[]
 
   @@map("companies")
 }
@@ -178,6 +181,10 @@ model User {
   uploadedFiles       File[]              @relation("UserUploadedFiles")
   regularizations     AttendanceRegularization[] @relation("regularization_user")
   approvedRegularizations AttendanceRegularization[] @relation("regularization_approver")
+  accessGroups        UserAccessGroup[]   @relation("UserAccessGroups")
+  directPermissions   UserDirectPermission[] @relation("UserDirectPermissions")
+  assignedUserAccessGroups UserAccessGroup[] @relation("AssignedByUserAccessGroups")
+  assignedDirectPermissions UserDirectPermission[] @relation("AssignedByUserDirectPerms")
 
   @@unique([companyId, employeeId])
   @@map("users")
@@ -624,4 +631,137 @@ model PolicyAssignment {
   @@index([companyId, policyType])
   @@index([targetType, targetId])
   @@map("policy_assignments")
+}
+
+// ============================================================================
+// ENTERPRISE DYNAMIC ACCESS CONTROL & AUTHORIZATION MODELS
+// ============================================================================
+
+enum CapabilityType {
+  MODULE
+  FEATURE
+  ACTION
+}
+
+/// Platform capability registry (Hierarchical tree of Modules, Features, Actions)
+model SystemCapability {
+  id          String         @id @default(uuid()) @db.Uuid
+  parentId    String?        @map("parent_id") @db.Uuid
+  type        CapabilityType
+  key         String         // e.g. "attendance", "regularization", "approve"
+  slug        String         @unique // e.g. "attendance", "attendance.regularization", "attendance.regularization.approve"
+  name        String         // Human-friendly label
+  description String?
+  icon        String?        // UI icon identifier
+  sortOrder   Int            @default(0) @map("sort_order")
+  isActive    Boolean        @default(true) @map("is_active")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  // Hierarchy relations
+  parent   SystemCapability?  @relation("CapabilityHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children SystemCapability[] @relation("CapabilityHierarchy")
+
+  // Entitlements & Permissions relations
+  tenantEntitlements   CompanyEntitlement[]
+  groupPermissions     AccessGroupPermission[]
+  userDirectPermissions UserDirectPermission[]
+
+  @@index([parentId])
+  @@index([type])
+  @@index([slug])
+  @@index([isActive])
+  @@map("system_capabilities")
+}
+
+/// Tenant Entitlement boundary (The Absolute Access Ceiling)
+model CompanyEntitlement {
+  id           String           @id @default(uuid()) @db.Uuid
+  companyId    String           @map("company_id") @db.Uuid
+  capabilityId String           @map("capability_id") @db.Uuid
+  isEnabled    Boolean          @default(true) @map("is_enabled")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  capability SystemCapability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, capabilityId])
+  @@index([companyId, isEnabled])
+  @@map("company_entitlements")
+}
+
+/// Tenant Access Groups (e.g. "Field Employee", "Supervisor", "Operations Lead")
+model AccessGroup {
+  id          String    @id @default(uuid()) @db.Uuid
+  companyId   String    @map("company_id") @db.Uuid
+  name        String
+  description String?
+  isSystem    Boolean   @default(false) @map("is_system") // Seeded system groups (protected against deletion)
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  company     Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  permissions AccessGroupPermission[]
+  userMembers UserAccessGroup[]
+
+  @@unique([companyId, name])
+  @@index([companyId, isActive])
+  @@map("access_groups")
+}
+
+/// Permissions assigned to an Access Group (Must strictly be ⊆ CompanyEntitlement)
+model AccessGroupPermission {
+  id            String   @id @default(uuid()) @db.Uuid
+  accessGroupId String   @map("access_group_id") @db.Uuid
+  capabilityId  String   @map("capability_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  accessGroup AccessGroup      @relation(fields: [accessGroupId], references: [id], onDelete: Cascade)
+  capability  SystemCapability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+
+  @@unique([accessGroupId, capabilityId])
+  @@index([accessGroupId])
+  @@index([capabilityId])
+  @@map("access_group_permissions")
+}
+
+/// User membership in Access Groups
+model UserAccessGroup {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  accessGroupId String   @map("access_group_id") @db.Uuid
+  assignedById  String?  @map("assigned_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user        User        @relation("UserAccessGroups", fields: [userId], references: [id], onDelete: Cascade)
+  accessGroup AccessGroup @relation(fields: [accessGroupId], references: [id], onDelete: Cascade)
+  assignedBy  User?       @relation("AssignedByUserAccessGroups", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, accessGroupId])
+  @@index([userId])
+  @@index([accessGroupId])
+  @@map("user_access_groups")
+}
+
+/// Direct User Permission Overrides (Must strictly be ⊆ CompanyEntitlement)
+model UserDirectPermission {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  capabilityId String   @map("capability_id") @db.Uuid
+  assignedById String?  @map("assigned_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user       User             @relation("UserDirectPermissions", fields: [userId], references: [id], onDelete: Cascade)
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  capability SystemCapability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+  assignedBy User?            @relation("AssignedByUserDirectPerms", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, capabilityId])
+  @@index([userId, companyId])
+  @@index([capabilityId])
+  @@map("user_direct_permissions")
 }

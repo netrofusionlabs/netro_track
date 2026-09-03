@@ -1,0 +1,300 @@
+<div class="page">
+  <netro-page-header
+    title="Access Groups & Permissions"
+    description="Define reusable group permission profiles and configure fine-grained capabilities within your organization's entitlement ceiling."
+  >
+    <div slot="actions" class="row row--nowrap">
+      <button
+        *ngIf="canManage()"
+        type="button"
+        class="btn btn--primary btn--sm"
+        (click)="openCreateDrawer()"
+      >
+        <netro-icon name="plus" [size]="14"></netro-icon>
+        <span>Create Access Group</span>
+      </button>
+    </div>
+  </netro-page-header>
+
+  <!-- Company Selector for Super Admins -->
+  <div *ngIf="isSuperAdmin()" class="company-selector-bar" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; margin-bottom: 8px;">
+    <netro-icon name="globe" [size]="16"></netro-icon>
+    <label style="font-size: 13px; font-weight: 600; color: var(--color-text-secondary);">Manage for Company:</label>
+    <select
+      class="select"
+      style="flex: 1; max-width: 360px;"
+      [ngModel]="selectedCompanyId()"
+      (ngModelChange)="onCompanyChange($event)"
+    >
+      <option value="">— Own Company (Default) —</option>
+      <option *ngFor="let c of companies()" [value]="c.id">{{ c.name }}</option>
+    </select>
+  </div>
+
+  <!-- Metrics Bar -->
+  <div class="grid grid--4">
+    <netro-metric
+      label="Total Groups"
+      [value]="totalGroups()"
+      icon="lock"
+      tone="neutral"
+      caption="Active & system access profiles"
+    ></netro-metric>
+    <netro-metric
+      label="System Defaults"
+      [value]="systemGroupsCount()"
+      icon="badge"
+      tone="neutral"
+      caption="Pre-configured enterprise roles"
+    ></netro-metric>
+    <netro-metric
+      label="Custom Profiles"
+      [value]="customGroupsCount()"
+      icon="settings"
+      tone="attention"
+      caption="Custom tenant access groups"
+    ></netro-metric>
+    <netro-metric
+      label="Active Profiles"
+      [value]="activeGroupsCount()"
+      icon="check-circle"
+      tone="neutral"
+      caption="Currently assigned and usable"
+    ></netro-metric>
+  </div>
+
+  <!-- Main Content Panel -->
+  <netro-panel [flush]="true" padding="none">
+    <!-- Toolbar -->
+    <netro-toolbar
+      [search]="searchQuery()"
+      searchPlaceholder="Search access groups by name or description..."
+      searchLabel="Search access groups"
+      (searchChange)="searchQuery.set($event)"
+    >
+      <div slot="actions" class="row row--nowrap">
+        <button type="button" class="btn btn--default btn--sm" (click)="loadData()" [disabled]="loading()">
+          <netro-icon name="refresh" [size]="13" [spin]="loading()"></netro-icon>
+          <span>Refresh</span>
+        </button>
+      </div>
+    </netro-toolbar>
+
+    <!-- Error State -->
+    <div *ngIf="error()" class="panel-padding">
+      <netro-alert tone="risk">{{ error() }}</netro-alert>
+    </div>
+
+    <!-- Loading Skeleton -->
+    <div *ngIf="loading()" class="panel-padding">
+      <netro-skeleton-rows [rows]="5"></netro-skeleton-rows>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!loading() && filteredGroups().length === 0" class="panel-padding">
+      <netro-state
+        icon="lock"
+        [title]="searchQuery() ? 'No matching access groups' : 'No Access Groups Found'"
+        [body]="searchQuery() ? 'Try widening your search terms.' : 'Access groups define reusable role profiles. Create your first access group to assign permissions to employees.'"
+      >
+        <button
+          *ngIf="canManage()"
+          type="button"
+          class="btn btn--primary"
+          (click)="openCreateDrawer()"
+        >
+          Create First Access Group
+        </button>
+      </netro-state>
+    </div>
+
+    <!-- Groups Table -->
+    <div *ngIf="!loading() && filteredGroups().length > 0" class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Access Group</th>
+            <th>Type</th>
+            <th>Assigned Members</th>
+            <th>Granted Capabilities</th>
+            <th>Status</th>
+            <th class="table__actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let group of filteredGroups()">
+            <td>
+              <div class="group-title-cell">
+                <span class="group-name">{{ group.name }}</span>
+                <span *ngIf="group.description" class="group-desc">{{ group.description }}</span>
+              </div>
+            </td>
+            <td>
+              <netro-badge *ngIf="group.isSystem" tone="info">System Default</netro-badge>
+              <netro-badge *ngIf="!group.isSystem" tone="neutral">Custom Profile</netro-badge>
+            </td>
+            <td>
+              <span class="member-count-tag">
+                <netro-icon name="people" [size]="13"></netro-icon>
+                <span>{{ group._count?.userMembers || 0 }} Users</span>
+              </span>
+            </td>
+            <td>
+              <span class="capability-count-tag">
+                <netro-icon name="check-circle" [size]="13"></netro-icon>
+                <span>{{ group._count?.permissions || 0 }} Capabilities</span>
+              </span>
+            </td>
+            <td>
+              <netro-badge [tone]="group.isActive ? 'ok' : 'neutral'">
+                {{ group.isActive ? 'Active' : 'Disabled' }}
+              </netro-badge>
+            </td>
+            <td class="table__actions">
+              <div class="row-actions">
+                <button
+                  *ngIf="canManage()"
+                  type="button"
+                  class="btn btn--subtle btn--sm btn--icon"
+                  title="Edit Group"
+                  (click)="openEditDrawer(group)"
+                >
+                  <netro-icon name="settings" [size]="14"></netro-icon>
+                </button>
+                <button
+                  *ngIf="canManage() && !group.isSystem"
+                  type="button"
+                  class="btn btn--subtle btn--sm btn--icon text-risk"
+                  title="Delete Group"
+                  (click)="deleteGroup(group)"
+                >
+                  <netro-icon name="trash" [size]="14"></netro-icon>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </netro-panel>
+
+  <!-- Access Group Builder Drawer -->
+  <netro-drawer
+    *ngIf="isDrawerOpen()"
+    [heading]="drawerMode() === 'create' ? 'Create Access Group' : 'Edit Access Group'"
+    sub="Configure permissions strictly within your tenant's capability entitlement boundary."
+    width="wide"
+    (closed)="closeDrawer()"
+  >
+    <div class="drawer-form">
+      <!-- Group Name -->
+      <div class="form-group">
+        <label class="form-label required">Access Group Name</label>
+        <input
+          type="text"
+          class="input"
+          placeholder="e.g. Field Supervisor, Regional Auditor, Operations Executive"
+          [ngModel]="formName()"
+          (ngModelChange)="formName.set($event)"
+          [disabled]="saving()"
+        />
+      </div>
+
+      <!-- Group Description -->
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea
+          class="textarea"
+          rows="2"
+          placeholder="Brief description of the responsibilities associated with this access profile..."
+          [ngModel]="formDescription()"
+          (ngModelChange)="formDescription.set($event)"
+          [disabled]="saving()"
+        ></textarea>
+      </div>
+
+      <!-- Active Toggle -->
+      <div class="form-group checkbox-group">
+        <label class="toggle-label">
+          <input
+            type="checkbox"
+            [ngModel]="formIsActive()"
+            (ngModelChange)="formIsActive.set($event)"
+            [disabled]="saving()"
+          />
+          <span>Enable this Access Group for user assignment</span>
+        </label>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Capability Selection Section -->
+      <div class="capabilities-section">
+        <div class="section-header">
+          <div>
+            <h4 class="section-title">Tenant Entitled Capabilities</h4>
+            <p class="section-subtitle">
+              Select the capabilities to grant to users belonging to this group.
+              <span class="highlight-tag">{{ selectedCapabilityIds().size }} Selected</span>
+            </p>
+          </div>
+        </div>
+
+        <div *ngIf="groupedCapabilities().length === 0" class="empty-caps-notice">
+          <netro-icon name="info" [size]="16"></netro-icon>
+          <span>No capabilities entitled yet. Create platform capabilities and ensure they are entitled for your company.</span>
+        </div>
+
+        <!-- Grouped Capabilities List -->
+        <div class="capability-modules-list" *ngIf="groupedCapabilities().length > 0">
+          <div
+            *ngFor="let mod of groupedCapabilities()"
+            class="capability-module-card"
+          >
+            <div class="module-header" (click)="toggleModuleAll(mod.actions)">
+              <div class="module-title-wrap">
+                <input
+                  type="checkbox"
+                  [checked]="isModuleAllSelected(mod.actions)"
+                  [indeterminate]="isModulePartiallySelected(mod.actions)"
+                  (click)="$event.stopPropagation(); toggleModuleAll(mod.actions)"
+                />
+                <span class="module-title">{{ mod.moduleName }}</span>
+              </div>
+              <span class="action-count-pill">{{ mod.actions.length }} Actions</span>
+            </div>
+
+            <div class="actions-grid">
+              <label
+                *ngFor="let act of mod.actions"
+                class="action-checkbox-card"
+                [class.selected]="selectedCapabilityIds().has(act.id)"
+              >
+                <input
+                  type="checkbox"
+                  [checked]="selectedCapabilityIds().has(act.id)"
+                  (change)="toggleCapability(act.id)"
+                />
+                <div class="action-info">
+                  <span class="action-name">{{ act.name }}</span>
+                  <span class="action-slug">{{ act.slug }}</span>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Drawer Footer Actions -->
+    <div slot="footer" class="row row--nowrap" style="justify-content: flex-end; gap: 8px;">
+      <button type="button" class="btn btn--default" (click)="closeDrawer()" [disabled]="saving()">
+        Cancel
+      </button>
+      <button type="button" class="btn btn--primary" (click)="saveGroup()" [disabled]="saving()">
+        <span *ngIf="saving()">Saving...</span>
+        <span *ngIf="!saving()">{{ drawerMode() === 'create' ? 'Create Group' : 'Save Changes' }}</span>
+      </button>
+    </div>
+  </netro-drawer>
+</div>

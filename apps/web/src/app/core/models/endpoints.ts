@@ -85,4 +85,15 @@ export const API = {
   profilePictureComplete: '/users/me/profile-picture/complete',
   uploadsPresignedUrl: '/uploads/presigned-url',
   uploadsDeleteFile: '/uploads/file',
+
+  /** Dynamic Access Control & Authorization */
+  platformCapabilities: '/authorization/capabilities',
+  platformCapability: (id: string) => `/authorization/capabilities/${id}`,
+  accessGroups: '/authorization/access-groups',
+  accessGroup: (id: string) => `/authorization/access-groups/${id}`,
+  availableCapabilities: '/authorization/available-capabilities',
+  userAccessProfile: (userId: string) => `/authorization/users/${userId}/access-profile`,
+  userAccessGroups: (userId: string) => `/authorization/users/${userId}/access-groups`,
+  userDirectPermissions: (userId: string) => `/authorization/users/${userId}/direct-permissions`,
+  tenantEntitlements: (companyId: string) => `/authorization/companies/${companyId}/entitlements`,
 } as const;

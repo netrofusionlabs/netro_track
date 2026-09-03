@@ -1,0 +1,252 @@
+<div class="capabilities-page">
+  <!-- Header -->
+  <header class="page-header">
+    <div>
+      <div class="breadcrumbs">
+        <span>Configurations</span>
+        <span class="sep">/</span>
+        <span class="current">Platform Capabilities</span>
+      </div>
+      <h1 class="page-title">Platform Capability Registry</h1>
+      <p class="page-subtitle">
+        Define and manage the global hierarchy of Modules, Submodules, and Actions across the SaaS platform.
+      </p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" (click)="loadCapabilities()" [disabled]="loading()">
+        Refresh
+      </button>
+      <button class="btn btn-primary" (click)="openCreateModal('MODULE')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        Add Platform Module
+      </button>
+    </div>
+  </header>
+
+  <!-- Alerts -->
+  <div *ngIf="successMessage()" class="alert alert-success">
+    {{ successMessage() }}
+  </div>
+  <div *ngIf="errorMessage()" class="alert alert-danger">
+    {{ errorMessage() }}
+  </div>
+
+  <!-- Search & Stats Bar -->
+  <div class="toolbar-card">
+    <div class="search-box">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input
+        type="text"
+        placeholder="Search modules, submodules, actions or slugs..."
+        [value]="searchQuery()"
+        (input)="searchQuery.set($any($event.target).value)"
+      />
+    </div>
+    <div class="stats-badge">
+      Total Modules: <strong>{{ capabilities().length }}</strong>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading()" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading platform capability registry...</p>
+  </div>
+
+  <!-- Modules Tree -->
+  <div *ngIf="!loading()" class="tree-container">
+    <div *ngFor="let mod of filteredCapabilities()" class="module-card">
+      <!-- Module Header -->
+      <div class="module-header">
+        <div class="module-info">
+          <div class="module-icon-badge">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+          </div>
+          <div>
+            <div class="name-row">
+              <h3 class="module-name">{{ mod.name }}</h3>
+              <span class="badge badge-module">MODULE</span>
+              <code class="slug-tag">{{ mod.slug }}</code>
+            </div>
+            <p *ngIf="mod.description" class="desc-text">{{ mod.description }}</p>
+          </div>
+        </div>
+        <div class="node-actions">
+          <button class="btn-icon" title="Add Submodule under this Module" (click)="openCreateModal('FEATURE', mod)">
+            + Add Submodule
+          </button>
+          <button class="btn-icon text-btn" (click)="openEditModal(mod)">Edit</button>
+          <button class="btn-icon text-btn danger" (click)="deactivateCapability(mod)">Deactivate</button>
+        </div>
+      </div>
+
+      <!-- Submodules (Features) -->
+      <div class="submodules-list">
+        <div *ngFor="let sub of mod.children" class="submodule-card">
+          <div class="submodule-header">
+            <div class="submodule-info">
+              <div class="sub-dot"></div>
+              <div>
+                <div class="name-row">
+                  <h4 class="sub-name">{{ sub.name }}</h4>
+                  <span class="badge badge-feature">SUBMODULE</span>
+                  <code class="slug-tag">{{ sub.slug }}</code>
+                </div>
+                <p *ngIf="sub.description" class="desc-text">{{ sub.description }}</p>
+              </div>
+            </div>
+            <div class="node-actions">
+              <button class="btn-icon mini" (click)="openCreateModal('ACTION', sub)">+ Action</button>
+              <button class="btn-icon text-btn mini" (click)="openEditModal(sub)">Edit</button>
+              <button class="btn-icon text-btn mini danger" (click)="deactivateCapability(sub)">Deactivate</button>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div *ngIf="sub.children && sub.children.length > 0" class="actions-grid">
+            <div *ngFor="let act of sub.children" class="action-chip">
+              <div class="action-details">
+                <span class="action-name">{{ act.name }}</span>
+                <code class="action-slug">{{ act.slug }}</code>
+              </div>
+              <div class="chip-actions">
+                <button class="chip-btn" (click)="openEditModal(act)" title="Edit action">✎</button>
+                <button class="chip-btn danger" (click)="deactivateCapability(act)" title="Deactivate">×</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="!mod.children || mod.children.length === 0" class="empty-submodules">
+          <span>No submodules defined yet.</span>
+          <button class="link-btn" (click)="openCreateModal('FEATURE', mod)">+ Add first submodule</button>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="filteredCapabilities().length === 0" class="empty-state">
+      <p>No platform capabilities match your search.</p>
+    </div>
+  </div>
+
+  <!-- Drawer / Modal for Creating & Editing Capabilities -->
+  <div *ngIf="isDrawerOpen()" class="modal-overlay" (click)="closeDrawer()">
+    <div class="drawer" (click)="$event.stopPropagation()">
+      <div class="drawer-header">
+        <div>
+          <h2>
+            {{ drawerMode() === 'CREATE' ? 'Add Platform Capability' : 'Edit Capability' }}
+          </h2>
+          <p class="drawer-subtitle">
+            {{
+              drawerMode() === 'CREATE'
+                ? 'Register a new Module, Submodule, or Action to the system hierarchy.'
+                : 'Modify display name and metadata for this capability.'
+            }}
+          </p>
+        </div>
+        <button class="close-btn" (click)="closeDrawer()">✕</button>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="saveCapability()" class="drawer-body">
+        <!-- Capability Type -->
+        <div class="form-group" *ngIf="drawerMode() === 'CREATE'">
+          <label>Capability Type</label>
+          <div class="type-selector">
+            <label class="type-opt" [class.selected]="form.get('type')?.value === 'MODULE'">
+              <input type="radio" formControlName="type" value="MODULE" />
+              <span>Module</span>
+            </label>
+            <label class="type-opt" [class.selected]="form.get('type')?.value === 'FEATURE'">
+              <input type="radio" formControlName="type" value="FEATURE" />
+              <span>Submodule (Feature)</span>
+            </label>
+            <label class="type-opt" [class.selected]="form.get('type')?.value === 'ACTION'">
+              <input type="radio" formControlName="type" value="ACTION" />
+              <span>Action</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Parent Selector (for Submodule or Action) -->
+        <div class="form-group" *ngIf="form.get('type')?.value !== 'MODULE' && drawerMode() === 'CREATE'">
+          <label>Parent Node</label>
+          <select formControlName="parentId" class="form-control">
+            <option [ngValue]="null">-- Select Parent --</option>
+            <option *ngFor="let p of availableParents()" [ngValue]="p.id">
+              [{{ p.type }}] {{ p.name }} ({{ p.slug }})
+            </option>
+          </select>
+        </div>
+
+        <!-- Stable Key -->
+        <div class="form-group">
+          <label>Machine-Readable Key <span class="req">*</span></label>
+          <input
+            type="text"
+            formControlName="key"
+            class="form-control"
+            placeholder="e.g. vehicle_tracking"
+            [readonly]="drawerMode() === 'EDIT'"
+          />
+          <small class="help-text" *ngIf="drawerMode() === 'CREATE'">
+            Lowercase alphanumeric with underscores. This generates the unique authorization slug.
+          </small>
+        </div>
+
+        <!-- Display Name -->
+        <div class="form-group">
+          <label>Display Label <span class="req">*</span></label>
+          <input
+            type="text"
+            formControlName="name"
+            class="form-control"
+            placeholder="e.g. Vehicle Tracking"
+          />
+        </div>
+
+        <!-- Description -->
+        <div class="form-group">
+          <label>Description</label>
+          <textarea
+            formControlName="description"
+            class="form-control"
+            rows="2"
+            placeholder="Explain what this capability does..."
+          ></textarea>
+        </div>
+
+        <!-- Sort Order -->
+        <div class="form-row">
+          <div class="form-group half">
+            <label>Icon Identifier</label>
+            <input type="text" formControlName="icon" class="form-control" placeholder="box, truck, clock..." />
+          </div>
+          <div class="form-group half">
+            <label>Sort Order</label>
+            <input type="number" formControlName="sortOrder" class="form-control" placeholder="10" />
+          </div>
+        </div>
+
+        <!-- Drawer Footer -->
+        <div class="drawer-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeDrawer()" [disabled]="saving()">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-primary" [disabled]="saving() || form.invalid">
+            {{ saving() ? 'Saving...' : 'Save Capability' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

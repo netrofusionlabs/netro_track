@@ -126,6 +126,14 @@
                       <netro-icon name="people" [size]="14" /> Workforce
                     </button>
                     <button
+                      type="button"
+                      class="btn btn--subtle btn--sm"
+                      [attr.aria-label]="'Reset administrator password for ' + c.name"
+                      (click)="resetPassword(c)"
+                    >
+                      <netro-icon name="key" [size]="14" /> Reset Password
+                    </button>
+                    <button
                       *ngIf="!isMasterCompany(c)"
                       type="button"
                       class="btn btn--subtle btn--sm"
@@ -182,6 +190,9 @@
         </button>
         <button type="button" class="btn btn--default btn--sm" (click)="startEdit(c)">
           <netro-icon name="edit" [size]="14" /> Edit Profile
+        </button>
+        <button type="button" class="btn btn--default btn--sm" (click)="resetPassword(c)">
+          <netro-icon name="key" [size]="14" /> Reset Password
         </button>
         <button type="button" class="btn btn--default btn--sm" (click)="toggleStatus(c)">
           <netro-icon [name]="c.status === 'INACTIVE' ? 'check' : 'x-circle'" [size]="14" />
@@ -487,42 +498,83 @@
       </div>
 
       <!-- Step 4: HRMS Modules (Step 3 in edit mode) -->
-      <div formGroupName="modules" *ngIf="step() === (isEditMode() ? 3 : 4)" class="stack stack--md">
+      <div *ngIf="step() === (isEditMode() ? 3 : 4)" class="stack stack--md">
         <p class="text-small text-subtle">
-          Configure enabled HRMS capabilities for this tenant company. Attendance serves as the core foundation for field tracking and regularizations.
+          Configure enabled capabilities, submodules, and granular actions for this tenant company from the Platform Capabilities registry.
         </p>
 
-        <!-- Attendance Master Toggle -->
-        <div class="module-card">
-          <label class="module-row">
-            <div class="module-info">
-              <span class="module-title">Attendance</span>
-              <span class="module-desc">Punch-in/out, live shift timesheets, and attendance policies.</span>
-            </div>
-            <input type="checkbox" formControlName="attendance" class="toggle-switch" />
-          </label>
+        @if (platformCapabilities().length === 0) {
+          <div class="empty-state-notice" style="padding: 16px; background: var(--surface-subtle); border-radius: var(--r-md); border: 1px solid var(--line); color: var(--fg-muted);">
+            <span>No platform capabilities registered yet. Go to Platform Capabilities to register modules.</span>
+          </div>
+        }
 
-          <!-- Nested Sub-Modules (GPS & Regularization) -->
-          @if (wizard.controls.modules.controls.attendance.value) {
-            <div class="module-nested">
-              <label class="module-row">
-                <div class="module-info">
-                  <span class="module-title">GPS Tracking</span>
-                  <span class="module-desc">Track live worker locations, movement breadcrumbs, and route replays during duty.</span>
+        @for (mod of platformCapabilities(); track mod.id) {
+          <div class="module-card" style="border: 1px solid var(--line); border-radius: var(--r-md); padding: 16px; background: var(--surface); margin-bottom: 12px;">
+            <!-- Module Row -->
+            <label class="module-row" style="display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer;">
+              <div class="module-info" style="display: flex; flex-direction: column; gap: 2px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="module-title" style="font-weight: 600; font-size: 14px; color: var(--fg);">{{ mod.name }}</span>
+                  <code style="font-size: 11px; font-family: var(--font-mono); color: var(--fg-muted); background: var(--surface-subtle); padding: 2px 6px; border-radius: 4px;">{{ mod.slug }}</code>
                 </div>
-                <input type="checkbox" formControlName="gps" class="toggle-switch" />
-              </label>
+                <span class="module-desc" *ngIf="mod.description" style="font-size: 12px; color: var(--fg-muted);">{{ mod.description }}</span>
+              </div>
+              <input
+                type="checkbox"
+                [checked]="isCapabilitySelected(mod.id)"
+                (change)="toggleModule(mod)"
+                style="width: 18px; height: 18px; accent-color: var(--brand-600); cursor: pointer;"
+              />
+            </label>
 
-              <label class="module-row">
-                <div class="module-info">
-                  <span class="module-title">Attendance Regularization</span>
-                  <span class="module-desc">Allow field employees to request punch corrections and allow managers to approve them.</span>
-                </div>
-                <input type="checkbox" formControlName="regularization" class="toggle-switch" />
-              </label>
-            </div>
-          }
-        </div>
+            <!-- Nested Submodules -->
+            @if (mod.children && mod.children.length > 0) {
+              <div class="module-nested" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-subtle); margin-left: 16px; border-left: 2px solid var(--brand-300); padding-left: 12px; display: flex; flex-direction: column; gap: 12px;">
+                @for (sub of mod.children; track sub.id) {
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Submodule Row -->
+                    <label class="module-row" style="display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer;">
+                      <div class="module-info" style="display: flex; flex-direction: column; gap: 2px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                          <span class="module-title" style="font-weight: 500; font-size: 13px; color: var(--fg);">{{ sub.name }}</span>
+                          <code style="font-size: 10px; font-family: var(--font-mono); color: var(--fg-subtle);">{{ sub.slug }}</code>
+                        </div>
+                        <span class="module-desc" *ngIf="sub.description" style="font-size: 11px; color: var(--fg-muted);">{{ sub.description }}</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        [checked]="isCapabilitySelected(sub.id)"
+                        (change)="toggleSubmodule(mod, sub)"
+                        style="width: 16px; height: 16px; accent-color: var(--brand-600); cursor: pointer;"
+                      />
+                    </label>
+
+                    <!-- Nested Actions under Submodule -->
+                    @if (sub.children && sub.children.length > 0) {
+                      <div style="margin-left: 16px; border-left: 2px dashed var(--line); padding-left: 10px; display: flex; flex-direction: column; gap: 6px;">
+                        @for (act of sub.children; track act.id) {
+                          <label style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 4px 0;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                              <span style="font-size: 12px; color: var(--fg);">{{ act.name }}</span>
+                              <code style="font-size: 10px; font-family: var(--font-mono); color: var(--fg-muted); background: var(--surface-subtle); padding: 1px 4px; border-radius: 3px;">{{ act.slug }}</code>
+                            </div>
+                            <input
+                              type="checkbox"
+                              [checked]="isCapabilitySelected(act.id)"
+                              (change)="toggleAction(mod, sub, act)"
+                              style="width: 15px; height: 15px; accent-color: var(--brand-600); cursor: pointer;"
+                            />
+                          </label>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
       </div>
 
       <!-- Step 5: Review Summary (Step 4 in edit mode) -->
@@ -564,8 +616,54 @@
         }
 
         <div class="review-card">
-          <h4 class="review-heading">Active Modules</h4>
-          <p class="review-modules-text">{{ activeModulesSummary() }}</p>
+          <h4 class="review-heading" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Enabled Modules & Capabilities</span>
+            <span class="badge badge--brand" style="font-size: 11px; font-weight: 500;">
+              {{ selectedCapabilitiesDetailed().length }} {{ selectedCapabilitiesDetailed().length === 1 ? 'Module' : 'Modules' }} Active
+            </span>
+          </h4>
+
+          @if (selectedCapabilitiesDetailed().length === 0) {
+            <p class="review-modules-text" style="color: var(--fg-muted);">No modules or capabilities selected.</p>
+          } @else {
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
+              @for (mod of selectedCapabilitiesDetailed(); track mod.id) {
+                <div style="background: var(--surface-subtle); border: 1px solid var(--line-subtle); border-radius: var(--r-md); padding: 12px 14px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="font-weight: 600; font-size: 14px; color: var(--fg);">{{ mod.name }}</span>
+                      <code style="font-size: 11px; font-family: var(--font-mono); color: var(--fg-muted); background: var(--surface); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--line-subtle);">{{ mod.slug }}</code>
+                    </div>
+                  </div>
+
+                  @if (mod.submodules.length > 0) {
+                    <div style="margin-top: 10px; margin-left: 12px; border-left: 2px solid var(--brand-400); padding-left: 12px; display: flex; flex-direction: column; gap: 8px;">
+                      @for (sub of mod.submodules; track sub.id) {
+                        <div>
+                          <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-weight: 500; font-size: 13px; color: var(--fg);">{{ sub.name }}</span>
+                            <code style="font-size: 10px; font-family: var(--font-mono); color: var(--fg-subtle);">{{ sub.slug }}</code>
+                          </div>
+
+                          @if (sub.actions.length > 0) {
+                            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; margin-left: 8px;">
+                              @for (act of sub.actions; track act.id) {
+                                <span style="display: inline-flex; align-items: center; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 2px 8px; font-size: 11px; color: var(--fg);">
+                                  <span style="width: 5px; height: 5px; border-radius: 50%; background: var(--brand-600);"></span>
+                                  <span>{{ act.name }}</span>
+                                  <code style="font-size: 9px; color: var(--fg-muted);">({{ act.slug }})</code>
+                                </span>
+                              }
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
         </div>
       </div>
 
@@ -691,76 +789,86 @@
     (closed)="modulesDrawerOpen.set(false)"
   >
   <div class="drawer__body" style="padding: 24px;">
-    <p class="field__hint" style="margin-bottom: 24px;">Enable or disable modules for this tenant. This will restrict their access to these features platform-wide.</p>
+    <p class="field__hint" style="margin-bottom: 24px;">Configure entitled capabilities and modules for this tenant from the Platform Capabilities registry.</p>
     
     <div style="display: flex; flex-direction: column; gap: 16px;">
-      <!-- Attendance Master Toggle -->
-      <div class="field" style="border: 1px solid var(--line-subtle); padding: var(--s-3) var(--s-4); border-radius: var(--r-md); background: var(--surface-sunken);">
-        <div class="row row--center row--nowrap" style="justify-content: space-between;">
-          <div class="row row--center row--nowrap" style="gap: 16px;">
-            <div style="width: 40px; height: 40px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line-subtle); display: flex; align-items: center; justify-content: center;">
-              <netro-icon name="clock" [size]="20" style="color: var(--brand-600);" />
-            </div>
-            <div>
-              <label class="field__label" style="color: var(--fg); font-weight: 500; font-size: 14px; margin-bottom: 2px;">Attendance</label>
-              <span class="field__hint">Punch-in/out, live shift timesheets, and attendance policies.</span>
-            </div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" [checked]="activeModules()['attendance']" (change)="toggleModule('attendance', !activeModules()['attendance'])">
-            <div class="switch__track"><div class="switch__thumb"></div></div>
-          </label>
+      @if (isLoadingEntitlements()) {
+        <div style="padding: 32px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--fg-muted);">
+          <netro-icon name="spinner" [size]="24" [spin]="true" style="color: var(--brand-600);" />
+          <span style="font-size: 13px;">Loading tenant access permissions...</span>
         </div>
+      } @else if (platformCapabilities().length === 0) {
+        <div style="padding: 16px; background: var(--surface-subtle); border-radius: var(--r-md); border: 1px solid var(--line); color: var(--fg-muted);">
+          <span>No platform capabilities registered.</span>
+        </div>
+      } @else {
 
-        @if (activeModules()['attendance']) {
-          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line-subtle); display: flex; flex-direction: column; gap: 16px;">
-            <!-- Nested GPS Tracking -->
-            <div class="row row--center row--nowrap" style="justify-content: space-between;">
-              <div class="row row--center row--nowrap" style="gap: 16px;">
-                <div style="width: 40px; height: 40px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line-subtle); display: flex; align-items: center; justify-content: center;">
-                  <netro-icon name="location" [size]="20" style="color: var(--brand-600);" />
-                </div>
-                <div>
-                  <label class="field__label" style="color: var(--fg); font-weight: 500; font-size: 14px; margin-bottom: 2px;">GPS Tracking</label>
-                  <span class="field__hint">Track live worker locations, movement breadcrumbs, and route replays during duty.</span>
-                </div>
+      @for (mod of platformCapabilities(); track mod.id) {
+        <div style="border: 1px solid var(--line); border-radius: var(--r-md); padding: 16px; background: var(--surface);">
+          <div class="row row--center row--nowrap" style="justify-content: space-between;">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-weight: 600; font-size: 14px; color: var(--fg);">{{ mod.name }}</span>
+                <code style="font-size: 11px; font-family: var(--font-mono); color: var(--fg-muted); background: var(--surface-subtle); padding: 2px 6px; border-radius: 4px;">{{ mod.slug }}</code>
               </div>
-              <label class="switch">
-                <input type="checkbox" [checked]="activeModules()['gps']" (change)="toggleModule('gps', !activeModules()['gps'])">
-                <div class="switch__track"><div class="switch__thumb"></div></div>
-              </label>
+              <span class="field__hint" *ngIf="mod.description">{{ mod.description }}</span>
             </div>
-
-            <!-- Nested Regularization -->
-            <div class="row row--center row--nowrap" style="justify-content: space-between;">
-              <div class="row row--center row--nowrap" style="gap: 16px;">
-                <div style="width: 40px; height: 40px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line-subtle); display: flex; align-items: center; justify-content: center;">
-                  <netro-icon name="history" [size]="20" style="color: var(--brand-600);" />
-                </div>
-                <div>
-                  <label class="field__label" style="color: var(--fg); font-weight: 500; font-size: 14px; margin-bottom: 2px;">Attendance Regularization</label>
-                  <span class="field__hint">Allow field employees to request punch corrections and allow managers to approve them.</span>
-                </div>
-              </div>
-              <label class="switch">
-                <input type="checkbox" [checked]="activeModules()['regularization']" (change)="toggleModule('regularization', !activeModules()['regularization'])">
-                <div class="switch__track"><div class="switch__thumb"></div></div>
-              </label>
-            </div>
+            <label class="switch">
+              <input type="checkbox" [checked]="isCapabilitySelected(mod.id)" (change)="toggleModule(mod)">
+              <div class="switch__track"><div class="switch__thumb"></div></div>
+            </label>
           </div>
-        }
-      </div>
 
+          @if (mod.children && mod.children.length > 0) {
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line-subtle); margin-left: 16px; border-left: 2px solid var(--brand-300); padding-left: 12px; display: flex; flex-direction: column; gap: 12px;">
+              @for (sub of mod.children; track sub.id) {
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <div class="row row--center row--nowrap" style="justify-content: space-between;">
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-weight: 500; font-size: 13px; color: var(--fg);">{{ sub.name }}</span>
+                        <code style="font-size: 10px; font-family: var(--font-mono); color: var(--fg-subtle);">{{ sub.slug }}</code>
+                      </div>
+                      <span class="field__hint" *ngIf="sub.description">{{ sub.description }}</span>
+                    </div>
+                    <label class="switch">
+                      <input type="checkbox" [checked]="isCapabilitySelected(sub.id)" (change)="toggleSubmodule(mod, sub)">
+                      <div class="switch__track"><div class="switch__thumb"></div></div>
+                    </label>
+                  </div>
+
+                  <!-- Actions -->
+                  @if (sub.children && sub.children.length > 0) {
+                    <div style="margin-left: 16px; border-left: 2px dashed var(--line); padding-left: 10px; display: flex; flex-direction: column; gap: 6px;">
+                      @for (act of sub.children; track act.id) {
+                        <div class="row row--center row--nowrap" style="justify-content: space-between; padding: 4px 0;">
+                          <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 12px; color: var(--fg);">{{ act.name }}</span>
+                            <code style="font-size: 10px; font-family: var(--font-mono); color: var(--fg-muted); background: var(--surface-subtle); padding: 1px 4px; border-radius: 3px;">{{ act.slug }}</code>
+                          </div>
+                          <label class="switch" style="transform: scale(0.85); transform-origin: right center;">
+                            <input type="checkbox" [checked]="isCapabilitySelected(act.id)" (change)="toggleAction(mod, sub, act)">
+                            <div class="switch__track"><div class="switch__thumb"></div></div>
+                          </label>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+      }
     </div>
   </div>
 
-  <ng-container drawer-footer>
-    <div style="display: flex; justify-content: flex-end; gap: 12px; width: 100%;">
-      <button type="button" class="btn btn--default" (click)="modulesDrawerOpen.set(false)">Cancel</button>
-      <button type="button" class="btn btn--primary" [class.is-loading]="isSavingModules()" [disabled]="isSavingModules()" (click)="saveModules()">
-        Save Access
-      </button>
-    </div>
-  </ng-container>
+  <div slot="footer" style="display: flex; justify-content: flex-end; gap: 12px; width: 100%;">
+    <button type="button" class="btn btn--default" (click)="modulesDrawerOpen.set(false)">Cancel</button>
+    <button type="button" class="btn btn--primary" [class.is-loading]="isSavingModules()" [disabled]="isSavingModules()" (click)="saveModules()">
+      Save Access
+    </button>
+  </div>
 </netro-drawer>
 }

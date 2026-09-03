@@ -59,7 +59,7 @@ export const DEFAULT_SEED_CONFIG: SeedConfig = {
 export async function seedDatabase(config: SeedConfig = DEFAULT_SEED_CONFIG) {
   const existingCompaniesCount = await prisma.company.count();
   if (existingCompaniesCount > 0) {
-    console.log('✅ Database is already populated. Skipping default seed sync to prevent overwriting user passwords.');
+    console.log('✅ Database is already populated. Skipping seed.');
     return;
   }
 

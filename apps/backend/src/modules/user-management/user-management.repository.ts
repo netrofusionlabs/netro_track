@@ -122,6 +122,14 @@ export class UserManagementRepository {
           designation: {
             select: { id: true, name: true },
           },
+          accessGroups: {
+            select: {
+              accessGroupId: true,
+              accessGroup: {
+                select: { id: true, name: true, description: true, isSystem: true },
+              },
+            },
+          },
           _count: {
             select: { subordinates: { where: { deletedAt: null } } },
           },
@@ -157,6 +165,14 @@ export class UserManagementRepository {
         branch: true,
         department: true,
         designation: true,
+        accessGroups: {
+          select: {
+            accessGroupId: true,
+            accessGroup: {
+              select: { id: true, name: true, description: true, isSystem: true },
+            },
+          },
+        },
         _count: {
           select: { subordinates: { where: { deletedAt: null } } },
         },

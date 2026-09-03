@@ -8,12 +8,14 @@ import { prisma } from '../../shared/config/prisma';
 import { getCachedOrgChartData, cacheOrgChartData, invalidateOrgChartCache } from '../../shared/config/redis';
 import argon2 from 'argon2';
 import { CreateUserInput, UpdateUserInput, RemoveManagerInput, ROLE_DISPLAY_LABELS, UserRole } from '@netrotrack/shared';
+import { PermissionService } from '../../shared/services/permission.service';
 
 export class UserManagementService {
   private userRepo = new UserManagementRepository();
   private timelineRepo = new TimelineRepository(prisma);
   private authService = new AuthorizationService();
   private auditService = new AuditService();
+  private permissionService = PermissionService.getInstance();
 
   /**
    * List users in company scope with filters and pagination.
@@ -384,17 +386,50 @@ export class UserManagementService {
     const rawPassword = input.password || 'Password123!';
     const passwordHash = await argon2.hash(rawPassword);
 
-    // Evaluate GPS tracking permission based on Company policy
+    // Evaluate GPS tracking and Custom Policy permission based on Company dynamic entitlements
     let finalIsGpsTracked = (input as any).isGpsTracked ?? true;
+    let finalAttendancePolicyId = input.attendancePolicyId || null;
     const resolvedCompanyId = targetCompanyId || actor.companyId;
+
     if (resolvedCompanyId) {
       const targetCompany = await prisma.company.findUnique({ where: { id: resolvedCompanyId } });
-      if (targetCompany && targetCompany.isGpsEnabled === false) {
-        finalIsGpsTracked = false; // Company policy overrides user setting
+      const isPlatformComp = targetCompany?.code === 'NETRO' || (targetCompany?.name.toLowerCase().includes('netro') ?? false);
+
+      if (!isPlatformComp) {
+        const companyEntitledSlugs = await this.permissionService.getTenantEntitledSlugs(resolvedCompanyId);
+        
+        // 1. GPS Tracking slug validation
+        if (companyEntitledSlugs.size > 0) {
+          if (!companyEntitledSlugs.has('attendance.punchin_punchout.gps_tracking')) {
+            finalIsGpsTracked = false;
+          }
+        } else if (targetCompany && targetCompany.isGpsEnabled === false) {
+          finalIsGpsTracked = false;
+        }
+
+        // 2. Custom Policy Management slug validation
+        if (finalAttendancePolicyId) {
+          if (companyEntitledSlugs.size > 0) {
+            const hasCustomPolicy = Array.from(companyEntitledSlugs).some(
+              (s) => s === 'custom_policy_management' || s.startsWith('custom_policy_management.')
+            );
+            if (!hasCustomPolicy) {
+              finalAttendancePolicyId = null;
+            }
+          }
+        }
       }
     }
 
-    // Perform user creation and initial timeline records inside ONE database transaction
+    // Resolve actor and manager names in parallel before opening transaction
+    const [actorUser, mgrUser] = await Promise.all([
+      actor.id ? prisma.user.findUnique({ where: { id: actor.id }, select: { name: true } }) : null,
+      finalManagerId ? prisma.user.findUnique({ where: { id: finalManagerId }, select: { name: true } }) : null,
+    ]);
+    const actorName = actorUser?.name || 'System Administrator';
+    const effectiveDate = new Date();
+
+    // Perform user creation and initial timeline records inside ONE database transaction with extended timeout
     const newUser = await prisma.$transaction(async (tx) => {
       let finalDesignationId = input.designationId;
       const desigName = input.designationName ? input.designationName.trim() : null;
@@ -438,30 +473,49 @@ export class UserManagementService {
           branch: input.branchId ? { connect: { id: input.branchId } } : undefined,
           department: input.departmentId ? { connect: { id: input.departmentId } } : undefined,
           designation: finalDesignationId ? { connect: { id: finalDesignationId } } : undefined,
-          attendancePolicy: input.attendancePolicyId ? { connect: { id: input.attendancePolicyId } } : undefined,
+          attendancePolicy: finalAttendancePolicyId ? { connect: { id: finalAttendancePolicyId } } : undefined,
         },
       });
 
-      const actorUser = actor.id ? await tx.user.findUnique({ where: { id: actor.id } }) : null;
-      const actorName = actorUser?.name || 'System Administrator';
-      const effectiveDate = new Date();
+      // Link custom Access Groups if provided
+      if (input.accessGroupIds && input.accessGroupIds.length > 0 && resolvedCompanyId) {
+        const validGroups = await tx.accessGroup.findMany({
+          where: {
+            id: { in: input.accessGroupIds },
+            companyId: resolvedCompanyId,
+            deletedAt: null,
+            isActive: true,
+          },
+          select: { id: true },
+        });
 
-      // 1. Record Onboarding Timeline Event
-      await this.timelineRepo.createTimelineEventInTx(tx, {
-        userId: created.id,
-        companyId: resolvedCompanyId,
-        eventType: TimelineEventType.ONBOARDING,
-        title: 'Onboarding',
-        description: `Employee onboarded to company`,
-        newValue: 'Joined Organization',
-        changedByUserId: actor.id || null,
-        changedByName: actorName,
-        effectiveDate,
-      });
+        if (validGroups.length > 0) {
+          await tx.userAccessGroup.createMany({
+            data: validGroups.map((g) => ({
+              userId: created.id,
+              accessGroupId: g.id,
+              assignedById: actor.id || null,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
 
-      // 2. Record Designation Assigned Timeline Event
-      if (desigName) {
-        await this.timelineRepo.createTimelineEventInTx(tx, {
+      // Batch initial timeline records into a single multi-row insert
+      const roleLabel = ROLE_DISPLAY_LABELS[created.role as unknown as UserRole] || created.role;
+      const initialTimelineEvents = [
+        {
+          userId: created.id,
+          companyId: resolvedCompanyId,
+          eventType: TimelineEventType.ONBOARDING,
+          title: 'Onboarding',
+          description: `Employee onboarded to company`,
+          newValue: 'Joined Organization',
+          changedByUserId: actor.id || null,
+          changedByName: actorName,
+          effectiveDate,
+        },
+        ...(desigName ? [{
           userId: created.id,
           companyId: resolvedCompanyId,
           eventType: TimelineEventType.DESIGNATION_ASSIGNED,
@@ -471,47 +525,46 @@ export class UserManagementService {
           changedByUserId: actor.id || null,
           changedByName: actorName,
           effectiveDate,
-        });
-      }
+        }] : []),
+        {
+          userId: created.id,
+          companyId: resolvedCompanyId,
+          eventType: TimelineEventType.ACCESS_ROLE_ASSIGNED,
+          title: 'Access Role Assigned',
+          previousValue: null,
+          newValue: roleLabel,
+          changedByUserId: actor.id || null,
+          changedByName: actorName,
+          effectiveDate,
+        },
+        ...(mgrUser ? [{
+          userId: created.id,
+          companyId: resolvedCompanyId,
+          eventType: TimelineEventType.MANAGER_ASSIGNED,
+          title: 'Reporting Manager Assigned',
+          previousValue: null,
+          newValue: mgrUser.name,
+          changedByUserId: actor.id || null,
+          changedByName: actorName,
+          effectiveDate,
+        }] : []),
+      ];
 
-      // 3. Record Access Role Assigned Timeline Event
-      const roleLabel = ROLE_DISPLAY_LABELS[created.role as unknown as UserRole] || created.role;
-      await this.timelineRepo.createTimelineEventInTx(tx, {
-        userId: created.id,
-        companyId: resolvedCompanyId,
-        eventType: TimelineEventType.ACCESS_ROLE_ASSIGNED,
-        title: 'Access Role Assigned',
-        previousValue: null,
-        newValue: roleLabel,
-        changedByUserId: actor.id || null,
-        changedByName: actorName,
-        effectiveDate,
-      });
-
-      // 4. Record Reporting Manager Assigned Timeline Event
-      if (finalManagerId) {
-        const mgr = await tx.user.findUnique({ where: { id: finalManagerId } });
-        if (mgr) {
-          await this.timelineRepo.createTimelineEventInTx(tx, {
-            userId: created.id,
-            companyId: resolvedCompanyId,
-            eventType: TimelineEventType.MANAGER_ASSIGNED,
-            title: 'Reporting Manager Assigned',
-            previousValue: null,
-            newValue: mgr.name,
-            changedByUserId: actor.id || null,
-            changedByName: actorName,
-            effectiveDate,
-          });
-        }
-      }
+      await this.timelineRepo.createTimelineEventsManyInTx(tx, initialTimelineEvents);
 
       return created;
-    });
+    }, { maxWait: 10000, timeout: 25000 });
 
+    // Invalidate org chart cache and permission cache for this user
+    if (resolvedCompanyId) {
+      await invalidateOrgChartCache(resolvedCompanyId);
+      await this.permissionService.invalidateUserPermissions(resolvedCompanyId, newUser.id);
+    }
+
+    // Audit log user creation
     await this.auditService.log({
-      companyId: targetCompanyId,
       userId: actor.id,
+      companyId: resolvedCompanyId,
       action: 'USER_CREATED',
       entityType: 'User',
       entityId: newUser.id,
@@ -520,6 +573,7 @@ export class UserManagementService {
         name: newUser.name,
         role: newUser.role,
         managerId: newUser.managerId,
+        isGpsTracked: newUser.isGpsTracked,
       },
     });
 
@@ -527,7 +581,7 @@ export class UserManagementService {
   }
 
   /**
-   * Update user details.
+   * Update an existing user with strict role rank constraints and timeline tracking.
    */
   public async updateUser(actor: JwtPayload, targetId: string, input: UpdateUserInput): Promise<User> {
     const target = await this.userRepo.findById(targetId);
@@ -606,6 +660,12 @@ export class UserManagementService {
     const normalizeRole = (r: string): Role =>
       ((Role as any)[r] ?? r) as Role;
 
+    const targetCompany = await prisma.company.findUnique({ where: { id: target.companyId } });
+    const isPlatformComp = targetCompany?.code === 'NETRO' || (targetCompany?.name.toLowerCase().includes('netro') ?? false);
+    const companyEntitledSlugs = (!isPlatformComp && target.companyId)
+      ? await this.permissionService.getTenantEntitledSlugs(target.companyId)
+      : new Set<string>();
+
     const updateData: any = {};
     if (input.name !== undefined) updateData.name = input.name;
     if (input.email !== undefined) updateData.email = input.email;
@@ -620,14 +680,31 @@ export class UserManagementService {
     if (input.role !== undefined) updateData.role = normalizeRole(input.role as string);
     if (input.status !== undefined) updateData.status = input.status;
     if (input.managerId !== undefined) updateData.managerId = input.managerId;
-    if (input.attendancePolicyId !== undefined) updateData.attendancePolicyId = input.attendancePolicyId;
+
+    if (input.attendancePolicyId !== undefined) {
+      if (input.attendancePolicyId && !isPlatformComp && companyEntitledSlugs.size > 0) {
+        const hasCustomPolicy = Array.from(companyEntitledSlugs).some(
+          (s) => s === 'custom_policy_management' || s.startsWith('custom_policy_management.')
+        );
+        updateData.attendancePolicyId = hasCustomPolicy ? input.attendancePolicyId : null;
+      } else {
+        updateData.attendancePolicyId = input.attendancePolicyId;
+      }
+    }
+
     if (input.isGpsTracked !== undefined) {
       const actorRank = ROLE_RANK[actor.role] ?? 0;
       const targetRank = ROLE_RANK[target.role] ?? 0;
       if (actorRank <= targetRank) {
         throw new AppError('FORBIDDEN', 'You can only toggle GPS tracking for users of lower role rank', 403);
       }
-      updateData.isGpsTracked = input.isGpsTracked;
+      if (!isPlatformComp && companyEntitledSlugs.size > 0 && !companyEntitledSlugs.has('attendance.punchin_punchout.gps_tracking')) {
+        updateData.isGpsTracked = false;
+      } else if (!isPlatformComp && targetCompany && targetCompany.isGpsEnabled === false) {
+        updateData.isGpsTracked = false;
+      } else {
+        updateData.isGpsTracked = input.isGpsTracked;
+      }
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -746,8 +823,42 @@ export class UserManagementService {
         });
       }
 
+      // 5. Sync User Access Groups
+      if (input.accessGroupIds !== undefined) {
+        await tx.userAccessGroup.deleteMany({
+          where: { userId: targetId },
+        });
+
+        if (input.accessGroupIds.length > 0) {
+          const validGroups = await tx.accessGroup.findMany({
+            where: {
+              id: { in: input.accessGroupIds },
+              companyId: target.companyId,
+              deletedAt: null,
+              isActive: true,
+            },
+            select: { id: true },
+          });
+
+          if (validGroups.length > 0) {
+            await tx.userAccessGroup.createMany({
+              data: validGroups.map((g) => ({
+                userId: targetId,
+                accessGroupId: g.id,
+                assignedById: actor.id || null,
+              })),
+              skipDuplicates: true,
+            });
+          }
+        }
+      }
+
       return user;
-    });
+    }, { maxWait: 10000, timeout: 25000 });
+
+    if (input.accessGroupIds !== undefined || input.role !== undefined) {
+      await this.permissionService.invalidateUserPermissions(target.companyId, targetId);
+    }
 
     await this.auditService.log({
       companyId: target.companyId,
@@ -936,7 +1047,7 @@ export class UserManagementService {
         where: { id: managerId },
         data: { status: UserStatus.INACTIVE },
       });
-    });
+    }, { maxWait: 10000, timeout: 25000 });
 
     // Write audit logs after successful transaction
     await this.auditService.log({

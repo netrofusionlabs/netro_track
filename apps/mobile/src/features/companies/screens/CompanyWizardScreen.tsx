@@ -10,6 +10,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { CompanyWizardSchema } from '@netrotrack/shared';
 import { CompanyFormFields } from '../components/CompanyFormFields';
 import { usePermissions } from '../../../shared/hooks/usePermissions';
+import { api } from '../../../shared/services/api';
+
+export interface CapabilityNode {
+  id: string;
+  parentId?: string | null;
+  type: 'MODULE' | 'FEATURE' | 'ACTION';
+  key: string;
+  slug: string;
+  name: string;
+  description?: string | null;
+  children?: CapabilityNode[];
+}
 
 export function CompanyWizardScreen() {
   const theme = useTheme();
@@ -26,8 +38,12 @@ export function CompanyWizardScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [step, setStep] = useState(1);
 
+  const [platformCapabilities, setPlatformCapabilities] = useState<CapabilityNode[]>([]);
+  const [selectedCapabilityIds, setSelectedCapabilityIds] = useState<Set<string>>(new Set());
+  const [loadingCaps, setLoadingCaps] = useState<boolean>(true);
+
   const { control, handleSubmit, trigger, formState: { errors }, watch, setValue, reset } = useForm<any>({
-    resolver: zodResolver(CompanyWizardSchema), // The backend update schema is a subset of this, but we'll use this since the form handles both
+    resolver: zodResolver(CompanyWizardSchema),
     defaultValues: {
       company: {
         name: '', code: '', legalName: '', industry: '', companyType: '', employeeCount: '',
@@ -35,35 +51,57 @@ export function CompanyWizardScreen() {
         zipCode: '', country: 'India', timezone: 'Asia/Kolkata', currency: 'INR', taxId: '', registrationNumber: '',
       },
       admin: { name: '', email: '', mobile: '', password: '', confirmPassword: '' },
-      modules: { attendance: false, leave: false, shift: false, gps: true, payroll: false, expense: false, asset: false, performance: false, recruitment: false, regularization: false }
+      modules: {},
+      capabilityIds: [],
     }
   });
+
+  // Fetch capabilities & entitlements
+  useEffect(() => {
+    const fetchCapabilities = async () => {
+      setLoadingCaps(true);
+      try {
+        const [capsRes, entRes] = await Promise.all([
+          api.get('/authorization/capabilities'),
+          isEditMode && companyId ? api.get(`/authorization/companies/${companyId}/entitlements`) : Promise.resolve({ data: { data: [] } }),
+        ]);
+
+        const allCaps: CapabilityNode[] = capsRes.data?.data || capsRes.data || [];
+        setPlatformCapabilities(allCaps);
+
+        if (isEditMode) {
+          const entitled = entRes.data?.data || entRes.data || [];
+          const entitledSet = new Set<string>(
+            entitled
+              .filter((e: any) => e.isEnabled !== false)
+              .map((e: any) => e.capabilityId || e.capability?.id || e.id)
+          );
+          setSelectedCapabilityIds(entitledSet);
+        } else {
+          // In create mode: select all by default
+          const allIds = new Set<string>();
+          const collect = (nodes: CapabilityNode[]) => {
+            for (const n of nodes) {
+              allIds.add(n.id);
+              if (n.children) collect(n.children);
+            }
+          };
+          collect(allCaps);
+          setSelectedCapabilityIds(allIds);
+        }
+      } catch (err) {
+        console.error('Failed to load capabilities', err);
+      } finally {
+        setLoadingCaps(false);
+      }
+    };
+
+    fetchCapabilities();
+  }, [companyId, isEditMode]);
 
   // Pre-fill form in edit mode
   useEffect(() => {
     if (isEditMode && company) {
-      const modulesObj = {
-        attendance: false,
-        leave: false,
-        shift: false,
-        gps: company.isGpsEnabled ?? true,
-        payroll: false,
-        expense: false,
-        asset: false,
-        performance: false,
-        recruitment: false,
-        regularization: false,
-      };
-
-      if (Array.isArray(company.modules)) {
-        company.modules.forEach((m: any) => {
-          const key = m.module?.toLowerCase() as keyof typeof modulesObj;
-          if (key in modulesObj) {
-            modulesObj[key] = Boolean(m.isEnabled);
-          }
-        });
-      }
-
       reset({
         company: {
           name: company.name || '',
@@ -85,16 +123,103 @@ export function CompanyWizardScreen() {
           taxId: company.taxId || '',
           registrationNumber: company.registrationNumber || '',
         },
-        // Admin fields are not required/edited in edit mode
         admin: { name: 'admin', email: 'admin@edit.com', mobile: '9999999999', password: 'Password@123', confirmPassword: 'Password@123' },
-        modules: modulesObj,
+        modules: {},
+        capabilityIds: [],
       });
     }
   }, [company, isEditMode, reset]);
 
-  const modulesData = watch('modules') || {};
   const companyData = watch('company') || {};
   const adminData = watch('admin') || {};
+
+  const toggleModule = (mod: CapabilityNode) => {
+    setSelectedCapabilityIds((prev) => {
+      const next = new Set(prev);
+      const isSelected = next.has(mod.id);
+      if (isSelected) {
+        next.delete(mod.id);
+        if (mod.children) {
+          for (const sub of mod.children) {
+            next.delete(sub.id);
+            if (sub.children) {
+              for (const act of sub.children) {
+                next.delete(act.id);
+              }
+            }
+          }
+        }
+      } else {
+        next.add(mod.id);
+        if (mod.children) {
+          for (const sub of mod.children) {
+            next.add(sub.id);
+            if (sub.children) {
+              for (const act of sub.children) {
+                next.add(act.id);
+              }
+            }
+          }
+        }
+      }
+      return next;
+    });
+  };
+
+  const toggleSubmodule = (mod: CapabilityNode, sub: CapabilityNode) => {
+    setSelectedCapabilityIds((prev) => {
+      const next = new Set(prev);
+      const isSelected = next.has(sub.id);
+      if (isSelected) {
+        next.delete(sub.id);
+        if (sub.children) {
+          for (const act of sub.children) {
+            next.delete(act.id);
+          }
+        }
+        const hasOtherSelectedSub = mod.children?.some(
+          (s) => s.id !== sub.id && (next.has(s.id) || s.children?.some((a) => next.has(a.id)))
+        );
+        if (!hasOtherSelectedSub) {
+          next.delete(mod.id);
+        }
+      } else {
+        next.add(sub.id);
+        next.add(mod.id);
+        if (sub.children) {
+          for (const act of sub.children) {
+            next.add(act.id);
+          }
+        }
+      }
+      return next;
+    });
+  };
+
+  const toggleAction = (mod: CapabilityNode, sub: CapabilityNode, act: CapabilityNode) => {
+    setSelectedCapabilityIds((prev) => {
+      const next = new Set(prev);
+      const isSelected = next.has(act.id);
+      if (isSelected) {
+        next.delete(act.id);
+        const hasOtherSelectedAction = sub.children?.some((a) => a.id !== act.id && next.has(a.id));
+        if (!hasOtherSelectedAction) {
+          next.delete(sub.id);
+          const hasOtherSelectedSub = mod.children?.some(
+            (s) => s.id !== sub.id && (next.has(s.id) || s.children?.some((a) => next.has(a.id)))
+          );
+          if (!hasOtherSelectedSub) {
+            next.delete(mod.id);
+          }
+        }
+      } else {
+        next.add(act.id);
+        next.add(sub.id);
+        next.add(mod.id);
+      }
+      return next;
+    });
+  };
 
   const handleNext = async () => {
     let isValid = false;
@@ -109,7 +234,6 @@ export function CompanyWizardScreen() {
     }
 
     if (isValid) {
-      // Skip step 3 (Admin) in edit mode
       if (isEditMode && step === 2) {
         setStep(4);
       } else {
@@ -123,7 +247,6 @@ export function CompanyWizardScreen() {
 
   const handleBack = () => {
     if (step > 1) {
-      // Skip step 3 (Admin) backward in edit mode
       if (isEditMode && step === 4) {
         setStep(2);
       } else {
@@ -137,68 +260,28 @@ export function CompanyWizardScreen() {
 
   const onSubmit = async (data: any) => {
     try {
-      const cleanModules = {
-        attendance: !!data.modules?.attendance,
-        gps: !!data.modules?.gps && !!data.modules?.attendance,
-        regularization: !!data.modules?.regularization && !!data.modules?.attendance,
-        leave: false,
-        shift: false,
-        payroll: false,
-        expense: false,
-        asset: false,
-        performance: false,
-        recruitment: false,
-      };
+      const capIds = Array.from(selectedCapabilityIds);
 
       if (isEditMode) {
         await updateCompanyMutation.mutateAsync({
           id: companyId,
           payload: {
             ...data.company,
-            isGpsEnabled: cleanModules.gps,
-            modules: cleanModules,
+            capabilityIds: capIds,
           }
         });
       } else {
         await createCompanyMutation.mutateAsync({
           ...data,
-          modules: cleanModules,
+          capabilityIds: capIds,
         });
       }
-      setStep(6); // Success step
+      setStep(6);
     } catch (err: any) {
       const msg = err?.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'create'} company.`;
       Alert.alert('Error', msg);
     }
   };
-
-  const toggleModule = (key: string) => {
-    const nextVal = !modulesData[key as keyof typeof modulesData];
-    setValue(`modules.${key}`, nextVal);
-
-    if (key === 'attendance') {
-      if (nextVal) {
-        setValue('modules.regularization', true);
-      } else {
-        setValue('modules.regularization', false);
-        setValue('modules.gps', false);
-      }
-    }
-  };
-
-  const renderModuleToggle = (key: string, title: string, desc: string) => (
-    <View style={styles.moduleRow} key={key}>
-      <View style={{ flex: 1, paddingRight: 16 }}>
-        <Text style={[typography.bodyMd, { color: theme.colors.text.primary, fontWeight: '500' }]}>{title}</Text>
-        <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>{desc}</Text>
-      </View>
-      <Switch 
-        value={!!modulesData[key as keyof typeof modulesData]} 
-        onValueChange={() => toggleModule(key)}
-        trackColor={{ false: '#CBD5E1', true: theme.colors.brand.primary }}
-      />
-    </View>
-  );
 
   const getVisualIndex = (actualStep: number) => {
     if (!isEditMode) return actualStep;
@@ -266,7 +349,7 @@ export function CompanyWizardScreen() {
     );
   };
 
-  if (isEditMode && isLoadingCompany) {
+  if (isEditMode && (isLoadingCompany || loadingCaps)) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.surface.background }]}>
         <ScreenHeader title="Edit Company" onBackPress={() => navigation.goBack()} />
@@ -327,15 +410,96 @@ export function CompanyWizardScreen() {
 
           {step === 4 && (
             <Card variant="outlined" style={styles.cardContent}>
-              <Text style={[typography.headingMd, { color: theme.colors.text.primary, marginBottom: 16 }]}>HRMS Modules</Text>
-              {renderModuleToggle('attendance', 'Attendance', 'Punch-in/out and timesheets')}
-              
-              {/* Indented Sub-Modules for Attendance */}
-              {!!modulesData.attendance && (
-                <View style={{ marginLeft: 20, borderLeftWidth: 2, borderLeftColor: theme.colors.brand.primaryLight, paddingLeft: 16, marginTop: 8, gap: 8 }}>
-                  {renderModuleToggle('gps', 'GPS Tracking', 'Track live locations & routes')}
-                  {renderModuleToggle('regularization', 'Attendance Regularization', 'Allow employees to submit regularization requests for missed punches')}
-                </View>
+              <Text style={[typography.headingMd, { color: theme.colors.text.primary, marginBottom: 4 }]}>
+                Platform Modules & Capabilities
+              </Text>
+              <Text style={[typography.bodySm, { color: theme.colors.text.secondary, marginBottom: 16 }]}>
+                Select the modules, submodules, and actions to entitle for this tenant company.
+              </Text>
+
+              {platformCapabilities.length === 0 ? (
+                <Text style={[typography.bodySm, { color: theme.colors.text.secondary, textAlign: 'center', paddingVertical: 16 }]}>
+                  No platform capabilities registered yet in Platform Capabilities.
+                </Text>
+              ) : (
+                platformCapabilities.map((mod) => {
+                  const isModSelected = selectedCapabilityIds.has(mod.id);
+
+                  return (
+                    <View key={mod.id} style={{ marginBottom: 14, borderWidth: 1, borderColor: theme.colors.surface.border, borderRadius: 10, overflow: 'hidden' }}>
+                      {/* Module Header */}
+                      <View style={styles.moduleRow}>
+                        <View style={{ flex: 1, paddingRight: 12 }}>
+                          <Text style={[typography.bodyMd, { color: theme.colors.text.primary, fontWeight: '700' }]}>{mod.name}</Text>
+                          <Text style={[typography.caption, { fontFamily: 'monospace', color: theme.colors.text.tertiary }]}>{mod.slug}</Text>
+                          {Boolean(mod.description) && (
+                            <Text style={[typography.caption, { color: theme.colors.text.secondary, marginTop: 2 }]}>{mod.description}</Text>
+                          )}
+                        </View>
+                        <Switch
+                          value={isModSelected}
+                          onValueChange={() => toggleModule(mod)}
+                          trackColor={{ false: '#CBD5E1', true: theme.colors.brand.primary }}
+                        />
+                      </View>
+
+                      {/* Submodules */}
+                      {mod.children && mod.children.length > 0 && (
+                        <View style={{ backgroundColor: theme.colors.surface.subtle, paddingLeft: 16, borderTopWidth: 1, borderTopColor: theme.colors.surface.border }}>
+                          {mod.children.map((sub, sIdx) => {
+                            const isSubSelected = selectedCapabilityIds.has(sub.id);
+                            const isLast = sIdx === mod.children!.length - 1;
+
+                            return (
+                              <View
+                                key={sub.id}
+                                style={{ borderBottomWidth: isLast ? 0 : 1, borderBottomColor: theme.colors.surface.border, paddingVertical: 8, paddingRight: 12 }}
+                              >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <View style={{ flex: 1, paddingRight: 12 }}>
+                                    <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]}>{sub.name}</Text>
+                                    <Text style={[typography.caption, { fontFamily: 'monospace', color: theme.colors.text.tertiary }]}>{sub.slug}</Text>
+                                    {Boolean(sub.description) && (
+                                      <Text style={[typography.caption, { color: theme.colors.text.secondary }]}>{sub.description}</Text>
+                                    )}
+                                  </View>
+                                  <Switch
+                                    value={isSubSelected}
+                                    onValueChange={() => toggleSubmodule(mod, sub)}
+                                    trackColor={{ false: '#CBD5E1', true: theme.colors.brand.primary }}
+                                  />
+                                </View>
+
+                                {/* Actions under Submodule */}
+                                {sub.children && sub.children.length > 0 && (
+                                  <View style={{ marginTop: 8, marginLeft: 12, borderLeftWidth: 2, borderLeftColor: theme.colors.brand.primaryLight, paddingLeft: 10, gap: 6 }}>
+                                    {sub.children.map((act) => {
+                                      const isActSelected = selectedCapabilityIds.has(act.id);
+                                      return (
+                                        <View key={act.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 }}>
+                                          <View style={{ flex: 1, paddingRight: 8 }}>
+                                            <Text style={[typography.caption, { color: theme.colors.text.primary, fontWeight: '500' }]}>{act.name}</Text>
+                                            <Text style={[typography.caption, { fontFamily: 'monospace', color: theme.colors.text.tertiary, fontSize: 10 }]}>{act.slug}</Text>
+                                          </View>
+                                          <Switch
+                                            value={isActSelected}
+                                            onValueChange={() => toggleAction(mod, sub, act)}
+                                            trackColor={{ false: '#CBD5E1', true: theme.colors.brand.primary }}
+                                            style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+                                          />
+                                        </View>
+                                      );
+                                    })}
+                                  </View>
+                                )}
+                              </View>
+                            );
+                          })}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
               )}
             </Card>
           )}
@@ -367,22 +531,80 @@ export function CompanyWizardScreen() {
               )}
 
               <View style={[styles.summarySection, { borderBottomWidth: 0 }]}>
-                <Text style={styles.summaryTitle}>Active Modules</Text>
-                <Text style={styles.summaryValue}>
-                  {(() => {
-                    const active = [];
-                    if (modulesData.attendance) {
-                      active.push('ATTENDANCE');
-                      if (modulesData.gps) {
-                        active.push('GPS TRACKING');
-                      }
-                      if (modulesData.regularization) {
-                        active.push('REGULARIZATION');
-                      }
-                    }
-                    return active.join(', ') || 'None';
-                  })()}
-                </Text>
+                <Text style={[styles.summaryTitle, { marginBottom: 10 }]}>Enabled Modules & Capabilities</Text>
+                {(() => {
+                  const selectedMods = platformCapabilities.filter((mod) => selectedCapabilityIds.has(mod.id));
+                  if (selectedMods.length === 0) {
+                    return <Text style={[typography.bodySm, { color: theme.colors.text.tertiary }]}>No modules or capabilities selected.</Text>;
+                  }
+
+                  return (
+                    <View style={{ gap: 10 }}>
+                      {selectedMods.map((mod) => {
+                        const selectedSubs = (mod.children || []).filter((sub) => selectedCapabilityIds.has(sub.id));
+
+                        return (
+                          <View
+                            key={mod.id}
+                            style={{
+                              backgroundColor: theme.colors.surface.subtle,
+                              borderRadius: 8,
+                              padding: 10,
+                              borderWidth: 1,
+                              borderColor: theme.colors.surface.border,
+                            }}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text style={[typography.bodyMd, { color: theme.colors.text.primary, fontWeight: '700' }]}>{mod.name}</Text>
+                              <Text style={[typography.caption, { fontFamily: 'monospace', color: theme.colors.text.tertiary, fontSize: 10 }]}>{mod.slug}</Text>
+                            </View>
+
+                            {selectedSubs.length > 0 && (
+                              <View style={{ marginTop: 8, marginLeft: 8, borderLeftWidth: 2, borderLeftColor: theme.colors.brand.primary, paddingLeft: 8, gap: 8 }}>
+                                {selectedSubs.map((sub) => {
+                                  const selectedActs = (sub.children || []).filter((act) => selectedCapabilityIds.has(act.id));
+
+                                  return (
+                                    <View key={sub.id}>
+                                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <Text style={[typography.bodySm, { color: theme.colors.text.primary, fontWeight: '600' }]}>{sub.name}</Text>
+                                        <Text style={[typography.caption, { fontFamily: 'monospace', color: theme.colors.text.tertiary, fontSize: 9 }]}>{sub.slug}</Text>
+                                      </View>
+
+                                      {selectedActs.length > 0 && (
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4, marginLeft: 4 }}>
+                                          {selectedActs.map((act) => (
+                                            <View
+                                              key={act.id}
+                                              style={{
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                                backgroundColor: theme.colors.surface.card,
+                                                borderWidth: 1,
+                                                borderColor: theme.colors.surface.border,
+                                                borderRadius: 4,
+                                                paddingHorizontal: 6,
+                                                paddingVertical: 2,
+                                                gap: 4,
+                                              }}
+                                            >
+                                              <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: theme.colors.brand.primary }} />
+                                              <Text style={[typography.caption, { color: theme.colors.text.secondary, fontSize: 10, fontWeight: '500' }]}>{act.name}</Text>
+                                            </View>
+                                          ))}
+                                        </View>
+                                      )}
+                                    </View>
+                                  );
+                                })}
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })}
+                    </View>
+                  );
+                })()}
               </View>
             </Card>
           )}
@@ -409,78 +631,83 @@ export function CompanyWizardScreen() {
                   if (permissions.isSuperAdmin && !isEditMode) {
                     navigation.reset({
                       index: 0,
-                      routes: [{ name: 'CompanyManagement' }],
+                      routes: [{ name: 'SuperAdminDashboard' }],
                     });
                   } else {
-                    if (navigation.canGoBack()) {
-                      navigation.goBack();
-                    } else {
-                      navigation.navigate('UserManagement');
-                    }
+                    navigation.goBack();
                   }
-                }} 
+                }}
               />
             </View>
           )}
-
-          {/* Inline Footer inside ScrollView */}
-          {step < 6 && (
-            <View style={{ marginTop: 24, marginBottom: 16, flexDirection: 'row', gap: 12 }}>
-              {step > 1 && (
-                <Button label="Back" variant="outline" onPress={handleBack} style={{ flex: 1 }} size="lg" />
-              )}
-              {step < 5 ? (
-                <Button label="Continue" variant="primary" onPress={handleNext} style={{ flex: 2 }} size="lg" />
-              ) : (
-                <Button 
-                  label={isEditMode ? "Save Changes" : "Create Workspace"} 
-                  variant="primary" 
-                  onPress={handleSubmit(onSubmit)} 
-                  loading={isEditMode ? updateCompanyMutation.isPending : createCompanyMutation.isPending}
-                  style={{ flex: 2 }} 
-                  size="lg"
-                />
-              )}
-            </View>
-          )}
         </ScrollView>
+
+        {step < 6 && (
+          <View style={[styles.footer, { backgroundColor: theme.colors.surface.card, borderTopColor: theme.colors.surface.border }]}>
+            {step > 1 && (
+              <Button 
+                label="Previous" 
+                variant="outline" 
+                onPress={handleBack} 
+                style={{ flex: 1, marginRight: 8 }} 
+              />
+            )}
+            
+            {step < 5 ? (
+              <Button 
+                label="Next" 
+                variant="primary" 
+                onPress={handleNext} 
+                style={{ flex: 1, marginLeft: step > 1 ? 8 : 0 }} 
+              />
+            ) : (
+              <Button 
+                label={isEditMode ? "Save Changes" : "Create Company"} 
+                variant="primary" 
+                loading={createCompanyMutation.isPending || updateCompanyMutation.isPending}
+                onPress={handleSubmit(onSubmit)} 
+                style={{ flex: 1, marginLeft: step > 1 ? 8 : 0 }} 
+              />
+            )}
+          </View>
+        )}
       </KeyboardAvoidingView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  keyboardView: { flex: 1 },
-  scrollArea: { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 40 },
-  cardContent: { padding: 16 },
+  container: {
+    flex: 1,
+  },
+  keyboardView: {
+    flex: 1,
+  },
   stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
   },
   stepItem: {
-    flexDirection: 'column',
-    alignItems: 'center',
     flex: 1,
-    position: 'relative'
+    alignItems: 'center',
+    position: 'relative',
   },
   stepCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
     marginBottom: 4,
     zIndex: 2,
   },
   stepNumber: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   stepLabel: {
     fontSize: 10,
@@ -488,42 +715,71 @@ const styles = StyleSheet.create({
   },
   stepLine: {
     position: 'absolute',
-    top: 11,
+    top: 14,
     left: '50%',
-    right: '-50%',
+    width: '100%',
     height: 2,
     zIndex: 1,
+  },
+  scrollArea: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  cardContent: {
+    padding: 16,
   },
   moduleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9'
+    paddingHorizontal: 12,
   },
   summarySection: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    marginBottom: 16,
     paddingBottom: 12,
-    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
-  summaryTitle: { fontSize: 13, fontWeight: '700', color: '#0F172A', marginBottom: 6 },
-  summaryLabel: { fontSize: 13, color: '#64748B', marginBottom: 4 },
-  summaryValue: { color: '#0F172A', fontWeight: '500' },
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  summaryLabel: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  summaryValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
   successContainer: {
-    flex: 1,
+    padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 64,
-    paddingHorizontal: 16,
+    marginTop: 40,
   },
   successIconWrapper: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  footer: {
+    flexDirection: 'row',
+    padding: 16,
+    borderTopWidth: 1,
   },
   errorText: {
     color: '#EF4444',

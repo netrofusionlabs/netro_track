@@ -13,6 +13,8 @@ interface MoreMenuItem {
   label: string;
   icon: AppIconName;
   roles: Role[];
+  permission?: string;
+  moduleSlug?: string;
   unreleased?: boolean;
   onPress: (navigation: any) => void;
 }
@@ -21,24 +23,28 @@ const MORE_MENU_ITEMS: MoreMenuItem[] = [
   {
     label: 'Live Map',
     icon: 'teamMap',
+    permission: 'tracking.live_map.view',
     roles: ['SUPER_ADMIN', 'MASTER_SUPER_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'HR'],
     onPress: (nav) => nav.navigate('TeamMap'),
   },
   {
     label: 'Org Chart',
     icon: 'employees',
+    permission: 'workforce.org_chart.view',
     roles: ['SUPER_ADMIN', 'MASTER_SUPER_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'HR', 'EMPLOYEE'],
     onPress: (nav) => nav.navigate('OrgChart'),
   },
   {
     label: 'Reports',
     icon: 'document',
+    permission: 'reports.analytics.view',
     roles: ['SUPER_ADMIN', 'MASTER_SUPER_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'HR'],
     onPress: (nav) => nav.navigate('Reports'),
   },
   {
     label: 'Clients',
     icon: 'customers',
+    permission: 'customers.accounts.view',
     roles: ['SUPER_ADMIN', 'MASTER_SUPER_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'HR'],
     unreleased: true,
     onPress: (nav) => nav.navigate('Customers'),
@@ -46,6 +52,7 @@ const MORE_MENU_ITEMS: MoreMenuItem[] = [
   {
     label: 'Products',
     icon: 'products',
+    permission: 'products.catalogue.view',
     roles: ['SUPER_ADMIN', 'MASTER_SUPER_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'HR'],
     unreleased: true,
     onPress: (nav) => nav.navigate('Products'),
@@ -53,6 +60,7 @@ const MORE_MENU_ITEMS: MoreMenuItem[] = [
   {
     label: 'Visits',
     icon: 'visits',
+    permission: 'visits.records.view',
     roles: ['SUPER_ADMIN', 'MASTER_SUPER_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'HR'],
     unreleased: true,
     onPress: (nav) => nav.navigate('Visits'),
@@ -60,6 +68,7 @@ const MORE_MENU_ITEMS: MoreMenuItem[] = [
   {
     label: 'Sales',
     icon: 'sales',
+    permission: 'sales.orders.view',
     roles: ['SUPER_ADMIN', 'MASTER_SUPER_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'HR'],
     unreleased: true,
     onPress: (nav) => nav.navigate('Sales'),
@@ -67,6 +76,7 @@ const MORE_MENU_ITEMS: MoreMenuItem[] = [
   {
     label: 'Inspections',
     icon: 'inspect',
+    permission: 'inspections.audits.view',
     roles: ['SUPER_ADMIN', 'MASTER_SUPER_ADMIN', 'COMPANY_ADMIN', 'MANAGER', 'HR'],
     unreleased: true,
     onPress: (nav) => nav.navigate('Inspections'),
@@ -77,9 +87,25 @@ export function MoreScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const role = useAuthStore((s) => s.user?.role) as Role;
+  const user = useAuthStore((s) => s.user);
+  const role = user?.role as Role;
+  const userPermissions = user?.permissions || [];
 
-  const visibleItems = MORE_MENU_ITEMS.filter((item) => item.roles.includes(role));
+  const visibleItems = MORE_MENU_ITEMS.filter((item) => {
+    if (user?.role === 'MASTER_SUPER_ADMIN') return true;
+    if (item.permission) {
+      if (userPermissions.includes(item.permission)) return true;
+      if (item.permission.endsWith('.*')) {
+        const prefix = item.permission.slice(0, -1);
+        return userPermissions.some((p) => p.startsWith(prefix));
+      }
+    }
+    if (item.moduleSlug) {
+      const prefix = `${item.moduleSlug}.`;
+      if (userPermissions.some((p) => p.startsWith(prefix) || p === item.moduleSlug)) return true;
+    }
+    return item.roles.includes(role);
+  });
 
   if (visibleItems.length === 0) {
     return (

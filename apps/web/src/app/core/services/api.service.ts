@@ -1,9 +1,10 @@
 import { Injectable, computed, inject, signal, isDevMode } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, BehaviorSubject, tap, catchError, throwError, of, map } from 'rxjs';
+import { Observable, BehaviorSubject, tap, catchError, throwError, of, map, finalize } from 'rxjs';
 import { Persona, Role, personaFor } from '../models/roles';
 import { accessTokenLive, safeReturnPath } from '../utils/token';
+import { LoadingService } from './loading.service';
 
 /** The envelope every NetroTrack endpoint responds with. */
 export interface ApiEnvelope<T = unknown> {
@@ -53,17 +54,24 @@ export interface CurrentUser {
   company?: {
     id: string;
     name: string;
-    code?: string;
+    code?: string | null;
     logoUrl?: string | null;
     companyLogoUrl?: string | null;
     industry?: string | null;
     addressLine1?: string | null;
+    addressLine2?: string | null;
     city?: string | null;
     state?: string | null;
     country?: string | null;
+    zipCode?: string | null;
   } | null;
   isGpsTracked?: boolean;
-  [key: string]: unknown;
+  isGpsEnabled?: boolean;
+  isRegularizationEnabled?: boolean;
+  hasMpin?: boolean;
+  attendancePolicyId?: string | null;
+  permissions?: string[];
+  companyEntitledSlugs?: string[];
 }
 
 export type QueryValue = string | number | boolean | null | undefined;
@@ -72,6 +80,7 @@ export type QueryValue = string | number | boolean | null | undefined;
 export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly loading = inject(LoadingService);
   private readonly baseUrl = isDevMode() ? '/api/v1' : 'https://netro-track-api.netrofusion.in/api/v1';
   private endingSession = false;
 
@@ -82,6 +91,7 @@ export class ApiService {
   /** Signal mirrors for templates. */
   readonly user = signal<CurrentUser | null>(null);
   readonly role = computed<Role | null>(() => this.user()?.role ?? null);
+  readonly permissions = computed<Set<string>>(() => new Set(this.user()?.permissions ?? []));
   readonly persona = computed<Persona>(() => personaFor(this.user()?.role));
   readonly companyName = computed(() => this.user()?.companyName ?? this.user()?.company?.name ?? (this.user() as any)?.company_name ?? null);
   readonly companyLogoUrl = computed(() => this.user()?.companyLogoUrl ?? this.user()?.company?.logoUrl ?? this.user()?.company?.companyLogoUrl ?? null);
@@ -138,22 +148,29 @@ export class ApiService {
   }
 
   get<T = unknown>(url: string, query?: Record<string, QueryValue>): Observable<ApiEnvelope<T>> {
+    this.loading.start();
     return this.http.get<ApiEnvelope<T>>(`${this.baseUrl}${url}`, {
       headers: this.headers(),
       params: this.toParams(query),
-    });
+    }).pipe(finalize(() => this.loading.stop()));
   }
 
   post<T = unknown>(url: string, body: unknown = {}): Observable<ApiEnvelope<T>> {
-    return this.http.post<ApiEnvelope<T>>(`${this.baseUrl}${url}`, body, { headers: this.headers() });
+    this.loading.start();
+    return this.http.post<ApiEnvelope<T>>(`${this.baseUrl}${url}`, body, { headers: this.headers() })
+      .pipe(finalize(() => this.loading.stop()));
   }
 
   put<T = unknown>(url: string, body: unknown = {}): Observable<ApiEnvelope<T>> {
-    return this.http.put<ApiEnvelope<T>>(`${this.baseUrl}${url}`, body, { headers: this.headers() });
+    this.loading.start();
+    return this.http.put<ApiEnvelope<T>>(`${this.baseUrl}${url}`, body, { headers: this.headers() })
+      .pipe(finalize(() => this.loading.stop()));
   }
 
   delete<T = unknown>(url: string, body?: unknown): Observable<ApiEnvelope<T>> {
-    return this.http.delete<ApiEnvelope<T>>(`${this.baseUrl}${url}`, { headers: this.headers(), body });
+    this.loading.start();
+    return this.http.delete<ApiEnvelope<T>>(`${this.baseUrl}${url}`, { headers: this.headers(), body })
+      .pipe(finalize(() => this.loading.stop()));
   }
 
   /**

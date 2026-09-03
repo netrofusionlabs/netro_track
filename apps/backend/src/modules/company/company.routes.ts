@@ -22,4 +22,7 @@ router.put('/:id', authMiddleware, requireRoles(Role.SUPER_ADMIN, Role.COMPANY_A
 router.post('/:id/logo/upload-url', authMiddleware, requireRoles(Role.SUPER_ADMIN, Role.COMPANY_ADMIN), controller.getLogoUploadUrl);
 router.post('/:id/logo/complete', authMiddleware, requireRoles(Role.SUPER_ADMIN, Role.COMPANY_ADMIN), controller.completeLogoUpload);
 
+// Password Reset Endpoints
+router.post('/:id/reset-admin-password', authMiddleware, requireRoles(Role.SUPER_ADMIN), controller.resetAdminPassword);
+
 export { router as companyRouter };

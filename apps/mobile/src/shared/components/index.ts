@@ -30,3 +30,4 @@ export * from './map';
 export * from './ProfessionalTimeline';
 export * from './PhoneInput';
 export * from './AddressSearchModal';
+export * from './GlobalLoadingBar';

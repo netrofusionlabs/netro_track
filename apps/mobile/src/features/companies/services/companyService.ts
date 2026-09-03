@@ -25,6 +25,9 @@ export interface CompanyRecord {
   zipCode?: string;
   companyLogoUrl?: string;
   modules?: Array<{ id: string; module: string; isEnabled: boolean }>;
+  capabilityIds?: string[];
+  entitledSlugs?: string[];
+  entitlements?: Array<{ isEnabled: boolean; capability?: { slug: string; name?: string } }>;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -92,5 +95,10 @@ export const companyService = {
       // Passing Uint8Array causes React Native to convert to base64 and decode natively to raw binary bytes in OkHttp/NSURLSession
       xhr.send(bytes);
     });
-  }
+  },
+
+  resetAdminPassword: async (companyId: string, password = 'Password123!') => {
+    const res = await api.post(`/companies/${companyId}/reset-admin-password`, { password });
+    return res.data;
+  },
 };

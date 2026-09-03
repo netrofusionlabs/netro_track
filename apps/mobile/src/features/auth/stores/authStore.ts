@@ -25,6 +25,8 @@ export interface UserProfile {
   designation?: string | null;
   managerId?: string | null;
   managerName?: string | null;
+  permissions?: string[];
+  companyEntitledSlugs?: string[];
 }
 
 interface AuthState {

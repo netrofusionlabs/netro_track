@@ -156,3 +156,70 @@ export async function invalidateOrgChartCache(companyId: string): Promise<void> 
     logger.warn({ err, companyId }, 'Failed to invalidate OrgChart cache');
   }
 }
+
+// ─── Dynamic Authorization & Permission Cache Helpers ─────────────────────────
+
+const PERMISSION_CACHE_TTL_SECONDS = 300; // 5 Minutes
+
+export async function cacheEffectivePermissions(
+  companyId: string,
+  userId: string,
+  slugs: string[]
+): Promise<void> {
+  try {
+    const redis = getRedis();
+    if (redis) {
+      await redis.set(
+        `perms:effective:${companyId}:${userId}`,
+        JSON.stringify(slugs),
+        { EX: PERMISSION_CACHE_TTL_SECONDS }
+      );
+    }
+  } catch (err) {
+    logger.warn({ err, userId }, 'Failed to write permission Redis cache');
+  }
+}
+
+export async function getCachedEffectivePermissions(
+  companyId: string,
+  userId: string
+): Promise<string[] | null> {
+  try {
+    const redis = getRedis();
+    if (!redis) return null;
+    const raw = await redis.get(`perms:effective:${companyId}:${userId}`);
+    if (!raw) return null;
+    return JSON.parse(raw) as string[];
+  } catch {
+    return null;
+  }
+}
+
+export async function invalidateUserPermissionCache(
+  companyId: string,
+  userId: string
+): Promise<void> {
+  try {
+    const redis = getRedis();
+    if (!redis) return;
+    await redis.del(`perms:effective:${companyId}:${userId}`);
+    logger.info({ companyId, userId }, 'Invalidated effective permissions cache for user');
+  } catch (err) {
+    logger.warn({ err, userId }, 'Failed to invalidate user permission cache');
+  }
+}
+
+export async function invalidateCompanyPermissionCache(companyId: string): Promise<void> {
+  try {
+    const redis = getRedis();
+    if (!redis) return;
+    const keys = await redis.keys(`perms:effective:${companyId}:*`);
+    if (keys.length > 0) {
+      await redis.del(keys);
+      logger.info({ companyId, count: keys.length }, 'Flushed all user permission Redis keys for tenant');
+    }
+  } catch (err) {
+    logger.warn({ err, companyId }, 'Failed to invalidate company permission cache');
+  }
+}
+

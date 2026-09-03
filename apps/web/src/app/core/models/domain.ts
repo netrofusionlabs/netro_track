@@ -44,6 +44,16 @@ export interface Person {
   twitterUrl?: string | null;
   bloodGroup?: string | null;
 
+  accessGroups?: Array<{
+    accessGroupId: string;
+    accessGroup?: {
+      id: string;
+      name: string;
+      description?: string | null;
+      isSystem?: boolean;
+    };
+  }>;
+
   /** Prisma's relation count, as returned by the list and detail endpoints. */
   _count?: { subordinates?: number } | null;
   subordinateCount?: number;
@@ -690,6 +700,8 @@ export interface Company {
   companyLogoUrl?: string | null;
   logoUrl?: string | null;
   defaultAttendancePolicyId?: string | null;
+  entitledSlugs?: string[];
+  entitlements?: Array<{ isEnabled: boolean; capability?: { slug: string; name?: string; module?: string } }>;
   modules?: CompanyModule[];
   _count?: { users?: number; branches?: number; departments?: number } | null;
   userCount?: number;

@@ -9,6 +9,12 @@ export class CompanyRepository {
       include: {
         logoFile: true,
         modules: true,
+        entitlements: {
+          where: { isEnabled: true },
+          include: {
+            capability: true,
+          },
+        },
         _count: {
           select: {
             users: { where: { deletedAt: null } },
@@ -27,6 +33,12 @@ export class CompanyRepository {
       include: {
         logoFile: true,
         modules: true,
+        entitlements: {
+          where: { isEnabled: true },
+          include: {
+            capability: true,
+          },
+        },
         _count: {
           select: {
             users: { where: { deletedAt: null } },
@@ -93,27 +105,38 @@ export class CompanyRepository {
         },
       });
 
-      // 3. Create Modules
-      const modulesToCreate = [
-        { module: ModuleType.ATTENDANCE, isEnabled: payload.modules.attendance },
-        { module: ModuleType.LEAVE, isEnabled: false },
-        { module: ModuleType.SHIFT, isEnabled: false },
-        { module: ModuleType.GPS, isEnabled: payload.modules.gps },
-        { module: ModuleType.REGULARIZATION, isEnabled: payload.modules.regularization ?? payload.modules.attendance },
-        { module: ModuleType.PAYROLL, isEnabled: false },
-        { module: ModuleType.EXPENSE, isEnabled: false },
-        { module: ModuleType.ASSET, isEnabled: false },
-        { module: ModuleType.PERFORMANCE, isEnabled: false },
-        { module: ModuleType.RECRUITMENT, isEnabled: false },
-      ];
+      // 3. Create Dynamic Capability Entitlements
+      if (payload.capabilityIds && payload.capabilityIds.length > 0) {
+        const selectedCaps = await tx.systemCapability.findMany({
+          where: { id: { in: payload.capabilityIds }, isActive: true },
+          include: { children: { include: { children: true } } },
+        });
 
-      await tx.companyModule.createMany({
-        data: modulesToCreate.map((m) => ({
-          companyId: company.id,
-          module: m.module,
-          isEnabled: m.isEnabled,
-        })),
-      });
+        const allCapIdsToEntitle = new Set<string>();
+        for (const cap of selectedCaps) {
+          allCapIdsToEntitle.add(cap.id);
+          if (cap.parentId) allCapIdsToEntitle.add(cap.parentId);
+          if (cap.children) {
+            for (const sub of cap.children) {
+              allCapIdsToEntitle.add(sub.id);
+              if (sub.children) {
+                for (const act of sub.children) {
+                  allCapIdsToEntitle.add(act.id);
+                }
+              }
+            }
+          }
+        }
+
+        await tx.companyEntitlement.createMany({
+          data: Array.from(allCapIdsToEntitle).map((capId) => ({
+            companyId: company.id,
+            capabilityId: capId,
+            isEnabled: true,
+          })),
+          skipDuplicates: true,
+        });
+      }
 
       // 4. Create Default HQ Branch
       const hqBranchName = payload.company.city ? `${payload.company.city} HQ` : 'Headquarters';
@@ -132,7 +155,7 @@ export class CompanyRepository {
       });
 
       return company;
-    });
+    }, { maxWait: 10000, timeout: 25000 });
   }
 
   public async update(id: string, payload: UpdateCompanyInput): Promise<Company> {
@@ -163,31 +186,52 @@ export class CompanyRepository {
         },
       });
 
-      if (payload.modules) {
-        const modulePromises = Object.entries(payload.modules).map(async ([modKey, isEnabled]) => {
-          const modType = modKey.toUpperCase() as ModuleType;
-          if (Object.values(ModuleType).includes(modType)) {
-            const finalEnabled = (modType === ModuleType.ATTENDANCE || modType === ModuleType.GPS || modType === ModuleType.REGULARIZATION) ? Boolean(isEnabled) : false;
-            const existing = await tx.companyModule.findFirst({
-              where: { companyId: id, module: modType },
-            });
-            if (existing) {
-              await tx.companyModule.update({
-                where: { id: existing.id },
-                data: { isEnabled: finalEnabled },
-              });
-            } else {
-              await tx.companyModule.create({
-                data: {
-                  companyId: id,
-                  module: modType,
-                  isEnabled: finalEnabled,
-                },
-              });
+      if (payload.capabilityIds !== undefined) {
+        // Disable existing entitlements
+        await tx.companyEntitlement.updateMany({
+          where: { companyId: id },
+          data: { isEnabled: false },
+        });
+
+        if (payload.capabilityIds.length > 0) {
+          const selectedCaps = await tx.systemCapability.findMany({
+            where: { id: { in: payload.capabilityIds }, isActive: true },
+            include: { children: { include: { children: true } } },
+          });
+
+          const allCapIdsToEntitle = new Set<string>();
+          for (const cap of selectedCaps) {
+            allCapIdsToEntitle.add(cap.id);
+            if (cap.parentId) allCapIdsToEntitle.add(cap.parentId);
+            if (cap.children) {
+              for (const sub of cap.children) {
+                allCapIdsToEntitle.add(sub.id);
+                if (sub.children) {
+                  for (const act of sub.children) {
+                    allCapIdsToEntitle.add(act.id);
+                  }
+                }
+              }
             }
           }
-        });
-        await Promise.all(modulePromises);
+
+          for (const capId of allCapIdsToEntitle) {
+            await tx.companyEntitlement.upsert({
+              where: {
+                companyId_capabilityId: {
+                  companyId: id,
+                  capabilityId: capId,
+                },
+              },
+              update: { isEnabled: true },
+              create: {
+                companyId: id,
+                capabilityId: capId,
+                isEnabled: true,
+              },
+            });
+          }
+        }
       }
 
       // 3. Auto-generate HQ branch if the company has NO branches (for legacy companies)

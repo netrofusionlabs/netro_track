@@ -1,5 +1,6 @@
 import { Injectable, computed, inject } from '@angular/core';
 import { ApiService } from './api.service';
+import { PermissionService } from './permission.service';
 import { CAN, Role, hasRole } from '../models/roles';
 import { IconName } from '../../ui/icon';
 
@@ -8,6 +9,10 @@ export interface NavItem {
   route: string;
   icon: IconName;
   roles: readonly Role[];
+  /** Dynamic permission required to see this item (takes precedence over roles) */
+  permission?: string;
+  /** Dynamic module slug required to see this item */
+  moduleSlug?: string;
   /** Shown in the command palette and as the nav tooltip when collapsed. */
   hint: string;
   /** Extra terms the command palette should match on. */
@@ -54,6 +59,8 @@ const IA: NavGroup[] = [
         route: '/live',
         icon: 'radar',
         roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER'],
+        moduleSlug: 'tracking',
+        permission: 'tracking.live_map.view',
         hint: 'Field positions, movement and coverage',
         keywords: ['map', 'gps', 'tracking', 'location', 'fleet', 'route'],
       },
@@ -82,6 +89,7 @@ const IA: NavGroup[] = [
         label: 'Attendance',
         route: '/attendance',
         icon: 'clock',
+        moduleSlug: 'attendance',
         roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'],
         hint: 'Punch state, shift history and exceptions',
         keywords: ['punch', 'shift', 'clock in', 'timesheet', 'present', 'absent'],
@@ -90,6 +98,7 @@ const IA: NavGroup[] = [
         label: 'Visits',
         route: '/visits',
         icon: 'pin',
+        moduleSlug: 'visits',
         roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'],
         hint: 'Customer calls, evidence and outcomes (Yet to release)',
         keywords: ['customer visit', 'check in', 'field call', 'meeting'],
@@ -127,6 +136,7 @@ const IA: NavGroup[] = [
         route: '/policies',
         icon: 'policy',
         roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR'],
+        permission: 'custom_policy_management',
         hint: 'Attendance, leave, expense, tracking, visit and inspection governance rules',
         keywords: ['policy', 'attendance', 'leave', 'expense', 'tracking', 'gps', 'visit', 'inspection', 'rules', 'governance', 'assignment'],
       },
@@ -146,6 +156,15 @@ const IA: NavGroup[] = [
         hint: 'Manage organizational departments and functional units',
         keywords: ['departments', 'units', 'teams'],
       },
+      {
+        label: 'Access Groups & Permissions',
+        route: '/access-groups',
+        icon: 'lock',
+        permission: 'access_control.groups.view',
+        roles: ['MASTER_SUPER_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'HR'],
+        hint: 'Configure tenant access profiles, roles, and granular capability assignments',
+        keywords: ['access', 'groups', 'roles', 'permissions', 'authorization', 'capabilities', 'security'],
+      },
     ],
   },
   {
@@ -155,6 +174,7 @@ const IA: NavGroup[] = [
         label: 'Approvals',
         route: '/approvals',
         icon: 'approve',
+        moduleSlug: 'attendance',
         roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER'],
         hint: 'Regularization queue awaiting a decision',
         keywords: ['regularization', 'requests', 'pending', 'approve', 'reject', 'queue'],
@@ -231,6 +251,31 @@ const IA: NavGroup[] = [
     label: 'Administration',
     items: [
       {
+        label: 'Access Groups',
+        route: '/access-groups',
+        icon: 'shield',
+        roles: ['SUPER_ADMIN', 'MASTER_SUPER_ADMIN', 'COMPANY_ADMIN'],
+        permission: 'access_control.groups.view',
+        hint: 'Tenant access groups, role templates and user permission assignments',
+        keywords: ['access', 'groups', 'roles', 'permissions', 'authorization', 'security'],
+      },
+      {
+        label: 'Platform Capabilities',
+        route: '/platform-capabilities',
+        icon: 'layers',
+        roles: ['SUPER_ADMIN', 'MASTER_SUPER_ADMIN'],
+        hint: 'Manage platform modules, submodules and action registry',
+        keywords: ['capabilities', 'modules', 'submodules', 'actions', 'registry', 'platform'],
+      },
+      {
+        label: 'Companies',
+        route: '/companies',
+        icon: 'building',
+        roles: ['SUPER_ADMIN', 'MASTER_SUPER_ADMIN'],
+        hint: 'Tenant onboarding and organization directory',
+        keywords: ['companies', 'tenants', 'organizations', 'clients'],
+      },
+      {
         label: 'Settings',
         route: '/settings',
         icon: 'settings',
@@ -245,14 +290,23 @@ const IA: NavGroup[] = [
 @Injectable({ providedIn: 'root' })
 export class NavigationService {
   private readonly api = inject(ApiService);
+  private readonly perms = inject(PermissionService);
 
-  /** Nav groups filtered to what the signed-in role can actually reach. */
+  /** Nav groups filtered dynamically by effective permissions and tenant entitlement */
   readonly groups = computed<NavGroup[]>(() => {
     const role = this.api.role();
     if (!role) return [];
     return IA.map(group => ({
       label: group.label,
-      items: group.items.filter(item => hasRole(role, item.roles)),
+      items: group.items.filter(item => {
+        if (item.permission) {
+          return this.perms.has(item.permission);
+        }
+        if (item.moduleSlug) {
+          return this.perms.hasModule(item.moduleSlug);
+        }
+        return hasRole(role, item.roles);
+      }),
     })).filter(group => group.items.length > 0);
   });
 
@@ -264,6 +318,6 @@ export class NavigationService {
   }
 
   canReview(): boolean {
-    return hasRole(this.api.role(), CAN.reviewApprovals);
+    return this.perms.has('attendance.regularization.review') || hasRole(this.api.role(), CAN.reviewApprovals);
   }
 }

@@ -40,6 +40,30 @@ export class TimelineRepository {
   }
 
   /**
+   * Batch timeline event creation inside an existing Prisma transaction client
+   */
+  public async createTimelineEventsManyInTx(
+    tx: Prisma.TransactionClient,
+    inputs: CreateTimelineEventInput[]
+  ) {
+    if (!inputs.length) return;
+    return tx.userTimelineEvent.createMany({
+      data: inputs.map((input) => ({
+        userId: input.userId,
+        companyId: input.companyId,
+        eventType: input.eventType,
+        title: input.title,
+        description: input.description,
+        previousValue: input.previousValue,
+        newValue: input.newValue,
+        changedByUserId: input.changedByUserId,
+        changedByName: input.changedByName,
+        effectiveDate: input.effectiveDate ?? new Date(),
+      })),
+    });
+  }
+
+  /**
    * Standalone creation (e.g. for seed operations)
    */
   public async createTimelineEvent(input: CreateTimelineEventInput) {

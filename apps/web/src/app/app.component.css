@@ -1,0 +1,47 @@
+.global-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(2, 132, 199, 0.15);
+  z-index: 999999;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.global-progress-bar__indeterminate {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #0284c7, #38bdf8, #818cf8, #0284c7);
+  background-size: 200% 100%;
+  animation: indeterminateBar 1.2s infinite cubic-bezier(0.65, 0.815, 0.735, 0.395), barGlow 1.5s infinite linear;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 0 5px rgba(2, 132, 199, 0.6);
+  border-radius: 2px;
+}
+
+@keyframes indeterminateBar {
+  0% {
+    left: -35%;
+    right: 100%;
+  }
+  60% {
+    left: 100%;
+    right: -90%;
+  }
+  100% {
+    left: 100%;
+    right: -90%;
+  }
+}
+
+@keyframes barGlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}

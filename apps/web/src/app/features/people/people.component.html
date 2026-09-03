@@ -325,6 +325,14 @@
               <netro-badge tone="info">{{ policyNameOf(person) }}</netro-badge>
             </dd>
           </div>
+          <div class="defs__row" *ngIf="person.accessGroups && person.accessGroups.length > 0">
+            <dt class="defs__key">Access Profiles</dt>
+            <dd class="defs__val" style="display: flex; flex-wrap: wrap; gap: 4px;">
+              <netro-badge *ngFor="let ag of person.accessGroups" tone="neutral">
+                {{ ag.accessGroup?.name || 'Custom Profile' }}
+              </netro-badge>
+            </dd>
+          </div>
           <div class="defs__row" *ngIf="person.linkedinUrl">
             <dt class="defs__key">LinkedIn</dt>
             <dd class="defs__val">
@@ -595,7 +603,7 @@
             </span>
           </label>
 
-          <label class="field span-2">
+          <label class="field span-2" *ngIf="hasCustomPolicyCapability()">
             <span class="field__label">Attendance Policy</span>
             <select class="select" formControlName="attendancePolicyId">
               <option value="">Inherit Default (Designation > Department > Company Default)</option>
@@ -626,21 +634,18 @@
             <span class="field__hint">Assign this person to a specific physical branch or location.</span>
           </label>
 
-          <!-- Modern GPS Toggle Card -->
-          <div class="gps-toggle-card span-2" [class.gps-toggle-card--disabled]="!canToggleGps()">
+          <!-- Modern GPS Toggle Card (Only shown if company has attendance.punchin_punchout.gps_tracking capability) -->
+          <div class="gps-toggle-card span-2" *ngIf="hasGpsTrackingCapability()" [class.gps-toggle-card--disabled]="!canToggleGps()">
             <div class="gps-toggle-left">
               <div class="gps-toggle-badge">
                 <netro-icon name="pin" [size]="16" />
               </div>
               <div class="gps-toggle-text">
                 <span class="gps-toggle-title">Track Location During Shifts</span>
-                <span class="gps-toggle-desc" *ngIf="isCompanyGpsDisabled()">
-                  ⚠️ Disabled because GPS tracking module is not enabled for this company.
-                </span>
-                <span class="gps-toggle-desc" *ngIf="!isCompanyGpsDisabled() && !canToggleGps()">
+                <span class="gps-toggle-desc" *ngIf="!canToggleGps()">
                   ⚠️ Only administrators of higher role rank can enable or disable location tracking.
                 </span>
-                <span class="gps-toggle-desc" *ngIf="!isCompanyGpsDisabled() && canToggleGps()">
+                <span class="gps-toggle-desc" *ngIf="canToggleGps()">
                   {{ form.controls.isGpsTracked.value ? 'Records background GPS coordinates while punched in and displays live route on operations map.' : 'Simple Punch-In / Punch-Out mode only (No GPS coordinates recorded).' }}
                 </span>
               </div>
@@ -651,6 +656,50 @@
               formControlName="isGpsTracked"
               [attr.disabled]="!canToggleGps() ? true : null"
             />
+          </div>
+
+          <!-- Access Profiles & Groups (Dynamic Capabilities) -->
+          <div class="field span-2" *ngIf="accessGroups().length > 0" style="margin-top: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span class="field__label" style="margin: 0; display: flex; align-items: center; gap: 6px;">
+                <netro-icon name="shield" [size]="14" /> Access Profiles & Capability Groups
+              </span>
+              <span *ngIf="selectedAccessGroupIds().length > 0" style="font-size: 12px; font-weight: 600; color: var(--color-brand-primary, #6366f1);">
+                {{ selectedAccessGroupIds().length }} selected
+              </span>
+            </div>
+            <span class="field__hint" style="margin-bottom: 8px; display: block;">
+              Select custom permission bundles to grant specific capabilities to this person.
+            </span>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div
+                *ngFor="let g of accessGroups()"
+                (click)="toggleAccessGroup(g.id)"
+                style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1.5px solid var(--color-border); border-radius: 8px; cursor: pointer; transition: all 0.15s ease;"
+                [style.border-color]="selectedAccessGroupIds().includes(g.id) ? 'var(--color-brand-primary, #6366f1)' : 'var(--color-border)'"
+                [style.background]="selectedAccessGroupIds().includes(g.id) ? 'rgba(99, 102, 241, 0.06)' : 'var(--color-surface)'"
+              >
+                <div style="flex: 1; margin-right: 12px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-weight: 600; font-size: 13px; color: var(--color-text-primary);">{{ g.name }}</span>
+                    <span *ngIf="g.isSystem" style="font-size: 10px; font-weight: 600; background: var(--color-surface-subtle, #f1f5f9); color: var(--color-text-secondary); padding: 2px 6px; border-radius: 4px;">SYSTEM</span>
+                  </div>
+                  <div *ngIf="g.description" style="font-size: 12px; color: var(--color-text-secondary); margin-top: 2px;">
+                    {{ g.description }}
+                  </div>
+                  <div style="font-size: 11px; font-weight: 500; color: var(--color-brand-primary, #6366f1); margin-top: 4px;">
+                    ⚡ {{ g._count?.permissions || 0 }} Capabilities Included
+                  </div>
+                </div>
+                <div
+                  style="width: 20px; height: 20px; border-radius: 4px; border: 1.5px solid var(--color-border); display: flex; align-items: center; justify-content: center;"
+                  [style.border-color]="selectedAccessGroupIds().includes(g.id) ? 'var(--color-brand-primary, #6366f1)' : 'var(--color-border)'"
+                  [style.background]="selectedAccessGroupIds().includes(g.id) ? 'var(--color-brand-primary, #6366f1)' : 'transparent'"
+                >
+                  <netro-icon *ngIf="selectedAccessGroupIds().includes(g.id)" name="check" [size]="12" style="color: #fff;" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

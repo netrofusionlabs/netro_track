@@ -1,6 +1,6 @@
 import { CompanyRepository } from './company.repository';
 import { AppError } from '../../shared/errors/AppError';
-import { Company } from '@prisma/client';
+import { Company, Role } from '@prisma/client';
 import { CreateCompanyWizardInput, UpdateCompanyInput } from '@netrotrack/shared';
 import * as argon2 from 'argon2';
 import { prisma } from '../../shared/config/prisma';
@@ -17,6 +17,7 @@ export class CompanyService {
     return companies.map((c) => ({
       ...c,
       companyLogoUrl: c.logoFile?.objectKey ? storageService.getPublicUrl(c.logoFile.objectKey) : null,
+      entitledSlugs: c.entitlements ? c.entitlements.map((e: any) => e.capability?.slug).filter(Boolean) : [],
     }));
   }
 
@@ -29,6 +30,7 @@ export class CompanyService {
     return {
       ...company,
       companyLogoUrl: company.logoFile?.objectKey ? storageService.getPublicUrl(company.logoFile.objectKey) : null,
+      entitledSlugs: company.entitlements ? company.entitlements.map((e: any) => e.capability?.slug).filter(Boolean) : [],
     };
   }
 
@@ -81,5 +83,35 @@ export class CompanyService {
       );
     }
     return this.companyRepository.softDelete(id);
+  }
+
+  public async resetAdminPassword(companyId: string, customPassword?: string): Promise<{ message: string; email: string; defaultPassword: string }> {
+    await this.getCompanyById(companyId);
+    const defaultPassword = customPassword || 'Password123!';
+    const passwordHash = await argon2.hash(defaultPassword);
+
+    const adminUser = await prisma.user.findFirst({
+      where: {
+        companyId,
+        role: { in: [Role.COMPANY_ADMIN, Role.SUPER_ADMIN] },
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (!adminUser) {
+      throw new AppError('ADMIN_NOT_FOUND', 'No administrator account found for this company', 404);
+    }
+
+    await prisma.user.update({
+      where: { id: adminUser.id },
+      data: { passwordHash, updatedAt: new Date() },
+    });
+
+    return {
+      message: `Administrator password for ${adminUser.name} (${adminUser.email || adminUser.employeeId}) has been reset to ${defaultPassword}`,
+      email: adminUser.email || adminUser.phone || adminUser.employeeId,
+      defaultPassword,
+    };
   }
 }

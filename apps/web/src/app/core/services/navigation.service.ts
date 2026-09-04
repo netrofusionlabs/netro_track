@@ -165,6 +165,14 @@ const IA: NavGroup[] = [
         hint: 'Configure tenant access profiles, roles, and granular capability assignments',
         keywords: ['access', 'groups', 'roles', 'permissions', 'authorization', 'capabilities', 'security'],
       },
+      {
+        label: 'Role Hierarchy',
+        route: '/role-hierarchy',
+        icon: 'hierarchy',
+        roles: ['MASTER_SUPER_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'],
+        hint: 'Configure company role ranks and approval authority levels',
+        keywords: ['role hierarchy', 'ranking', 'ranks', 'approvals', 'authority', 'roles'],
+      },
     ],
   },
   {

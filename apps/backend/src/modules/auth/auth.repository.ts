@@ -1,10 +1,11 @@
 import { prisma } from '../../shared/config/prisma';
-import { User, Device, Session, Company, CompanyModule } from '@prisma/client';
+import { User, Device, Session, Company, CompanyModule, CompanyRole } from '@prisma/client';
 
 export type UserWithCompany = User & {
   company?: (Company & { modules?: CompanyModule[] }) | null;
   manager?: { id: string; name: string; employeeId: string } | null;
   designation?: { id: string; name: string } | null;
+  companyRole?: CompanyRole | null;
 };
 
 export class AuthRepository {
@@ -31,6 +32,7 @@ export class AuthRepository {
         manager: { select: { id: true, name: true, employeeId: true } },
         designation: { select: { id: true, name: true } },
         profilePicture: { select: { objectKey: true } },
+        companyRole: true,
       },
     });
   }
@@ -47,6 +49,7 @@ export class AuthRepository {
         manager: { select: { id: true, name: true, employeeId: true } },
         designation: { select: { id: true, name: true } },
         profilePicture: { select: { objectKey: true } },
+        companyRole: true,
       },
     });
   }
@@ -59,6 +62,7 @@ export class AuthRepository {
         manager: { select: { id: true, name: true, employeeId: true } },
         designation: { select: { id: true, name: true } },
         profilePicture: { select: { objectKey: true } },
+        companyRole: true,
       },
     });
   }

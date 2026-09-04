@@ -1,0 +1,258 @@
+<section class="rh-page">
+
+  <!-- Page Header -->
+  <header class="rh-header">
+    <div class="rh-header-text">
+      <h1 class="rh-title">Role Hierarchy</h1>
+      <p class="rh-subtitle">
+        Define your company's approval authority chain. Lower rank numbers mean higher authority.
+        <strong>Rank 1</strong> is always reserved for the Company Admin.
+      </p>
+    </div>
+    @if (canManage()) {
+      <button class="btn-primary" (click)="openCreate()">
+        <netro-icon name="plus" />
+        Add Role
+      </button>
+    }
+  </header>
+
+  <!-- Error Banner -->
+  @if (error()) {
+    <div class="rh-error" role="alert">
+      <netro-icon name="warning" />
+      <span>{{ error() }}</span>
+      <button class="rh-error-dismiss" (click)="error.set(null)">×</button>
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="rh-loading">
+      @for (i of [1,2,3,4]; track i) {
+        <div class="rh-skeleton"></div>
+      }
+    </div>
+  }
+
+  <!-- Empty State -->
+  @else if (sortedRoles().length === 0 && !loading()) {
+    <div class="rh-empty">
+      <netro-icon name="hierarchy" class="rh-empty-icon" />
+      <h3>No Roles Defined</h3>
+      <p>Create roles to define the approval authority chain for your company.</p>
+      @if (canManage()) {
+        <button class="btn-primary" (click)="openCreate()">Create First Role</button>
+      }
+    </div>
+  }
+
+  <!-- Role List -->
+  @else if (!loading()) {
+    <div class="rh-list" role="list">
+
+      <!-- Legend -->
+      <div class="rh-legend">
+        <span class="legend-item"><span class="rank-badge rank-1">1</span> Highest Authority</span>
+        <span class="legend-item legend-arrow">→</span>
+        <span class="legend-item"><span class="rank-badge rank-normal">N</span> Approves lower ranks</span>
+      </div>
+
+      <!-- Hierarchy visual connector + cards -->
+      @for (role of sortedRoles(); track trackById($index, role); let first = $first; let last = $last) {
+        <div class="rh-entry" role="listitem">
+
+          <!-- Vertical connector line -->
+          @if (!last) {
+            <div class="rh-connector"></div>
+          }
+
+          <!-- Role Card -->
+          <div class="rh-card" [class.rh-card--system]="role.isSystem" [class.rh-card--inactive]="!role.isActive">
+
+            <!-- Rank Badge -->
+            <div [class]="rankBadgeClass(role.rank)">{{ role.rank }}</div>
+
+            <!-- Role Info -->
+            <div class="rh-card-body">
+              <div class="rh-card-name">
+                {{ role.name }}
+                @if (role.isSystem) {
+                  <span class="badge-system">System</span>
+                }
+                @if (!role.isActive) {
+                  <span class="badge-inactive">Inactive</span>
+                }
+              </div>
+              <div class="rh-card-meta">
+                <code class="rh-card-code">{{ role.code }}</code>
+                @if (role.userCount !== undefined) {
+                  <span class="rh-card-users">{{ role.userCount }} {{ role.userCount === 1 ? 'user' : 'users' }}</span>
+                }
+                @if (role.description) {
+                  <span class="rh-card-desc">{{ role.description }}</span>
+                }
+              </div>
+            </div>
+
+            <!-- Actions -->
+            @if (canManage()) {
+              <div class="rh-card-actions">
+
+                <!-- Move Up -->
+                @if (!first && !role.isSystem) {
+                  <button
+                    class="rh-action-btn"
+                    title="Move up (increase authority)"
+                    (click)="moveRank(role, 'up')"
+                  >
+                    <netro-icon name="chevron-up" />
+                  </button>
+                }
+
+                <!-- Move Down -->
+                @if (!last && !role.isSystem) {
+                  <button
+                    class="rh-action-btn"
+                    title="Move down (decrease authority)"
+                    (click)="moveRank(role, 'down')"
+                  >
+                    <netro-icon name="chevron-down" />
+                  </button>
+                }
+
+                <!-- Edit -->
+                <button class="rh-action-btn" title="Edit role" (click)="openEdit(role)">
+                  <netro-icon name="edit" />
+                </button>
+
+                <!-- Delete -->
+                @if (!role.isSystem) {
+                  <button
+                    class="rh-action-btn rh-action-btn--danger"
+                    title="Delete role"
+                    (click)="requestDelete(role)"
+                  >
+                    <netro-icon name="trash" />
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+</section>
+
+<!-- Create / Edit Drawer -->
+@if (drawerOpen()) {
+  <div class="rh-backdrop" (click)="closeDrawer()"></div>
+  <aside class="rh-drawer" role="dialog" [attr.aria-label]="drawerMode() === 'create' ? 'Add Role' : 'Edit Role'">
+
+    <div class="rh-drawer-header">
+      <h2>{{ drawerMode() === 'create' ? 'Add Role' : 'Edit Role' }}</h2>
+      <button class="rh-drawer-close" (click)="closeDrawer()">×</button>
+    </div>
+
+    <div class="rh-drawer-body">
+
+      <!-- Name -->
+      <div class="field">
+        <label for="rh-name">Role Name <span class="required">*</span></label>
+        <input
+          id="rh-name"
+          type="text"
+          placeholder="e.g. HR Head"
+          [value]="form().name"
+          (input)="onNameChange($any($event.target).value)"
+        />
+      </div>
+
+      <!-- Code -->
+      <div class="field">
+        <label for="rh-code">
+          Code <span class="required">*</span>
+          <span class="field-hint">UPPER_SNAKE_CASE — used internally</span>
+        </label>
+        <input
+          id="rh-code"
+          type="text"
+          placeholder="e.g. HR_HEAD"
+          [value]="form().code"
+          [disabled]="drawerMode() === 'edit' && !!selectedRole()?.isSystem"
+          (input)="onCodeChange($any($event.target).value)"
+        />
+      </div>
+
+      <!-- Rank -->
+      <div class="field">
+        <label for="rh-rank">
+          Rank <span class="required">*</span>
+          <span class="field-hint">Lower number = higher authority. Rank 1 is reserved for Company Admin.</span>
+        </label>
+        <input
+          id="rh-rank"
+          type="number"
+          min="2"
+          max="99"
+          [value]="form().rank"
+          [disabled]="selectedRole()?.isSystem"
+          (input)="onRankChange($any($event.target).value)"
+        />
+      </div>
+
+      <!-- Description -->
+      <div class="field">
+        <label for="rh-description">Description</label>
+        <textarea
+          id="rh-description"
+          rows="2"
+          placeholder="Optional description of this role's responsibilities"
+          [value]="form().description"
+          (input)="onDescriptionChange($any($event.target).value)"
+        ></textarea>
+      </div>
+
+      <!-- Active Toggle -->
+      <div class="field field--row">
+        <label for="rh-active" class="field-label-inline">Active</label>
+        <input
+          id="rh-active"
+          type="checkbox"
+          [checked]="form().isActive"
+          (change)="onActiveChange($any($event.target).checked)"
+        />
+        <span class="field-hint">Inactive roles cannot be assigned to users</span>
+      </div>
+
+    </div>
+
+    <div class="rh-drawer-footer">
+      <button class="btn-ghost" (click)="closeDrawer()" [disabled]="saving()">Cancel</button>
+      <button class="btn-primary" (click)="save()" [disabled]="saving() || !form().name || !form().code">
+        @if (saving()) { Saving… } @else { {{ drawerMode() === 'create' ? 'Create Role' : 'Save Changes' }} }
+      </button>
+    </div>
+  </aside>
+}
+
+<!-- Delete Confirmation Dialog -->
+@if (deleteConfirmId()) {
+  <div class="rh-backdrop" (click)="cancelDelete()"></div>
+  <div class="rh-confirm" role="alertdialog" aria-modal="true">
+    <div class="rh-confirm-icon">
+      <netro-icon name="warning" />
+    </div>
+    <h3>Delete Role</h3>
+    <p>
+      Are you sure you want to delete <strong>{{ deleteCandidate?.name }}</strong>?
+      This action cannot be undone. Users assigned to this role will be unlinked.
+    </p>
+    <div class="rh-confirm-actions">
+      <button class="btn-ghost" (click)="cancelDelete()">Cancel</button>
+      <button class="btn-danger" (click)="confirmDelete()">Delete Role</button>
+    </div>
+  </div>
+}

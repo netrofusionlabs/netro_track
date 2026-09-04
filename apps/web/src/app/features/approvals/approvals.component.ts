@@ -6,7 +6,8 @@ import { ApiService, apiError } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { PulseService } from '../../core/services/pulse.service';
-import { Regularization, RegularizationStatus } from '../../core/models/domain';
+import { ApprovalAction, Regularization, RegularizationStatus } from '../../core/models/domain';
+import { API } from '../../core/models/endpoints';
 import { clock, dayLabel, duration, relativeTime } from '../../core/utils/format';
 
 import { NetroIcon } from '../../ui/icon';
@@ -75,6 +76,8 @@ export class ApprovalsComponent {
   /** The request open in the review drawer. */
   readonly reviewing = signal<Regularization | null>(null);
   readonly remarks = signal('');
+  readonly approvalHistory = signal<ApprovalAction[]>([]);
+  readonly loadingHistory = signal(false);
 
   readonly tabs = computed(() => [
     { value: 'PENDING', label: 'Awaiting decision', icon: 'clock' as const, count: this.pendingCount(), urgent: true },
@@ -160,6 +163,20 @@ export class ApprovalsComponent {
   open(request: Regularization): void {
     this.reviewing.set(request);
     this.remarks.set('');
+    this.approvalHistory.set([]);
+    this.loadingHistory.set(true);
+    this.api
+      .get<ApprovalAction[]>(API.approvalHistory('REGULARIZATION', request.id))
+      .subscribe({
+        next: res => {
+          this.approvalHistory.set(Array.isArray(res.data) ? res.data : []);
+          this.loadingHistory.set(false);
+        },
+        error: () => {
+          this.approvalHistory.set([]);
+          this.loadingHistory.set(false);
+        },
+      });
   }
 
   close(): void {

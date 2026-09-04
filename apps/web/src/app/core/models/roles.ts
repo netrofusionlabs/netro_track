@@ -104,4 +104,5 @@ export const CAN = {
   manageCatalogue: ['SUPER_ADMIN', 'COMPANY_ADMIN'] as const,
   manageCustomers: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'] as const,
   deleteCustomers: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'HR'] as const,
+  manageRoleHierarchy: ['MASTER_SUPER_ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN'] as const,
 };

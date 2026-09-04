@@ -96,4 +96,11 @@ export const API = {
   userAccessGroups: (userId: string) => `/authorization/users/${userId}/access-groups`,
   userDirectPermissions: (userId: string) => `/authorization/users/${userId}/direct-permissions`,
   tenantEntitlements: (companyId: string) => `/authorization/companies/${companyId}/entitlements`,
+
+  /** Role Hierarchy */
+  roleHierarchy: '/role-hierarchy',
+  roleHierarchyReorder: '/role-hierarchy/reorder',
+  roleHierarchyItem: (id: string) => `/role-hierarchy/${id}`,
+  approvalHistory: (requestType: string, requestId: string) =>
+    `/role-hierarchy/approval-history/${requestType}/${requestId}`,
 } as const;

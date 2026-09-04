@@ -64,6 +64,44 @@ export function directReports(person: Person): number {
   return person.subordinateCount ?? person._count?.subordinates ?? 0;
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Role Hierarchy
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface CompanyRole {
+  id: string;
+  companyId: string;
+  name: string;
+  code: string;
+  rank: number;
+  description?: string | null;
+  isSystem: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  userCount?: number;
+}
+
+export interface ApprovalAction {
+  id: string;
+  companyId: string;
+  requestType: string;
+  requestId: string;
+  action: string;
+  remarks?: string | null;
+  approverId: string;
+  approverName: string;
+  approverRole: string;
+  approverRoleRank?: number | null;
+  approverCompanyRoleName?: string | null;
+  requesterId: string;
+  requesterName: string;
+  requesterRole: string;
+  requesterRoleRank?: number | null;
+  requesterCompanyRoleName?: string | null;
+  createdAt: string;
+}
+
 /**
  * A node in the organisation chart. The `/users/org-chart/*` endpoints project
  * a flatter shape than `/users`, with its own `subordinatesCount` spelling.

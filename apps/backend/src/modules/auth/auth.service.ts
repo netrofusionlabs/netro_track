@@ -87,7 +87,14 @@ export class AuthService {
     const permissionService = (await import('../../shared/services/permission.service')).PermissionService.getInstance();
     const permissions = user.companyId ? Array.from(await permissionService.getEffectivePermissions(user.id, user.companyId)) : [];
     const companyEntitledSlugs = user.companyId ? Array.from(await permissionService.getTenantEntitledSlugs(user.companyId)) : [];
-    
+
+    // Fetch company role hierarchy for mobile/web consumption
+    const { RoleHierarchyService } = await import('../role-hierarchy/role-hierarchy.service');
+    const hierarchyService = new RoleHierarchyService();
+    const roleHierarchy = user.companyId
+      ? await hierarchyService.getRoleHierarchyConfig(user.companyId).catch(() => null)
+      : null;
+
     return {
       accessToken,
       refreshToken,
@@ -117,6 +124,15 @@ export class AuthService {
         designationName: (user as any).designation?.name ?? null,
         designation: (user as any).designation ?? null,
         profilePictureUrl: (user as any).profilePicture?.objectKey ? storageService.getPublicUrl((user as any).profilePicture.objectKey) : null,
+        companyRole: user.companyRole
+          ? {
+              id: user.companyRole.id,
+              name: user.companyRole.name,
+              code: user.companyRole.code,
+              rank: user.companyRole.rank,
+            }
+          : null,
+        roleHierarchy,
       }
     };
   }
@@ -155,6 +171,12 @@ export class AuthService {
     const permissions = user.companyId ? Array.from(await permissionService.getEffectivePermissions(user.id, user.companyId)) : [];
     const companyEntitledSlugs = user.companyId ? Array.from(await permissionService.getTenantEntitledSlugs(user.companyId)) : [];
 
+    const { RoleHierarchyService } = await import('../role-hierarchy/role-hierarchy.service');
+    const hierarchyService = new RoleHierarchyService();
+    const roleHierarchy = user.companyId
+      ? await hierarchyService.getRoleHierarchyConfig(user.companyId).catch(() => null)
+      : null;
+
     return {
       id: user.id,
       companyId: user.companyId,
@@ -179,6 +201,15 @@ export class AuthService {
       hasMpin: !!user.mpinHash,
       bloodGroup: user.bloodGroup ?? null,
       profilePictureUrl: (user as any).profilePicture?.objectKey ? storageService.getPublicUrl((user as any).profilePicture.objectKey) : null,
+      companyRole: user.companyRole
+        ? {
+            id: user.companyRole.id,
+            name: user.companyRole.name,
+            code: user.companyRole.code,
+            rank: user.companyRole.rank,
+          }
+        : null,
+      roleHierarchy,
     };
   }
 

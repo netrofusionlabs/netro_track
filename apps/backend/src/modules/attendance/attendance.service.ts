@@ -11,12 +11,14 @@ import { prisma } from '../../shared/config/prisma';
 import { broadcastEmployeeStatus } from '../../shared/config/socket';
 import { AttendancePolicyService } from '../attendance-policy/attendance-policy.service';
 import { PunchConfig } from '@netrotrack/shared';
+import { ApprovalService } from '../../shared/services/approval.service';
 
 import { calculateHaversineDistance } from '../../shared/utils/distance';
 
 export class AttendanceService {
   private attendanceRepository = new AttendanceRepository();
   private policyService = new AttendancePolicyService();
+  private approvalService = new ApprovalService();
 
   private validateEvidence(config: PunchConfig, evidence: Record<string, unknown> | null | undefined, latitude: number, longitude: number) {
     const payload = (evidence || {}) as Record<string, unknown>;
@@ -519,9 +521,21 @@ export class AttendanceService {
       throw new AppError('ALREADY_REVIEWED', 'Regularization request has already been reviewed', 400);
     }
 
-    // Authorization verification: verify reviewer is supervisor/authorized if reviewer is MANAGER
+    // Authorization: use the approval service hierarchy check
+    const approvalCheck = await this.approvalService.canApprove(reviewerId, {
+      requestType: 'ATTENDANCE_REGULARIZATION',
+      requestId: id,
+      requesterId: request.userId,
+      requesterCompanyId: companyId,
+      requestStatus: request.status,
+    });
+    if (!approvalCheck.allowed) {
+      throw new AppError('UNAUTHORIZED', approvalCheck.reason ?? 'You are not authorized to review this request', 403);
+    }
+
+    // For MANAGER role, also verify direct subordinate relationship
     const reviewer = await prisma.user.findFirst({ where: { id: reviewerId } });
-    if (reviewer?.role === 'MANAGER') {
+    if (reviewer?.role === 'MANAGER' && !['COMPANY_ADMIN', 'HR', 'SUPER_ADMIN', 'MASTER_SUPER_ADMIN'].includes(reviewer.role)) {
       const subordinates = await this.attendanceRepository.findSubordinateIds(companyId, reviewerId);
       if (!subordinates.includes(request.userId)) {
         throw new AppError('UNAUTHORIZED', 'You are not authorized to review this request', 403);
@@ -611,7 +625,20 @@ export class AttendanceService {
     }
 
     // Update regularization request status
-    return this.attendanceRepository.updateRegularizationStatus(id, action, reviewerId, remarks, attendanceId);
+    const result = await this.attendanceRepository.updateRegularizationStatus(id, action, reviewerId, remarks, attendanceId);
+
+    // Record the immutable approval audit trail
+    await this.approvalService.recordApprovalAction({
+      companyId,
+      requestType: 'ATTENDANCE_REGULARIZATION',
+      requestId: id,
+      action,
+      remarks: remarks ?? null,
+      approverId: reviewerId,
+      requesterId: request.userId,
+    });
+
+    return result;
   }
 
   public async bulkReviewRegularizations(
@@ -626,12 +653,13 @@ export class AttendanceService {
     }
 
     const reviewer = await prisma.user.findFirst({ where: { id: reviewerId } });
-    const subordinateIds = reviewer?.role === 'MANAGER'
+    const isManagerRole = reviewer?.role === 'MANAGER';
+    const subordinateIds = isManagerRole
       ? await this.attendanceRepository.findSubordinateIds(companyId, reviewerId)
       : [];
 
-    return prisma.$transaction(async (tx) => {
-      const results = [];
+    const results = await prisma.$transaction(async (tx) => {
+      const items = [];
       for (const id of ids) {
         const request = await tx.attendanceRegularization.findUnique({
           where: { id },
@@ -649,11 +677,21 @@ export class AttendanceService {
           throw new AppError('ALREADY_REVIEWED', `Regularization request ${id} has already been reviewed`, 400);
         }
 
-        // Hierarchy authentication check
-        if (reviewer?.role === 'MANAGER') {
-          if (!subordinateIds.includes(request.userId)) {
-            throw new AppError('UNAUTHORIZED', `You are not authorized to review request ${id}`, 403);
-          }
+        // Use approval service hierarchy check
+        const approvalCheck = await this.approvalService.canApprove(reviewerId, {
+          requestType: 'ATTENDANCE_REGULARIZATION',
+          requestId: id,
+          requesterId: request.userId,
+          requesterCompanyId: companyId,
+          requestStatus: request.status,
+        });
+        if (!approvalCheck.allowed) {
+          throw new AppError('UNAUTHORIZED', approvalCheck.reason ?? `You are not authorized to review request ${id}`, 403);
+        }
+
+        // For MANAGER role, also enforce direct subordinate relationship
+        if (isManagerRole && !subordinateIds.includes(request.userId)) {
+          throw new AppError('UNAUTHORIZED', `You are not authorized to review request ${id}`, 403);
         }
 
         let attendanceId = request.attendanceId;
@@ -726,9 +764,24 @@ export class AttendanceService {
             attendanceId
           }
         });
-        results.push(updated);
+        items.push({ updated, requesterId: request.userId });
       }
-      return results;
+      return items;
     });
+
+    // Record audit trails outside the transaction (fire-and-forget on error)
+    for (const { updated, requesterId } of results as Array<{ updated: any; requesterId: string }>) {
+      await this.approvalService.recordApprovalAction({
+        companyId,
+        requestType: 'ATTENDANCE_REGULARIZATION',
+        requestId: updated.id,
+        action,
+        remarks: remarks ?? null,
+        approverId: reviewerId,
+        requesterId,
+      }).catch(() => {/* non-critical — don't fail the bulk operation */});
+    }
+
+    return (results as Array<{ updated: any }>).map((r) => r.updated);
   }
 }

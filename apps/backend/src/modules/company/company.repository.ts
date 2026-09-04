@@ -90,8 +90,8 @@ export class CompanyRepository {
         },
       });
 
-      // 2. Create Company Admin User
-      await tx.user.create({
+      // 2. Create Company Admin User (temporarily without companyRoleId — assigned below)
+      const adminUser = await tx.user.create({
         data: {
           companyId: company.id,
           employeeId: 'ADMIN-001',
@@ -103,6 +103,31 @@ export class CompanyRepository {
           status: UserStatus.ACTIVE,
           isGpsTracked: payload.modules.gps,
         },
+      });
+
+      // 2a. Create default CompanyRole hierarchy for this company
+      const companyAdminRole = await tx.companyRole.create({
+        data: {
+          companyId: company.id,
+          name: 'Company Admin',
+          code: 'COMPANY_ADMIN',
+          rank: 1,
+          isSystem: true,
+        },
+      });
+      await tx.companyRole.createMany({
+        data: [
+          { companyId: company.id, name: 'HR',       code: 'HR',       rank: 2, isSystem: false },
+          { companyId: company.id, name: 'Manager',   code: 'MANAGER',  rank: 3, isSystem: false },
+          { companyId: company.id, name: 'Employee',  code: 'EMPLOYEE', rank: 5, isSystem: false },
+        ],
+        skipDuplicates: true,
+      });
+
+      // 2b. Assign the admin user to the Company Admin role
+      await tx.user.update({
+        where: { id: adminUser.id },
+        data: { companyRoleId: companyAdminRole.id },
       });
 
       // 3. Create Dynamic Capability Entitlements

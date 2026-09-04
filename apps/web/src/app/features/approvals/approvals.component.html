@@ -246,6 +246,37 @@
         </div>
       </dl>
 
+      <!-- Role Hierarchy Audit Trail -->
+      @if (approvalHistory().length > 0) {
+        <section class="audit-trail">
+          <p class="eyebrow" style="margin-bottom: 8px">Hierarchy Decision Trail</p>
+          <div class="audit-trail__list">
+            @for (item of approvalHistory(); track item.id) {
+              <div class="audit-step">
+                <div class="audit-step__marker" [class.is-approved]="item.action === 'APPROVED'" [class.is-rejected]="item.action === 'REJECTED'">
+                  <netro-icon [name]="item.action === 'APPROVED' ? 'check' : 'x'" [size]="12" />
+                </div>
+                <div class="audit-step__content">
+                  <div class="audit-step__header">
+                    <span class="audit-step__actor">{{ item.approverName }}</span>
+                    <span class="audit-step__rank" *ngIf="item.approverRoleRank != null">
+                      Rank {{ item.approverRoleRank }} · {{ item.approverCompanyRoleName || item.approverRole }}
+                    </span>
+                    <span class="audit-step__time">{{ ago(item.createdAt) }}</span>
+                  </div>
+                  <div class="audit-step__action">
+                    <span class="audit-step__badge" [class.is-approved]="item.action === 'APPROVED'" [class.is-rejected]="item.action === 'REJECTED'">
+                      {{ item.action }}
+                    </span>
+                    <span class="audit-step__remarks" *ngIf="item.remarks">"{{ item.remarks }}"</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
       @if (request.status === 'PENDING') {
         <label class="field">
           <span class="field__label">

@@ -4,8 +4,8 @@ import { Company, Role } from '@prisma/client';
 import { CreateCompanyWizardInput, UpdateCompanyInput } from '@netrotrack/shared';
 import * as argon2 from 'argon2';
 import { prisma } from '../../shared/config/prisma';
-
 import { StorageService } from '../../shared/services/storage.service';
+import { provisionCompanyDefaults } from '../../shared/services/company-provisioning.service';
 
 export class CompanyService {
   private companyRepository = new CompanyRepository();
@@ -49,15 +49,21 @@ export class CompanyService {
     }
 
     const existingAdmin = await prisma.user.findUnique({
-      where: { email: payload.admin.email }
+      where: { email: payload.admin.email },
     });
-    
+
     if (existingAdmin) {
       throw new AppError('EMAIL_ALREADY_EXISTS', 'Admin email is already registered', 409);
     }
 
     const adminPasswordHash = await argon2.hash(payload.admin.password);
-    return this.companyRepository.createWizard(payload, adminPasswordHash);
+    const company = await this.companyRepository.createWizard(payload, adminPasswordHash);
+
+    // Auto-provision full entitlements + default access groups for the new tenant.
+    // Runs outside the wizard transaction so it never blocks the main creation.
+    await provisionCompanyDefaults(company.id);
+
+    return company;
   }
 
   public async updateCompany(id: string, payload: UpdateCompanyInput): Promise<Company> {

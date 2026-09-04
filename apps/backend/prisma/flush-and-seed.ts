@@ -1,6 +1,7 @@
 import { PrismaClient, Role, UserStatus, TimelineEventType, PolicyType, ModuleType } from '@prisma/client';
 import { ROLE_DISPLAY_LABELS, UserRole } from '@netrotrack/shared';
 import * as argon2 from 'argon2';
+import { seedCapabilitiesAndEntitlements } from './seed-capabilities';
 
 const prisma = new PrismaClient();
 
@@ -222,6 +223,9 @@ async function flushAndSeed() {
 
     console.log(`✓ User created: ${seededUser.name} [${seededUser.employeeId}] (${seededUser.email})`);
   }
+
+  console.log('\n🌱 [4/4] Seeding System Capabilities & Access Control...');
+  await seedCapabilitiesAndEntitlements();
 
   console.log('\n======================================================');
   console.log('✅ DATABASE FLUSH & SEED COMPLETE');

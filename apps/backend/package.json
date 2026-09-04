@@ -9,6 +9,8 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "db:flush-seed": "ts-node prisma/flush-and-seed.ts",
+    "db:provision-companies": "ts-node prisma/backfill-company-provisioning.ts",
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts"

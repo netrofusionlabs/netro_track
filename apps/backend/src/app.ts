@@ -38,6 +38,7 @@ import { profileRouter } from './modules/profile/profile.routes';
 import { attendancePolicyRouter } from './modules/attendance-policy/attendance-policy.routes';
 import { policyRouter } from './modules/policy/policy.routes';
 import { authorizationRouter } from './modules/authorization/authorization.routes';
+import { roleHierarchyRouter } from './modules/role-hierarchy/role-hierarchy.routes';
 import path from 'path';
 
 // Static assets serving
@@ -46,6 +47,7 @@ app.use('/static/uploads', express.static(path.join(__dirname, '../public/upload
 // Register routes
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/authorization', authorizationRouter);
+app.use('/api/v1/role-hierarchy', roleHierarchyRouter);
 app.use('/api/v1/users/me', profileRouter);
 app.use('/api/v1/user-management', userManagementRouter);
 app.use('/api/v1/companies', companyRouter);

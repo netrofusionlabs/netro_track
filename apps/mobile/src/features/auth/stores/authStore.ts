@@ -2,6 +2,14 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { zustandStorage, storage } from '../../../shared/utils/storage';
 
+export interface CompanyRoleSummary {
+  id: string;
+  name: string;
+  code: string;
+  rank: number;
+  isSystem: boolean;
+}
+
 export interface UserProfile {
   id: string;
   companyId: string;
@@ -10,6 +18,9 @@ export interface UserProfile {
   employeeId: string;
   name: string;
   role: string;
+  companyRole?: CompanyRoleSummary | null;
+  roleRank?: number;
+  roleHierarchy?: CompanyRoleSummary[];
   isMasterAdmin?: boolean;
   isGpsEnabled?: boolean;
   isRegularizationEnabled?: boolean;

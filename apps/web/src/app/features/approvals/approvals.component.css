@@ -90,3 +90,95 @@
   color: var(--fg-muted);
   line-height: 1.6;
 }
+
+/* ── Audit Trail ──────────────────────────────────────────────────────────── */
+.audit-trail {
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--r-md);
+  padding: var(--s-3);
+  background: var(--surface-sunken);
+}
+.audit-trail__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.audit-step {
+  display: flex;
+  gap: var(--s-2);
+  align-items: flex-start;
+  font: var(--t-small);
+}
+.audit-step__marker {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--fg-muted);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.audit-step__marker.is-approved {
+  background: var(--tone-ok-surface, rgba(16, 185, 129, 0.1));
+  border-color: var(--tone-ok, #10b981);
+  color: var(--tone-ok, #10b981);
+}
+.audit-step__marker.is-rejected {
+  background: var(--tone-risk-surface, rgba(239, 68, 68, 0.1));
+  border-color: var(--tone-risk, #ef4444);
+  color: var(--tone-risk, #ef4444);
+}
+.audit-step__content {
+  flex: 1;
+  min-width: 0;
+}
+.audit-step__header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.audit-step__actor {
+  font-weight: 600;
+  color: var(--fg);
+}
+.audit-step__rank {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--fg-subtle);
+}
+.audit-step__time {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--fg-faint);
+}
+.audit-step__action {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: 2px;
+}
+.audit-step__badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.audit-step__badge.is-approved {
+  color: var(--tone-ok, #10b981);
+}
+.audit-step__badge.is-rejected {
+  color: var(--tone-risk, #ef4444);
+}
+.audit-step__remarks {
+  font-style: italic;
+  color: var(--fg-muted);
+}
+

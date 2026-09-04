@@ -17,3 +17,4 @@ export * from './schemas/policy.validator';
 export * from './schemas/branch.validator';
 export * from './schemas/department.validator';
 export * from './schemas/authorization.validator';
+export * from './schemas/role-hierarchy.validator';

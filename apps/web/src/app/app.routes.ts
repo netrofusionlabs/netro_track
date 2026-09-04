@@ -134,6 +134,13 @@ export const routes: Routes = [
           import('./features/access-groups/access-groups.component').then(m => m.AccessGroupsComponent),
       },
       {
+        path: 'role-hierarchy',
+        title: 'Role Hierarchy · NetroTrack',
+        data: { roles: CAN.manageRoleHierarchy },
+        loadComponent: () =>
+          import('./features/role-hierarchy/role-hierarchy.component').then(m => m.RoleHierarchyComponent),
+      },
+      {
         path: 'platform-capabilities',
         title: 'Platform Capabilities · NetroTrack',
         data: { roles: CAN.administerPlatform },

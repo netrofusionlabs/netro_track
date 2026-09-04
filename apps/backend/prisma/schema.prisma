@@ -28,6 +28,58 @@ enum Role {
   EMPLOYEE
 }
 
+/// Company-specific role with a configurable rank for approval hierarchy
+model CompanyRole {
+  id          String    @id @default(uuid()) @db.Uuid
+  companyId   String    @map("company_id") @db.Uuid
+  name        String
+  code        String
+  rank        Int
+  description String?
+  isSystem    Boolean   @default(false) @map("is_system")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users   User[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, rank])
+  @@index([companyId, isActive])
+  @@map("company_roles")
+}
+
+/// Immutable audit trail for every approval/rejection action
+model ApprovalAction {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  requestType String   @map("request_type")
+  requestId   String   @map("request_id") @db.Uuid
+  action      String
+  remarks     String?
+
+  approverId              String  @map("approver_id") @db.Uuid
+  approverName            String  @map("approver_name")
+  approverRole            String  @map("approver_role")
+  approverRoleRank        Int?    @map("approver_role_rank")
+  approverCompanyRoleName String? @map("approver_company_role_name")
+
+  requesterId              String  @map("requester_id") @db.Uuid
+  requesterName            String  @map("requester_name")
+  requesterRole            String  @map("requester_role")
+  requesterRoleRank        Int?    @map("requester_role_rank")
+  requesterCompanyRoleName String? @map("requester_company_role_name")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([companyId, requestType, requestId])
+  @@index([approverId])
+  @@index([requesterId])
+  @@map("approval_actions")
+}
+
 enum CompanyStatus {
   ACTIVE
   INACTIVE
@@ -112,6 +164,7 @@ model Company {
   entitlements   CompanyEntitlement[]
   accessGroups   AccessGroup[]
   directPermissions UserDirectPermission[]
+  companyRoles   CompanyRole[]
 
   @@map("companies")
 }
@@ -156,6 +209,7 @@ model User {
   designationId         String?    @map("designation_id") @db.Uuid
   attendancePolicyId    String?    @map("attendance_policy_id") @db.Uuid
   profilePictureFileId  String?    @unique @map("profile_picture_file_id") @db.Uuid
+  companyRoleId         String?    @map("company_role_id") @db.Uuid
   createdAt             DateTime   @default(now()) @map("created_at")
   updatedAt             DateTime   @updatedAt @map("updated_at")
   deletedAt             DateTime?  @map("deleted_at")
@@ -169,6 +223,7 @@ model User {
   designation         Designation?        @relation(fields: [designationId], references: [id])
   attendancePolicy    AttendancePolicy?   @relation(fields: [attendancePolicyId], references: [id], onDelete: SetNull)
   profilePicture      File?               @relation("UserProfilePicture", fields: [profilePictureFileId], references: [id], onDelete: SetNull)
+  companyRole         CompanyRole?        @relation(fields: [companyRoleId], references: [id], onDelete: SetNull)
   devices             Device[]
   sessions            Session[]
   attendances         Attendance[]
